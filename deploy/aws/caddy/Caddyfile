@@ -1,0 +1,32 @@
+# The edge for customer domains on AWS. Runs as its own ECS service behind a
+# Network Load Balancer (TCP 80/443 pass-through), because an Application Load
+# Balancer cannot issue certificates for domains customers add at runtime.
+# Certificates and the ACME account persist on the mounted EFS volume at /data.
+#
+# The platform host (app.yourdomain.com) stays on the ALB with an ACM certificate;
+# only *customer* domains point (CNAME) at this service's NLB, sites.yourdomain.com.
+{
+  email ops@yourdomain.com
+  storage file_system { root /data }
+  on_demand_tls {
+    # Caddy asks the app whether to issue a certificate for a hostname:
+    # 200 only for a verified domain with a live site (rate-limited, no body).
+    ask http://{$APP_INTERNAL_HOST}:3000/api/v1/domains/ask
+  }
+}
+
+https:// {
+  tls { on_demand }
+  encode zstd gzip
+  reverse_proxy {$APP_INTERNAL_HOST}:3000 {
+    # Overwrite, never append: the app reads the first address (or set TRUST_PROXY=xff-last on the app).
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto https
+    health_uri /api/v1/health/live
+    health_interval 15s
+  }
+}
+
+http:// {
+  redir https://{host}{uri} permanent
+}

@@ -1,0 +1,40 @@
+/* Mail's full-screen reader: it rises in, conversations crossfade as you move
+   between them, and it settles away on exit. Calmed by prefers-reduced-motion. */
+
+@keyframes mail-reader-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mail-reader-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(8px) scale(0.985); }
+}
+@keyframes mail-reader-swap-next {
+  from { opacity: 0; transform: translateX(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mail-reader-swap-prev {
+  from { opacity: 0; transform: translateX(-18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mail-reader-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.mail-reader { animation: mail-reader-in 260ms var(--ease) both; }
+.mail-reader[data-closing="true"] { animation: mail-reader-out 180ms ease-in both; }
+.mail-reader-backdrop { animation: mail-reader-backdrop 220ms ease-out both; }
+.mail-reader-backdrop[data-closing="true"] { animation: mail-reader-backdrop 180ms ease-in reverse both; }
+.mail-swap-next { animation: mail-reader-swap-next 240ms var(--ease) both; }
+.mail-swap-prev { animation: mail-reader-swap-prev 240ms var(--ease) both; }
+.mail-swap-none { animation: mail-reader-backdrop 200ms ease-out both; }
+
+.mail-reader-bar {
+  background: color-mix(in oklab, var(--surface-solid) 84%, transparent);
+  backdrop-filter: blur(16px) saturate(1.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+}
+
+/* The page behind doesn't scroll while the reader is open. */
+html[data-mail-reader] { overflow: hidden; }

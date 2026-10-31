@@ -1,0 +1,1 @@
+ALTER TABLE "mail_messages" ADD COLUMN "group_send" jsonb;

@@ -1,0 +1,1 @@
+ALTER TABLE "store_order_items" ADD COLUMN "hsn" text DEFAULT '' NOT NULL;

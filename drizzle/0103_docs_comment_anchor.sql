@@ -1,0 +1,1 @@
+ALTER TABLE "doc_comments" ADD COLUMN "anchor" jsonb;

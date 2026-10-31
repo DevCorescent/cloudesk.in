@@ -1,0 +1,2 @@
+DROP INDEX "portal_invoices_no_uq";--> statement-breakpoint
+CREATE UNIQUE INDEX "portal_invoices_no_uq" ON "portal_invoices" USING btree ("org_id","supplier_id",upper("invoice_no")) WHERE "portal_invoices"."status" <> 'rejected';

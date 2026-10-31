@@ -1,0 +1,22 @@
+node_modules
+.next
+.git
+.github
+.smoke
+test-results
+test-results *
+playwright-report
+.env*
+*.log
+# Not needed to build or run the app
+video
+media
+biz
+docs
+e2e
+tests
+scripts/marketing
+deploy
+*.png
+*.html
+out

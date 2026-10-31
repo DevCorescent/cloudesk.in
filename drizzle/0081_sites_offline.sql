@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "sites_offline" boolean DEFAULT false NOT NULL;

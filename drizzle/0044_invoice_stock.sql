@@ -1,0 +1,1 @@
+ALTER TABLE "invoice_items" ADD COLUMN "inv_item_id" uuid;

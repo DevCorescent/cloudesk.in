@@ -1,0 +1,277 @@
+<title>Cloudesk Go-Live Readiness</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;700&family=Public+Sans:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single reading column (a release dossier) with full-width data tables and two side-by-side charts. */
+:root {
+  --paper: #f6f7f8;
+  --sheet: #ffffff;
+  --ink: #16202b;
+  --muted: #5a6673;
+  --rule: #dfe3e8;
+  --accent: #0f6b72;
+  --accent-soft: #e3f1f1;
+  --pass: #1d7a4c;
+  --pass-soft: #e4f3ea;
+  --warn: #9a5b00;
+  --warn-soft: #fbf0dc;
+  --risk: #b3261e;
+  --risk-soft: #fbe6e4;
+  --info: #45556a;
+  --info-soft: #eceff3;
+  --bar: #0f6b72;
+  --line2: #c06a1b;
+  --font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1418; --sheet: #161d23; --ink: #e6ebef; --muted: #9aa6b2; --rule: #2a343d;
+    --accent: #5cc3c9; --accent-soft: #15302f; --pass: #5dd39a; --pass-soft: #14301f;
+    --warn: #f0b35a; --warn-soft: #33270f; --risk: #ff8a80; --risk-soft: #3a1a18; --info: #aab6c3; --info-soft: #222b33;
+    --bar: #4fb6bc; --line2: #f0a35a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1418; --sheet: #161d23; --ink: #e6ebef; --muted: #9aa6b2; --rule: #2a343d;
+  --accent: #5cc3c9; --accent-soft: #15302f; --pass: #5dd39a; --pass-soft: #14301f;
+  --warn: #f0b35a; --warn-soft: #33270f; --risk: #ff8a80; --risk-soft: #3a1a18; --info: #aab6c3; --info-soft: #222b33;
+  --bar: #4fb6bc; --line2: #f0a35a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.6 var(--font-body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 72px; display: grid; gap: 40px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font: 600 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 clamp(30px, 5vw, 44px)/1.08 var(--font-display); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+h2 { font: 700 22px/1.2 var(--font-display); letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+h3 { font: 600 15px/1.3 var(--font-body); margin: 0; }
+p { margin: 0; max-width: 68ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--muted); font-size: 13px; }
+.verdict { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: start; background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--pass); border-radius: 10px; padding: 18px 20px; }
+.verdict .tag { font: 700 13px/1 var(--font-mono); color: var(--pass); background: var(--pass-soft); padding: 8px 10px; border-radius: 6px; white-space: nowrap; }
+.verdict p { font-size: 16px; }
+.figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.fig { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; }
+.fig b { font: 700 26px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.fig span { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+section { display: grid; gap: 16px; }
+section > .lead { color: var(--ink); }
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+th { font: 600 11.5px/1.3 var(--font-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); background: color-mix(in srgb, var(--paper) 60%, var(--sheet)); white-space: nowrap; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td code, p code, li code { font: 12.5px var(--font-mono); background: var(--info-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.pill { display: inline-block; font: 600 11.5px/1 var(--font-mono); padding: 5px 8px; border-radius: 999px; white-space: nowrap; }
+.pass { color: var(--pass); background: var(--pass-soft); }
+.warn { color: var(--warn); background: var(--warn-soft); }
+.risk { color: var(--risk); background: var(--risk-soft); }
+.info { color: var(--info); background: var(--info-soft); }
+.fixed { color: var(--accent); background: var(--accent-soft); }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+figure { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 14px 10px; display: grid; gap: 6px; min-width: 0; }
+figcaption { font-size: 13px; color: var(--muted); }
+figcaption b { color: var(--ink); font-weight: 600; }
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: var(--font-mono); font-size: 10px; fill: var(--muted); }
+svg .grid { stroke: var(--rule); stroke-width: 1; }
+svg .bar { fill: var(--bar); }
+svg .val { fill: var(--ink); font-weight: 600; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.notes { display: grid; gap: 10px; padding-left: 20px; margin: 0; }
+.notes li { max-width: 72ch; }
+.checklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; }
+.checklist li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+.checklist li:last-child { border-bottom: 0; }
+.box { width: 16px; height: 16px; border: 1.5px solid var(--muted); border-radius: 4px; margin-top: 3px; }
+.checklist b { font-weight: 600; }
+.small { font-size: 13px; color: var(--muted); }
+footer { font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+@media (max-width: 760px) {
+  .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .charts { grid-template-columns: minmax(0, 1fr); }
+  .verdict { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Release review · backend</p>
+    <h1>Cloudesk go-live readiness</h1>
+    <div class="meta"><span>30 October 2026</span><span>Build: Next.js 16.4.2 production bundle</span><span>Target: AWS ECS + RDS Postgres</span></div>
+    <div class="verdict">
+      <span class="tag">READY TO DEPLOY</span>
+      <p>Every release gate passes. One high-severity dependency flaw was found and fixed during the review. 65 of 66 live attack checks passed, and the 66th was refused more strictly than the test expected. Under load the app returned zero errors up to 200 concurrent users; one web server tops out near 230 requests per second, so run at least two web tasks.</p>
+    </div>
+    <div class="figures">
+      <div class="fig"><b>1,438</b><span>automated tests passing, 187 files</span></div>
+      <div class="fig"><b>66 / 66</b><span>live security checks safe (one stricter than expected)</span></div>
+      <div class="fig"><b>0</b><span>production dependency vulnerabilities after the fix</span></div>
+      <div class="fig"><b>0%</b><span>errors under load, 10 to 200 concurrent users</span></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Release gates</h2>
+    <p class="lead">All gates were run on a clean copy of the code with the production configuration.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Gate</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Type check</td><td><span class="pill pass">Pass</span></td><td>0 errors, whole project.</td></tr>
+        <tr><td>Lint</td><td><span class="pill pass">Pass</span></td><td>0 errors, 0 warnings with <code>--max-warnings=0</code>. Vendored PDF.js files are now excluded from linting.</td></tr>
+        <tr><td>Production build</td><td><span class="pill pass">Pass</span></td><td>296 routes built in 75 s.</td></tr>
+        <tr><td>Automated tests</td><td><span class="pill pass">Pass</span></td><td>1,438 tests in 187 files (unit and integration against Postgres), 3 min 17 s.</td></tr>
+        <tr><td>Database migrations</td><td><span class="pill pass">Pass</span></td><td>All 104 migrations apply to an empty database (416 tables). A second run changes nothing, so redeploys are safe.</td></tr>
+        <tr><td>Dependency audit</td><td><span class="pill pass">Pass</span></td><td>0 vulnerabilities in production packages. 4 moderate ones remain in dev-only tooling (drizzle-kit's bundled esbuild) and do not ship.</td></tr>
+        <tr><td>Document viewer in a browser</td><td><span class="pill pass">Pass</span></td><td>16 of 16 checks on the upgraded PDF.js: rendering, text selection, thumbnails, find, QR, PDF tools, conversions, public link, phone layout.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Fixed during this review</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Change</th><th>Why</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>PDF.js upgraded from 5.7.284 to 6.4.299</td><td>Advisory <a href="https://github.com/advisories/GHSA-hq66-cqwq-w95j">GHSA-hq66-cqwq-w95j</a> (high): opening a malicious PDF could run JavaScript. Affects 5.6.83 up to 6.2.108, and the app opens user-uploaded PDFs. Worker, fonts, maps and colour profiles were refreshed and the viewer updated for the new API.</td><td><span class="pill fixed">Fixed</span></td></tr>
+        <tr><td>Content Security Policy now sets <code>object-src 'none'</code></td><td>Plugin content (<code>&lt;object&gt;</code>, <code>&lt;embed&gt;</code>) can never load in the app.</td><td><span class="pill fixed">Fixed</span></td></tr>
+        <tr><td>Lint ignores <code>public/pdfjs</code></td><td>Third-party minified files produced 1,757 lint problems that were not the app's own code.</td><td><span class="pill fixed">Fixed</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Load test</h2>
+    <p class="lead">One production server handled 210–240 requests per second at every load level with no errors. Past about 25 concurrent users, extra users wait longer instead of failing.</p>
+    <div class="charts">
+      <figure>
+        <figcaption><b>Throughput</b> · requests per second by concurrent users</figcaption>
+        <svg viewBox="0 0 360 210" role="img" aria-label="Throughput: 215, 227, 238, 221 and 213 requests per second at 10, 25, 50, 100 and 200 concurrent users">
+          <line class="grid" x1="44" y1="180" x2="344" y2="180"/><line class="grid" x1="44" y1="148" x2="344" y2="148"/><line class="grid" x1="44" y1="116" x2="344" y2="116"/><line class="grid" x1="44" y1="84" x2="344" y2="84"/><line class="grid" x1="44" y1="52" x2="344" y2="52"/><line class="grid" x1="44" y1="20" x2="344" y2="20"/>
+          <text x="38" y="183" text-anchor="end">0</text><text x="38" y="151" text-anchor="end">50</text><text x="38" y="119" text-anchor="end">100</text><text x="38" y="87" text-anchor="end">150</text><text x="38" y="55" text-anchor="end">200</text><text x="38" y="23" text-anchor="end">250</text>
+          <rect class="bar" x="58" y="42.3" width="32" height="137.7" rx="2"/><rect class="bar" x="118" y="34.8" width="32" height="145.2" rx="2"/><rect class="bar" x="178" y="27.6" width="32" height="152.4" rx="2"/><rect class="bar" x="238" y="38.5" width="32" height="141.5" rx="2"/><rect class="bar" x="298" y="43.6" width="32" height="136.4" rx="2"/>
+          <text class="val" x="74" y="37" text-anchor="middle">215</text><text class="val" x="134" y="29" text-anchor="middle">227</text><text class="val" x="194" y="22" text-anchor="middle">238</text><text class="val" x="254" y="33" text-anchor="middle">221</text><text class="val" x="314" y="38" text-anchor="middle">213</text>
+          <text x="74" y="196" text-anchor="middle">10</text><text x="134" y="196" text-anchor="middle">25</text><text x="194" y="196" text-anchor="middle">50</text><text x="254" y="196" text-anchor="middle">100</text><text x="314" y="196" text-anchor="middle">200</text>
+        </svg>
+      </figure>
+      <figure>
+        <figcaption><b>Response time</b> · milliseconds by concurrent users</figcaption>
+        <svg viewBox="0 0 360 210" role="img" aria-label="Median response time 35, 77, 124, 232 and 497 ms; 95th percentile 120, 286, 570, 1294 and 2698 ms at 10, 25, 50, 100 and 200 users">
+          <line class="grid" x1="44" y1="180" x2="344" y2="180"/><line class="grid" x1="44" y1="126.7" x2="344" y2="126.7"/><line class="grid" x1="44" y1="73.3" x2="344" y2="73.3"/><line class="grid" x1="44" y1="20" x2="344" y2="20"/>
+          <text x="38" y="183" text-anchor="end">0</text><text x="38" y="129.7" text-anchor="end">1000</text><text x="38" y="76.3" text-anchor="end">2000</text><text x="38" y="23" text-anchor="end">3000</text>
+          <polyline points="74,173.6 134,164.7 194,149.6 254,111 314,36.1" fill="none" stroke="var(--line2)" stroke-width="2.2"/>
+          <polyline points="74,178.1 134,175.9 194,173.4 254,167.6 314,153.5" fill="none" stroke="var(--bar)" stroke-width="2.2"/>
+          <circle cx="74" cy="173.6" r="3" fill="var(--line2)"/><circle cx="134" cy="164.7" r="3" fill="var(--line2)"/><circle cx="194" cy="149.6" r="3" fill="var(--line2)"/><circle cx="254" cy="111" r="3" fill="var(--line2)"/><circle cx="314" cy="36.1" r="3.5" fill="var(--line2)"/>
+          <circle cx="74" cy="178.1" r="3" fill="var(--bar)"/><circle cx="134" cy="175.9" r="3" fill="var(--bar)"/><circle cx="194" cy="173.4" r="3" fill="var(--bar)"/><circle cx="254" cy="167.6" r="3" fill="var(--bar)"/><circle cx="314" cy="153.5" r="3.5" fill="var(--bar)"/>
+          <text class="val" x="306" y="33" text-anchor="end">2,698</text><text class="val" x="306" y="150" text-anchor="end">497</text><text class="val" x="246" y="108" text-anchor="end">1,294</text>
+          <text x="74" y="196" text-anchor="middle">10</text><text x="134" y="196" text-anchor="middle">25</text><text x="194" y="196" text-anchor="middle">50</text><text x="254" y="196" text-anchor="middle">100</text><text x="314" y="196" text-anchor="middle">200</text>
+        </svg>
+        <div class="legend"><span><i style="background: var(--bar)"></i>median (p50)</span><span><i style="background: var(--line2)"></i>95th percentile (p95)</span></div>
+      </figure>
+    </div>
+
+    <div class="scroll"><table>
+      <thead><tr><th class="num">Users</th><th class="num">Requests</th><th class="num">Req/s</th><th class="num">p50 ms</th><th class="num">p95 ms</th><th class="num">p99 ms</th><th class="num">Max ms</th><th class="num">Errors</th></tr></thead>
+      <tbody>
+        <tr><td class="num">10</td><td class="num">6,456</td><td class="num">215</td><td class="num">35</td><td class="num">120</td><td class="num">149</td><td class="num">253</td><td class="num">0%</td></tr>
+        <tr><td class="num">25</td><td class="num">6,813</td><td class="num">227</td><td class="num">77</td><td class="num">286</td><td class="num">340</td><td class="num">403</td><td class="num">0%</td></tr>
+        <tr><td class="num">50</td><td class="num">7,168</td><td class="num">238</td><td class="num">124</td><td class="num">570</td><td class="num">626</td><td class="num">726</td><td class="num">0%</td></tr>
+        <tr><td class="num">100</td><td class="num">6,671</td><td class="num">221</td><td class="num">232</td><td class="num">1,294</td><td class="num">1,507</td><td class="num">1,750</td><td class="num">0%</td></tr>
+        <tr><td class="num">200</td><td class="num">6,472</td><td class="num">213</td><td class="num">497</td><td class="num">2,698</td><td class="num">2,879</td><td class="num">3,007</td><td class="num">0%</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Slowest endpoints at 100 concurrent users</h3>
+    <div class="scroll"><table>
+      <thead><tr><th>Endpoint</th><th class="num">p50 ms</th><th class="num">p95 ms</th><th class="num">At 10 users, p50 ms</th></tr></thead>
+      <tbody>
+        <tr><td>Home dashboard data</td><td class="num">1,196</td><td class="num">1,518</td><td class="num">91</td></tr>
+        <tr><td>My work inbox</td><td class="num">825</td><td class="num">1,065</td><td class="num">57</td></tr>
+        <tr><td>Search</td><td class="num">706</td><td class="num">912</td><td class="num">53</td></tr>
+        <tr><td>Create a note (write)</td><td class="num">344</td><td class="num">545</td><td class="num">28</td></tr>
+        <tr><td>Documents drive list</td><td class="num">276</td><td class="num">413</td><td class="num">18</td></tr>
+        <tr><td>Marketing home page</td><td class="num">128</td><td class="num">288</td><td class="num">95</td></tr>
+        <tr><td>Signed-in user (auth/me)</td><td class="num">91</td><td class="num">158</td><td class="num">7</td></tr>
+        <tr><td>Health check</td><td class="num">1.7</td><td class="num">12</td><td class="num">1.2</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>What limits capacity</h3>
+    <ul class="notes">
+      <li><b>Each server process is CPU-bound.</b> During the test the Node server ran at about 143% CPU (its main thread fully busy) while Postgres used about one core. Health checks stayed near 2 ms, so requests were not blocked, just queued.</li>
+      <li><b>The database pool is not the limit.</b> Raising <code>DB_POOL_MAX</code> from 10 to 25 gave the same 210 req/s. Keep 10.</li>
+      <li><b>More servers add capacity.</b> Two servers handled 261 req/s against 179 for one, on the same signed-in mix. The gain was 1.5× rather than 2× only because Postgres and the load generator shared the same laptop; on AWS, RDS runs separately.</li>
+      <li><b>Rate limits held under load.</b> At 200 users, 5 note writes got a 429 because three test accounts were shared by all virtual users (about 8 writes per second per person). Real people stay far below that.</li>
+    </ul>
+
+    <h3>Sizing for launch</h3>
+    <ul class="notes">
+      <li>Plan for about <b>200 requests per second per 1 vCPU web task</b> with a p95 under 600 ms. A typical signed-in person sends one request every 5–10 seconds, so one task serves roughly 1,000–2,000 people active at the same moment.</li>
+      <li>Run <b>at least 2 web tasks</b> (for availability during deploys) and autoscale on CPU at 60%. Run exactly one worker task.</li>
+      <li>Keep <code>DB_POOL_MAX</code> × tasks + 2 per task under RDS <code>max_connections</code>.</li>
+      <li>The home dashboard is the most expensive call (91 ms when idle). Caching each workspace's dashboard for 30–60 seconds would take the largest load off the database at scale.</li>
+    </ul>
+    <p class="small">Setup: production build (<code>next start</code>, one process) on an Apple M2, 8 cores, 16 GB, with local Postgres. 11 endpoints in a weighted mix (marketing pages, signed-in app pages, dashboard, documents, search, notifications, inbox and note writes), 30 seconds per level, a demo workspace with real invoices, deals and projects. Each virtual user sent from its own address so the firewall saw separate people. All test data was deleted afterwards.</p>
+  </section>
+
+  <section>
+    <h2>Security testing</h2>
+    <p class="lead">Live attacks against the running production build found no way to reach another workspace's data, run injected code or make the server fetch internal addresses. A separate code audit found no critical issues.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Area</th><th class="num">Checks</th><th>Result</th><th>What was tried</th></tr></thead>
+      <tbody>
+        <tr><td>Workspace isolation</td><td class="num">13</td><td><span class="pill pass">13 safe</span></td><td>A second account tried to read, search, delete and invite into another workspace's dashboard, documents, notes, members and audit log, including by passing its record ids through its own workspace. Every attempt got 404. Platform admin stayed closed to ordinary users.</td></tr>
+        <tr><td>Sign-in and sessions</td><td class="num">10</td><td><span class="pill pass">10 safe</span></td><td>Session cookie is HttpOnly and SameSite=Lax (Secure is added on https). Forged and missing sessions get 401. Password guessing is blocked from the 10th attempt. Wrong password and unknown email give the same message.</td></tr>
+        <tr><td>Security headers</td><td class="num">10</td><td><span class="pill pass">10 safe</span></td><td>CSP, framing blocked, nosniff, referrer and permissions policy, no server banner, signed-in API answers marked <code>no-store</code>.</td></tr>
+        <tr><td>Injection and traversal</td><td class="num">8</td><td><span class="pill pass">8 safe</span></td><td>SQL-injection strings in search, malformed ids, <code>../</code> path traversal. The firewall blocked the attack patterns outright; the rest were answered normally with no database errors.</td></tr>
+        <tr><td>Server-side fetching</td><td class="num">7</td><td><span class="pill pass">7 safe</span></td><td>Brand import was pointed at the AWS metadata address, localhost, Postgres, private ranges, IPv6 loopback, hex-encoded IPs and <code>file://</code>. All refused.</td></tr>
+        <tr><td>Cross-site requests</td><td class="num">3</td><td><span class="pill pass">3 safe</span></td><td>POSTs from another site, with no Origin and with an opaque origin were all rejected with 403.</td></tr>
+        <tr><td>Exposed files</td><td class="num">3</td><td><span class="pill pass">3 safe</span></td><td><code>/.env</code>, <code>/.git/config</code> and source maps are not served.</td></tr>
+        <tr><td>Redirects</td><td class="num">3</td><td><span class="pill pass">3 safe</span></td><td>Partner links refused to send visitors to another site in three spellings.</td></tr>
+        <tr><td>Script injection (XSS)</td><td class="num">2</td><td><span class="pill pass">2 safe</span></td><td>A document titled with script and image-error payloads, shared publicly, rendered as plain text.</td></tr>
+        <tr><td>Uploads</td><td class="num">2</td><td><span class="pill pass">2 safe</span></td><td>An HTML file downloads as an attachment with nosniff. An SVG containing script was refused at upload, which is stricter than the test assumed.</td></tr>
+        <tr><td>Limits and abuse</td><td class="num">3</td><td><span class="pill pass">3 safe</span></td><td>A 3 MB request body gets 413; malformed JSON gets 400 with no stack trace; 300 sign-in attempts at once from one address were all rate limited.</td></tr>
+        <tr><td>Public share links</td><td class="num">2</td><td><span class="pill pass">2 safe</span></td><td>A shared link opens; the same link with a tampered token gets 404.</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Code audit findings</h3>
+    <p class="small">A read-only review of authentication, tenant isolation, CSRF, injection, XSS, SSRF, uploads, secrets, share links, rate limiting, errors and headers, sampling about 30 route handlers and 40 database writes.</p>
+    <div class="scroll"><table>
+      <thead><tr><th>Severity</th><th>Finding</th><th>Recommendation</th></tr></thead>
+      <tbody>
+        <tr><td><span class="pill fixed">High · fixed</span></td><td>PDF.js could run script from a malicious PDF.</td><td>Upgraded to 6.4.299 (see above).</td></tr>
+        <tr><td><span class="pill warn">Medium</span></td><td>The app's CSP allows <code>'unsafe-inline'</code> and <code>'unsafe-eval'</code> scripts, so any future HTML-injection bug would be able to run script.</td><td>Move to per-request nonces after launch; keep <code>'unsafe-eval'</code> only on the code-editor pages.</td></tr>
+        <tr><td><span class="pill warn">Medium</span></td><td>The firewall's per-address request counter lives in each server's memory, so with N tasks the effective limit is N times higher. If the database is unreachable, rate limits also fall back to memory silently.</td><td>Add a CloudWatch alarm on the <code>rate_limit_store_unavailable</code> log line. Consider an ALB/WAF rate rule as the outer limit.</td></tr>
+        <tr><td><span class="pill warn">Medium · config</span></td><td>The firewall reads its client-address setting from Admin before the <code>TRUST_PROXY</code> variable. If the two disagree, address-based limits and bans can be dodged with a forged header.</td><td>After deploy, confirm Admin → Security → Firewall matches <code>TRUST_PROXY=xff-last</code> (behind the ALB).</td></tr>
+        <tr><td><span class="pill info">Low</span></td><td>The <code>/start</code> sign-up flow says when an email already has an account.</td><td>Always reply "we sent a code", and email existing users a sign-in link instead.</td></tr>
+        <tr><td><span class="pill info">Low</span></td><td>Sessions last 30 days with no idle timeout.</td><td>Add a 7-day idle expiry; shorter for platform admins.</td></tr>
+        <tr><td><span class="pill info">Low</span></td><td>Uploaded HTML files download with type <code>text/html</code> (safe as an attachment with nosniff).</td><td>Send non-previewable files as <code>application/octet-stream</code>.</td></tr>
+        <tr><td><span class="pill info">Info</span></td><td>The ECS task uses the <code>:latest</code> image tag; HSTS has no <code>preload</code>.</td><td>Pin the image by digest for exact rollbacks; add preload once the domain is final.</td></tr>
+        <tr><td><span class="pill pass">Checked · fine</span></td><td>Viewers can use the project terminal; storefront forms accept a missing Origin; TOTP code reuse.</td><td>No change: viewers run read-only commands only (code needs edit access, covered by tests); browsers always send Origin on cross-site POSTs; the last TOTP step is stored and reuse is refused.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">Strong controls found: one request pipeline for sessions, Origin checks, body caps and error masking; workspace checks that answer 404 to non-members; Argon2id passwords; hashed session and code tokens with lockout; SSRF protection that pins DNS and re-checks redirects; sandboxed rendering of user files and email; a Postgres-backed rate limiter; encrypted integration keys; a non-root container; secrets in Secrets Manager. Not reviewed: ZIP/XLSX parser limits, the code sandbox internals, SCIM and API-key handling, guest-chat token lifecycle, and about 130 module routes beyond the sample.</p>
+  </section>
+
+  <section>
+    <h2>Before go-live</h2>
+    <ul class="checklist">
+      <li><span class="box"></span><span><b>Commit and push the code.</b> The repository still has only its first commit and no remote, so the CI and deploy workflows cannot run yet.</span></li>
+      <li><span class="box"></span><span><b>Set production variables:</b> <code>APP_URL</code> on https, <code>TRUST_PROXY=xff-last</code>, <code>DATABASE_SSL_CA</code> for RDS, a mail provider (sign-up codes and resets need it), <code>APP_ROLE=web</code> on web tasks and exactly one worker.</span></li>
+      <li><span class="box"></span><span><b>Match the firewall's client-address setting</b> in Admin → Security to <code>TRUST_PROXY</code>, and never set <code>FIREWALL=off</code>.</span></li>
+      <li><span class="box"></span><span><b>Run 2+ web tasks</b> with CPU autoscaling at 60%, and size RDS <code>max_connections</code> for 10 per task + 2.</span></li>
+      <li><span class="box"></span><span><b>Add alarms</b> for 5xx rate, p95 latency, task CPU, RDS connections and the <code>rate_limit_store_unavailable</code> log line.</span></li>
+      <li><span class="box"></span><span><b>Pin the image by digest</b> and confirm RDS automated backups with point-in-time recovery.</span></li>
+      <li><span class="box"></span><span><b>After launch:</b> nonce-based CSP, sign-up enumeration fix, session idle timeout, dashboard caching.</span></li>
+    </ul>
+  </section>
+
+  <footer>Every result above was produced on 30 October 2026 from the current code; the raw results and both test scripts are in <code>docs/readiness/</code> to re-run against staging. Load numbers come from a laptop, so treat them as a floor for a 1 vCPU task, and repeat the load test against staging on AWS before a large launch.</footer>
+</div>

@@ -1,0 +1,329 @@
+// Subscription plans and the arithmetic behind them, shared by the server (which
+// is the only place a price is decided) and the browser (which shows the same
+// numbers before anyone pays). Amounts are integers in the currency's minor unit
+// (paise for INR); every rounding happens in one place, here.
+import { MODULE_IDS, withRequirements, type ModuleId } from "@/lib/workspace/modules";
+import type { Limits } from "@/lib/platform/plans";
+
+export type Interval = "month" | "year";
+export const INTERVALS: Interval[] = ["month", "year"];
+
+/** Usage allowances that reset each month (or, for contacts, a total). Missing = unlimited. */
+export type QuotaKey = "invoicesPerMonth" | "contacts" | "aiPerMonth";
+export type Quotas = Partial<Record<QuotaKey, number>>;
+export const QUOTA_KEYS: QuotaKey[] = ["invoicesPerMonth", "contacts", "aiPerMonth"];
+export const QUOTA_LABEL: Record<QuotaKey, { name: string; unit: string; module: ModuleId | null; monthly: boolean }> = {
+  invoicesPerMonth: { name: "Invoices", unit: "invoices this month", module: "invoicing", monthly: true },
+  contacts: { name: "CRM contacts", unit: "contacts", module: "crm", monthly: false },
+  aiPerMonth: { name: "AI requests", unit: "AI requests this month", module: null, monthly: true },
+};
+
+/** A plan in the catalogue (Admin → Plans). modules null = every feature. */
+export type CatalogPlan = {
+  id: string;
+  name: string;
+  tagline: string;
+  /** preset: a full plan; basic: a small plan for one area (e.g. Mail, Calendar and Chat); free: what a workspace has without paying. */
+  kind: "preset" | "basic" | "free";
+  modules: ModuleId[] | null;
+  limits: Limits;
+  /** Monthly allowances (unlimited when not set). */
+  quotas?: Quotas;
+  monthly: number;
+  yearly: number;
+  currency: string;
+  highlight: boolean;
+  active: boolean;
+  sort: number;
+};
+
+/** Prices for building your own plan, and the rules every plan follows (Admin → Plans → Pricing). */
+export type Pricing = {
+  /** Off: every workspace is unrestricted (as before subscriptions existed). */
+  enforce: boolean;
+  /** After the trial (or a lapsed subscription) a workspace falls back to the Free plan instead of becoming read-only. */
+  freePlan: boolean;
+  /** Fair-use allowances during the trial (so it's generous, not unlimited). */
+  trialQuotas: Quotas;
+  currency: string;
+  trialDays: number;
+  /** Tax added to every invoice, in basis points (1800 = 18%). */
+  taxBps: number;
+  taxLabel: string;
+  /** A yearly plan costs this many months (10 = two months free). Used for built plans. */
+  yearlyMonths: number;
+  /** Days after a missed renewal before the workspace becomes read-only. */
+  graceDays: number;
+  /** Renewal invoices are raised this many days before a period ends. */
+  renewalNoticeDays: number;
+  /** Build your own: the base (Mail, Calendar and Chat with the seats below) and each feature's monthly price. */
+  customBase: number;
+  customBaseModules: ModuleId[];
+  customSeatsIncluded: number;
+  seatPrice: number;
+  customLimits: Omit<Limits, "seats">;
+  modulePrices: Partial<Record<ModuleId, number>>;
+};
+
+export const WORKDAY_MODULES: ModuleId[] = ["mail", "calendar", "chat"];
+
+const rupees = (n: number) => Math.round(n * 100);
+
+/** The catalogue a new platform starts with; every value is editable in the console. */
+export const FREE_MODULES: ModuleId[] = ["mail", "calendar", "chat", "invoicing", "crm"];
+
+export const DEFAULT_PLANS: CatalogPlan[] = [
+  {
+    id: "free",
+    name: "Free",
+    tagline: "Mail, Calendar, Chat, invoices and a CRM to get going",
+    kind: "free",
+    modules: FREE_MODULES,
+    limits: { projects: 1, seats: 2, customDomains: 0, automationsPerProject: 0 },
+    quotas: { invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25 },
+    monthly: 0,
+    yearly: 0,
+    currency: "INR",
+    highlight: false,
+    active: true,
+    sort: -1,
+  },
+  {
+    id: "workday",
+    name: "Workday",
+    tagline: "Mail, Calendar and Chat for the whole team",
+    kind: "basic",
+    modules: WORKDAY_MODULES,
+    limits: { projects: 0, seats: 10, customDomains: 0, automationsPerProject: 0 },
+    monthly: rupees(199),
+    yearly: rupees(1990),
+    currency: "INR",
+    highlight: false,
+    active: true,
+    sort: 0,
+  },
+  {
+    id: "starter",
+    name: "Starter",
+    tagline: "Your website, store and counter, with customers and invoices",
+    kind: "preset",
+    modules: ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", ...WORKDAY_MODULES],
+    limits: { projects: 3, seats: 5, customDomains: 1, automationsPerProject: 10 },
+    monthly: rupees(999),
+    yearly: rupees(9990),
+    currency: "INR",
+    highlight: false,
+    active: true,
+    sort: 1,
+  },
+  {
+    id: "growth",
+    name: "Growth",
+    tagline: "Run sales, money, people and stock in one place",
+    kind: "preset",
+    modules: ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", ...WORKDAY_MODULES, "sales", "accounting", "hr", "inventory", "work", "helpdesk", "marketing", "documents", "automations", "bi", "copilot", "growth", "data"],
+    limits: { projects: 10, seats: 25, customDomains: 5, automationsPerProject: 25 },
+    monthly: rupees(2999),
+    yearly: rupees(29990),
+    currency: "INR",
+    highlight: true,
+    active: true,
+    sort: 2,
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    tagline: "Every feature, for larger teams and many sites",
+    kind: "preset",
+    modules: null,
+    limits: { projects: 50, seats: 100, customDomains: 25, automationsPerProject: 100 },
+    monthly: rupees(7999),
+    yearly: rupees(79990),
+    currency: "INR",
+    highlight: false,
+    active: true,
+    sort: 3,
+  },
+];
+
+const HEAVY: ModuleId[] = ["accounting", "hr", "inventory", "manufacturing", "horeca", "education", "clinic", "construction", "logistics", "sales"];
+const LIGHT: ModuleId[] = ["bookings", "promotions", "chatbot", "growth", "data", "objects", "portal"];
+
+export const DEFAULT_PRICING: Pricing = {
+  enforce: true,
+  freePlan: true,
+  trialQuotas: { invoicesPerMonth: 100, contacts: 1000, aiPerMonth: 200 },
+  currency: "INR",
+  trialDays: 30,
+  taxBps: 1800,
+  taxLabel: "GST",
+  yearlyMonths: 10,
+  graceDays: 7,
+  renewalNoticeDays: 7,
+  customBase: rupees(199),
+  customBaseModules: WORKDAY_MODULES,
+  customSeatsIncluded: 3,
+  seatPrice: rupees(99),
+  customLimits: { projects: 3, customDomains: 1, automationsPerProject: 25 },
+  modulePrices: Object.fromEntries(
+    MODULE_IDS.filter((m) => !WORKDAY_MODULES.includes(m)).map((m) => [m, rupees(HEAVY.includes(m) ? 499 : LIGHT.includes(m) ? 149 : 299)]),
+  ) as Partial<Record<ModuleId, number>>,
+};
+
+/** What someone chooses: a plan from the catalogue, or features of their own. */
+export type Choice = { kind: "plan"; planId: string; interval: Interval } | { kind: "custom"; modules: ModuleId[]; seats: number; interval: Interval };
+
+export type QuoteLine = { label: string; amount: number; module?: ModuleId };
+
+/** A priced choice: what it includes and what one period costs before tax. */
+export type Quote = {
+  planId: string;
+  name: string;
+  modules: ModuleId[] | null;
+  limits: Limits;
+  quotas: Quotas;
+  seats: number;
+  interval: Interval;
+  currency: string;
+  lines: QuoteLine[];
+  /** One period, before tax. */
+  amount: number;
+  /** The same, per month (for comparing and for MRR). */
+  monthly: number;
+};
+
+export class QuoteError extends Error {}
+
+/** Prices a choice. Throws QuoteError for anything that can't be sold. */
+export function quote(choice: Choice, plans: CatalogPlan[], pricing: Pricing): Quote {
+  if (choice.kind === "plan") {
+    const p = plans.find((x) => x.id === choice.planId && x.active);
+    if (!p) throw new QuoteError("That plan isn't available.");
+    if (p.kind === "free") throw new QuoteError("Free is what you're on without a paid plan — cancel the current plan to move to it at the end of the period.");
+    const amount = choice.interval === "year" ? p.yearly : p.monthly;
+    return {
+      planId: p.id,
+      name: p.name,
+      modules: p.modules ? [...p.modules] : null,
+      limits: { ...p.limits },
+      quotas: { ...(p.quotas ?? {}) },
+      seats: p.limits.seats,
+      interval: choice.interval,
+      currency: p.currency,
+      lines: [{ label: `${p.name} plan, ${choice.interval === "year" ? "yearly" : "monthly"}`, amount }],
+      amount,
+      monthly: choice.interval === "year" ? Math.round(p.yearly / 12) : p.monthly,
+    };
+  }
+  const seats = Math.floor(choice.seats);
+  if (!Number.isFinite(seats) || seats < pricing.customSeatsIncluded || seats > 10000) throw new QuoteError(`Choose between ${pricing.customSeatsIncluded} and 10,000 seats.`);
+  const unknown = choice.modules.filter((m) => !MODULE_IDS.includes(m));
+  if (unknown.length) throw new QuoteError(`Unknown feature: ${unknown[0]}`);
+  // Features another one needs come along with it, and the base is always included.
+  const picked = withRequirements([...new Set([...pricing.customBaseModules, ...choice.modules])]);
+  const extra = picked.filter((m) => !pricing.customBaseModules.includes(m)).sort((a, b) => MODULE_IDS.indexOf(a) - MODULE_IDS.indexOf(b));
+  const missing = extra.filter((m) => typeof pricing.modulePrices[m] !== "number");
+  if (missing.length) throw new QuoteError(`${missing[0]} can't be added to a plan yet.`);
+  const perMonth: QuoteLine[] = [
+    { label: "Base: Mail, Calendar and Chat", amount: pricing.customBase },
+    ...extra.map((m) => ({ label: m, amount: pricing.modulePrices[m]!, module: m })),
+  ];
+  const extraSeats = seats - pricing.customSeatsIncluded;
+  if (extraSeats > 0) perMonth.push({ label: `${extraSeats} extra seat${extraSeats === 1 ? "" : "s"}`, amount: extraSeats * pricing.seatPrice });
+  const monthly = perMonth.reduce((s, l) => s + l.amount, 0);
+  const months = choice.interval === "year" ? pricing.yearlyMonths : 1;
+  const lines = perMonth.map((l) => ({ ...l, amount: l.amount * months }));
+  return {
+    planId: "custom",
+    name: "Your plan",
+    modules: picked,
+    limits: { ...pricing.customLimits, seats },
+    quotas: {},
+    seats,
+    interval: choice.interval,
+    currency: pricing.currency,
+    lines,
+    amount: monthly * months,
+    monthly: choice.interval === "year" ? Math.round((monthly * months) / 12) : monthly,
+  };
+}
+
+/** Adds a period (calendar months, so 31 Jan + 1 month = 28/29 Feb). */
+export function addInterval(from: Date, interval: Interval, n = 1): Date {
+  const d = new Date(from);
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + (interval === "year" ? 12 * n : n));
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  return d;
+}
+
+export const taxOf = (amount: number, bps: number) => Math.round((amount * bps) / 10000);
+
+/**
+ * Moving to a new choice in the middle of a paid period. The unused share of
+ * what was paid becomes credit; the new choice is charged for the time left
+ * (same interval) or for a fresh period starting now (interval changes).
+ * Shares are measured to the second.
+ */
+export function prorate(input: { current: { amount: number; interval: Interval }; periodStart: Date; periodEnd: Date; now: Date; next: { amount: number; interval: Interval } }) {
+  const total = input.periodEnd.getTime() - input.periodStart.getTime();
+  const left = Math.max(0, Math.min(total, input.periodEnd.getTime() - input.now.getTime()));
+  const share = total > 0 ? left / total : 0;
+  const credit = Math.round(input.current.amount * share);
+  if (input.next.interval === input.current.interval) {
+    const charge = Math.round(input.next.amount * share);
+    return { credit, charge, periodStart: input.periodStart, periodEnd: input.periodEnd, share };
+  }
+  return { credit, charge: input.next.amount, periodStart: input.now, periodEnd: addInterval(input.now, input.next.interval), share };
+}
+
+/** A change is an upgrade (applied now, after paying the difference) unless it costs less per month. */
+export const isDowngrade = (from: { monthly: number; modules: readonly string[] | null; limits: Limits }, to: { monthly: number; modules: readonly string[] | null; limits: Limits }) =>
+  to.monthly < from.monthly || (from.modules === null && to.modules !== null) || (!!from.modules && !!to.modules && from.modules.some((m) => !to.modules!.includes(m)));
+
+// ── What a workspace may use right now ──────────────────────────────────────
+
+export type SubState = "trial" | "active" | "grace" | "canceling" | "free" | "expired" | "unrestricted";
+
+export type SubscriptionLike = {
+  status: string;
+  modules: string[] | null;
+  limits: Limits;
+  quotas?: Quotas | null;
+  trialEndsAt: Date | null;
+  currentPeriodEnd: Date | null;
+  graceEndsAt: Date | null;
+  cancelAtPeriodEnd: boolean;
+  complimentary: boolean;
+  compUntil: Date | null;
+};
+
+export type Entitlement = { state: SubState; modules: string[] | null; limits: Limits; quotas: Quotas; until: Date | null };
+
+/** What a workspace without a paid plan gets (the Free plan), when the platform offers one. */
+export type FreeTier = { modules: string[] | null; limits: Limits; quotas: Quotas } | null;
+
+const NONE: Limits = { projects: 0, seats: 0, customDomains: 0, automationsPerProject: 0 };
+
+/** Decided from dates (not the status column), so it's right even between scheduler runs. */
+export function entitlement(sub: SubscriptionLike | null, trialLimits: Limits, now = new Date(), enforce = true, extra: { free?: FreeTier; trialQuotas?: Quotas } = {}): Entitlement {
+  const all = { projects: Infinity, seats: Infinity, customDomains: Infinity, automationsPerProject: Infinity };
+  if (!enforce || !sub) return { state: "unrestricted", modules: null, limits: all, quotas: {}, until: null };
+  const q = sub.quotas ?? {};
+  if (sub.complimentary && (!sub.compUntil || sub.compUntil > now)) return { state: "active", modules: sub.modules, limits: sub.limits, quotas: q, until: sub.compUntil };
+  if (sub.trialEndsAt && sub.trialEndsAt > now && sub.status === "trialing") return { state: "trial", modules: null, limits: trialLimits, quotas: extra.trialQuotas ?? {}, until: sub.trialEndsAt };
+  if (sub.currentPeriodEnd && sub.currentPeriodEnd > now) return { state: sub.cancelAtPeriodEnd ? "canceling" : "active", modules: sub.modules, limits: sub.limits, quotas: q, until: sub.currentPeriodEnd };
+  if (sub.graceEndsAt && sub.graceEndsAt > now) return { state: "grace", modules: sub.modules, limits: sub.limits, quotas: q, until: sub.graceEndsAt };
+  // No paid plan in force: the Free plan if there is one, else read-only.
+  if (extra.free) return { state: "free", modules: extra.free.modules, limits: extra.free.limits, quotas: extra.free.quotas, until: null };
+  return { state: "expired", modules: [], limits: NONE, quotas: {}, until: null };
+}
+
+/** Whether a feature is included (null = every feature). */
+export const entitledTo = (modules: readonly string[] | null | undefined, id: string) => modules === undefined || modules === null || modules.includes(id);
+
+export function money(amount: number, currency = "INR") {
+  return new Intl.NumberFormat(currency === "INR" ? "en-IN" : "en", { style: "currency", currency, minimumFractionDigits: amount % 100 ? 2 : 0, maximumFractionDigits: 2 }).format(amount / 100);
+}

@@ -1,0 +1,50 @@
+# Release to AWS ECS (Fargate): build the image, push it to ECR, run the one-off
+# migration task, then roll the web service and the worker service.
+# Secrets/variables to set in the GitHub repository:
+#   AWS_ROLE_ARN (OIDC role with ECR push + ECS deploy), AWS_REGION, ECR_REPOSITORY,
+#   ECS_CLUSTER, ECS_SERVICE_WEB, ECS_SERVICE_WORKER, ECS_TASKDEF_MIGRATE, ECS_SUBNETS, ECS_SECURITY_GROUP
+name: Deploy to AWS
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with: { role-to-assume: "${{ secrets.AWS_ROLE_ARN }}", aws-region: "${{ vars.AWS_REGION }}" }
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+      - name: Build and push the image
+        env: { REGISTRY: "${{ steps.ecr.outputs.registry }}", REPO: "${{ vars.ECR_REPOSITORY }}" }
+        run: |
+          IMAGE="$REGISTRY/$REPO:${GITHUB_SHA::12}"
+          docker build -f deploy/Dockerfile -t "$IMAGE" -t "$REGISTRY/$REPO:latest" .
+          docker push "$IMAGE" && docker push "$REGISTRY/$REPO:latest"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Run migrations (one-off task)
+        run: |
+          TASK=$(aws ecs run-task --cluster "${{ vars.ECS_CLUSTER }}" --launch-type FARGATE \
+            --task-definition "${{ vars.ECS_TASKDEF_MIGRATE }}" \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ vars.ECS_SUBNETS }}],securityGroups=[${{ vars.ECS_SECURITY_GROUP }}],assignPublicIp=DISABLED}" \
+            --overrides "{\"containerOverrides\":[{\"name\":\"migrate\",\"image\":\"$IMAGE\"}]}" \
+            --query 'tasks[0].taskArn' --output text)
+          aws ecs wait tasks-stopped --cluster "${{ vars.ECS_CLUSTER }}" --tasks "$TASK"
+          CODE=$(aws ecs describe-tasks --cluster "${{ vars.ECS_CLUSTER }}" --tasks "$TASK" --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "migrate exit code: $CODE"; [ "$CODE" = "0" ]
+      - name: Roll the web service, then the worker
+        run: |
+          for SVC in "${{ vars.ECS_SERVICE_WEB }}" "${{ vars.ECS_SERVICE_WORKER }}"; do
+            TD=$(aws ecs describe-services --cluster "${{ vars.ECS_CLUSTER }}" --services "$SVC" --query 'services[0].taskDefinition' --output text)
+            aws ecs describe-task-definition --task-definition "$TD" --query 'taskDefinition' > td.json
+            jq --arg img "$IMAGE" '.containerDefinitions[0].image = $img | del(.taskDefinitionArn,.revision,.status,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)' td.json > td-new.json
+            NEW=$(aws ecs register-task-definition --cli-input-json file://td-new.json --query 'taskDefinition.taskDefinitionArn' --output text)
+            aws ecs update-service --cluster "${{ vars.ECS_CLUSTER }}" --service "$SVC" --task-definition "$NEW" > /dev/null
+            aws ecs wait services-stable --cluster "${{ vars.ECS_CLUSTER }}" --services "$SVC"
+          done

@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Remotion intro video is its own project.
+    "video/**",
+    // PDF.js worker, maps and fonts, copied as-is from pdfjs-dist.
+    "public/pdfjs/**",
   ]),
 ]);
 

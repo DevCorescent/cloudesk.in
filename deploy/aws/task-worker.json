@@ -1,0 +1,45 @@
+{
+  "family": "cloudesk-worker",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/cloudeskEcsExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/cloudeskEcsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "worker",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/cloudesk:latest",
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "APP_URL", "value": "https://app.yourdomain.com" },
+        { "name": "TRUST_PROXY", "value": "xff-last" },
+        { "name": "DATABASE_SSL_CA", "value": "/app/certs/rds-global-bundle.pem" },
+        { "name": "DB_POOL_MAX", "value": "10" },
+        { "name": "WORKER_SINGLETON_ACK", "value": "1" },
+        { "name": "DATA_REGION", "value": "India — Mumbai (ap-south-1)" },
+        { "name": "CUSTOM_DOMAIN_CNAME", "value": "sites.yourdomain.com" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/DATABASE_URL" },
+        { "name": "APP_ENCRYPTION_KEY", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/APP_ENCRYPTION_KEY" },
+        { "name": "MAIL_FROM", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/MAIL_FROM" },
+        { "name": "RESEND_API_KEY", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/RESEND_API_KEY" },
+        { "name": "RAZORPAY_KEY_ID", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/RAZORPAY_KEY_ID" },
+        { "name": "RAZORPAY_KEY_SECRET", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/RAZORPAY_KEY_SECRET" },
+        { "name": "ANTHROPIC_API_KEY", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/ANTHROPIC_API_KEY" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/v1/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""],
+        "interval": 30, "timeout": 5, "retries": 3, "startPeriod": 60
+      },
+      "stopTimeout": 120,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/cloudesk/worker", "awslogs-region": "REGION", "awslogs-stream-prefix": "worker", "awslogs-create-group": "true" }
+      }
+    }
+  ]
+}

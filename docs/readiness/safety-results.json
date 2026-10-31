@@ -1,0 +1,404 @@
+{
+  "base": "http://localhost:3100",
+  "at": "2026-10-30T17:52:50.887Z",
+  "pass": 65,
+  "total": 66,
+  "results": [
+    {
+      "area": "Headers",
+      "name": "Content-Security-Policy present",
+      "ok": true,
+      "detail": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://checkout.razorpay.c"
+    },
+    {
+      "area": "Headers",
+      "name": "Framing blocked (X-Frame-Options / frame-ancestors)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Headers",
+      "name": "object-src 'none'",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Headers",
+      "name": "X-Content-Type-Options: nosniff",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Headers",
+      "name": "Referrer-Policy set",
+      "ok": true,
+      "detail": "strict-origin-when-cross-origin"
+    },
+    {
+      "area": "Headers",
+      "name": "Permissions-Policy set",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Headers",
+      "name": "No X-Powered-By",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Headers",
+      "name": "HSTS (expected only when APP_URL is https)",
+      "ok": true,
+      "detail": "not sent on this http:// test URL"
+    },
+    {
+      "area": "Headers",
+      "name": "Signed-out API answer not cacheable",
+      "ok": true,
+      "detail": "no Cache-Control header (not cached by default)"
+    },
+    {
+      "area": "Auth",
+      "name": "Sign-in works and starts a session",
+      "ok": true,
+      "detail": "200/200"
+    },
+    {
+      "area": "Auth",
+      "name": "Session cookie is HttpOnly",
+      "ok": true,
+      "detail": "cc_session=…; Path=/; HttpOnly; SameSite=Lax; Expires=Sun, 29 Nov 2026 17:52:49 GMT"
+    },
+    {
+      "area": "Auth",
+      "name": "Session cookie is SameSite=Lax/Strict",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Auth",
+      "name": "Secure flag (set when APP_URL is https)",
+      "ok": true,
+      "detail": "not Secure on this http:// test URL (correct for local; production APP_URL https adds it)"
+    },
+    {
+      "area": "Headers",
+      "name": "Signed-in API answers are not cacheable by shared caches",
+      "ok": true,
+      "detail": "no-store"
+    },
+    {
+      "area": "Auth",
+      "name": "Org API without a session → 401",
+      "ok": true,
+      "detail": "401"
+    },
+    {
+      "area": "Auth",
+      "name": "Forged session cookie → 401",
+      "ok": true,
+      "detail": "401"
+    },
+    {
+      "area": "Auth",
+      "name": "Password guessing is throttled",
+      "ok": true,
+      "detail": "blocked from attempt 10"
+    },
+    {
+      "area": "Auth",
+      "name": "Throttled account answers without revealing the password was right",
+      "ok": true,
+      "detail": "status 429 after lockout"
+    },
+    {
+      "area": "Auth",
+      "name": "Login doesn't reveal which emails exist",
+      "ok": true,
+      "detail": "Email or password is incorrect | Email or password is incorrect"
+    },
+    {
+      "area": "Auth",
+      "name": "Sign-up doesn't reveal existing emails (known Low finding)",
+      "ok": true,
+      "detail": "Sign up at /start — we'll email you a code to confirm your address."
+    },
+    {
+      "area": "Isolation",
+      "name": "A creates a document",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's dashboard",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's documents list",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's a document",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's members",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's audit log",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's search",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't read A's notes",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "A's document id through B's own workspace → not found",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "A's note id through B's own workspace → not found",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't delete A's document",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "B can't invite itself into A's workspace",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Isolation",
+      "name": "Ordinary user can't reach platform admin",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Share links",
+      "name": "Public link opens",
+      "ok": true,
+      "detail": "200"
+    },
+    {
+      "area": "Share links",
+      "name": "Tampered token → not found",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "CSRF",
+      "name": "Cross-site POST rejected",
+      "ok": true,
+      "detail": "403"
+    },
+    {
+      "area": "CSRF",
+      "name": "POST without Origin rejected",
+      "ok": true,
+      "detail": "403"
+    },
+    {
+      "area": "CSRF",
+      "name": "Opaque-origin text/plain POST rejected",
+      "ok": true,
+      "detail": "403"
+    },
+    {
+      "area": "Injection",
+      "name": "Search with \"' OR 1=1--\" handled",
+      "ok": true,
+      "detail": "403 (answered normally, no SQL error)"
+    },
+    {
+      "area": "Injection",
+      "name": "Search with \"'; DROP TABLE users;--\" handled",
+      "ok": true,
+      "detail": "403 (answered normally, no SQL error)"
+    },
+    {
+      "area": "Injection",
+      "name": "Search with \"%' UNION SELECT password\" handled",
+      "ok": true,
+      "detail": "403 (answered normally, no SQL error)"
+    },
+    {
+      "area": "Injection",
+      "name": "Search with \"\\\\x00\" handled",
+      "ok": true,
+      "detail": "200 (answered normally, no SQL error)"
+    },
+    {
+      "area": "Injection",
+      "name": "Search with \"aaaaaaaaaaaaaaaaaaaaaaaa\" handled",
+      "ok": true,
+      "detail": "200 (answered normally, no SQL error)"
+    },
+    {
+      "area": "Injection",
+      "name": "Malformed id → 4xx, not 500",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "Errors",
+      "name": "Malformed JSON → 400 with no stack trace",
+      "ok": true,
+      "detail": "400 {\"error\":{\"code\":\"bad_request\",\"message\":\"Request body must be valid JSON\",\"deta"
+    },
+    {
+      "area": "Limits",
+      "name": "3 MB JSON body rejected (413)",
+      "ok": true,
+      "detail": "413"
+    },
+    {
+      "area": "Injection",
+      "name": "Path traversal on public routes",
+      "ok": true,
+      "detail": "403 — blocked by the firewall"
+    },
+    {
+      "area": "Injection",
+      "name": "Path traversal to .env",
+      "ok": true,
+      "detail": "403 — blocked by the firewall"
+    },
+    {
+      "area": "Exposure",
+      "name": "/.env not served",
+      "ok": true,
+      "detail": "403 — blocked by the firewall"
+    },
+    {
+      "area": "Exposure",
+      "name": "/.git not served",
+      "ok": true,
+      "detail": "403 — blocked by the firewall"
+    },
+    {
+      "area": "Exposure",
+      "name": "No source maps at a guessable path",
+      "ok": true,
+      "detail": "404"
+    },
+    {
+      "area": "XSS",
+      "name": "Script-y note stored as data (API returns JSON, not HTML)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "XSS",
+      "name": "Public page escapes a hostile title",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "area": "Uploads",
+      "name": "evil.html is served inert (attachment or sandboxed, nosniff)",
+      "ok": true,
+      "detail": "200 text/html | attachment; filename=\"evil.html\" | default-src 'self'; script-src 'self' 'unsafe-inli"
+    },
+    {
+      "area": "Uploads",
+      "name": "evil.svg upload",
+      "ok": false,
+      "detail": "{\"error\":{\"code\":\"validation_failed\",\"message\":\"Upload a PDF, Word, Excel or PowerPoint file, an image, a ZIP, CSV or text file\",\"details\":null}}"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://169.254.169.254/latest/meta-data/",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://127.0.0.1:5432/",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://localhost:3000/api/v1/health/live",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://10.0.0.1/",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://[::1]/",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch http://0x7f000001/",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "SSRF",
+      "name": "Server won't fetch file:///etc/passwd",
+      "ok": true,
+      "detail": "422"
+    },
+    {
+      "area": "Redirects",
+      "name": "Partner link won't redirect to https://evil.example",
+      "ok": true,
+      "detail": "http://localhost:3100/"
+    },
+    {
+      "area": "Redirects",
+      "name": "Partner link won't redirect to //evil.example",
+      "ok": true,
+      "detail": "http://localhost:3100/"
+    },
+    {
+      "area": "Redirects",
+      "name": "Partner link won't redirect to /\\evil.example",
+      "ok": true,
+      "detail": "http://localhost:3100/"
+    },
+    {
+      "area": "Limits",
+      "name": "Burst of 300 sign-in attempts from one address is rate limited",
+      "ok": true,
+      "detail": "300/300 answered 429"
+    }
+  ]
+}

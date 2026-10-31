@@ -1,0 +1,1 @@
+ALTER TABLE "workflows" ADD COLUMN "secrets_enc" text;

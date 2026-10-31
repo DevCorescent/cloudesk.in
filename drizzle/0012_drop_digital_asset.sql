@@ -1,0 +1,1 @@
+ALTER TABLE "store_products" DROP COLUMN "digital_asset_id";

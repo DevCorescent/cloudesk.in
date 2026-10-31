@@ -1,0 +1,36 @@
+/* Long-form text for the legal and trust pages. */
+.lg-prose { font-size: 15.5px; line-height: 1.72; color: color-mix(in srgb, var(--fg) 76%, transparent); }
+.lg-prose > section + section { margin-top: 3rem; }
+.lg-prose h2 { color: var(--fg); font-size: clamp(1.35rem, 2.2vw, 1.65rem); line-height: 1.2; font-weight: 450; letter-spacing: -0.02em; scroll-margin-top: 6rem; }
+.lg-prose h3 { color: var(--fg); font-size: 16px; line-height: 1.35; font-weight: 600; margin: 1.6em 0 0.35em; }
+.lg-prose p, .lg-prose ul, .lg-prose ol, .lg-prose dl { margin: 0.8em 0; }
+.lg-prose ul { list-style: disc; padding-left: 1.3em; }
+.lg-prose ol { list-style: decimal; padding-left: 1.4em; }
+.lg-prose li { margin: 0.35em 0; padding-left: 0.15em; }
+.lg-prose li::marker { color: color-mix(in srgb, var(--fg) 35%, transparent); }
+.lg-prose a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--fg) 30%, transparent); overflow-wrap: anywhere; }
+.lg-prose a:hover { text-decoration-color: var(--fg); }
+.lg-prose strong { color: var(--fg); font-weight: 600; }
+.lg-prose .lg-table { margin: 1em 0; overflow-x: auto; border: 1px solid color-mix(in srgb, var(--fg) 9%, transparent); border-radius: 14px; }
+.lg-prose table { width: 100%; border-collapse: collapse; font-size: 14px; line-height: 1.5; }
+.lg-prose th { text-align: left; font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--fg) 3%, transparent); }
+.lg-prose th, .lg-prose td { padding: 0.65em 0.9em; vertical-align: top; border-bottom: 1px solid color-mix(in srgb, var(--fg) 7%, transparent); }
+.lg-prose tr:last-child td { border-bottom: 0; }
+.lg-prose code { font-size: 0.9em; padding: 0.1em 0.35em; border-radius: 6px; background: color-mix(in srgb, var(--fg) 6%, transparent); }
+
+@media print {
+  @page { margin: 18mm 16mm; }
+  body:has([data-legal-doc]) header,
+  body:has([data-legal-doc]) footer,
+  body:has([data-legal-doc]) .p-aurora,
+  [data-print-hide] { display: none !important; }
+  body:has([data-legal-doc]) { background: #fff !important; }
+  [data-legal-doc] { padding: 0 !important; max-width: none !important; }
+  [data-legal-doc] .lg-grid { display: block !important; }
+  .lg-prose { font-size: 11pt; line-height: 1.5; color: #222; }
+  .lg-prose h2 { break-after: avoid; }
+  .lg-prose section { break-inside: auto; }
+  .lg-prose a { color: #000; text-decoration: none; }
+  .lg-prose a[href^="http"]::after, .lg-prose a[href^="mailto:"]::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #555; }
+  [data-legal-summary] { border: 1px solid #ccc !important; background: none !important; box-shadow: none !important; }
+}

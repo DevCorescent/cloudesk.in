@@ -1,0 +1,19 @@
+{
+  "name": "cloudesk-intro-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts Intro out/cloudesk-intro.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "^4.0.539",
+    "lucide-react": "^1.64.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.539"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true
+  }
+}

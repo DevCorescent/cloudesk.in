@@ -1,0 +1,30 @@
+# Caddy in front of Cloudesk: HTTPS for the app and automatic certificates for
+# customers' own domains. A certificate is only issued for a domain the app
+# approves (verified ownership + a live site), via the ask endpoint.
+{
+	on_demand_tls {
+		ask http://web:3000/api/v1/domains/ask
+	}
+}
+
+# The app itself.
+app.yourdomain.com {
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-For {remote_host}
+		lb_policy round_robin
+		health_uri /api/v1/health
+	}
+}
+
+# Every customer domain that points here (CNAME to sites.yourdomain.com).
+https:// {
+	tls {
+		on_demand
+	}
+	encode zstd gzip
+	reverse_proxy web:3000 {
+		header_up X-Forwarded-For {remote_host}
+		health_uri /api/v1/health
+	}
+}

@@ -1,0 +1,476 @@
+{
+  "base": "http://localhost:3100",
+  "stageSeconds": 30,
+  "at": "2026-10-30T17:49:00.047Z",
+  "results": [
+    {
+      "concurrency": 50,
+      "seconds": 30.1,
+      "requests": 6262,
+      "rps": 208.1,
+      "p50": 169.7,
+      "p95": 582.2,
+      "p99": 945.6,
+      "max": 1278.8,
+      "errorRate": 0,
+      "endpoints": [
+        {
+          "name": "GET / (marketing)",
+          "count": 630,
+          "rps": 20.9,
+          "p50": 455.8,
+          "p95": 1075,
+          "p99": 1248.3,
+          "max": 1278.8,
+          "status": {
+            "200": 630
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /pricing",
+          "count": 202,
+          "rps": 6.7,
+          "p50": 181.1,
+          "p95": 332.9,
+          "p99": 390.2,
+          "max": 496.8,
+          "status": {
+            "200": 202
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /api/v1/health/live",
+          "count": 312,
+          "rps": 10.4,
+          "p50": 5.5,
+          "p95": 20.6,
+          "p99": 44.9,
+          "max": 207.7,
+          "status": {
+            "200": 312
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /home (app page)",
+          "count": 436,
+          "rps": 14.5,
+          "p50": 137.6,
+          "p95": 232,
+          "p99": 317.7,
+          "max": 413.2,
+          "status": {
+            "200": 436
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET auth/me",
+          "count": 956,
+          "rps": 31.8,
+          "p50": 42.5,
+          "p95": 81.3,
+          "p99": 104.3,
+          "max": 269.4,
+          "status": {
+            "200": 956
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET dashboard",
+          "count": 1068,
+          "rps": 35.5,
+          "p50": 471.5,
+          "p95": 618.1,
+          "p99": 682.6,
+          "max": 759,
+          "status": {
+            "200": 1068
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET documents (drive)",
+          "count": 625,
+          "rps": 20.8,
+          "p50": 111.7,
+          "p95": 176.5,
+          "p99": 223.4,
+          "max": 323.2,
+          "status": {
+            "200": 625
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET search",
+          "count": 668,
+          "rps": 22.2,
+          "p50": 284.5,
+          "p95": 395.8,
+          "p99": 454.3,
+          "max": 530.6,
+          "status": {
+            "200": 668
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET notifications",
+          "count": 638,
+          "rps": 21.2,
+          "p50": 76.3,
+          "p95": 134.9,
+          "p99": 168.5,
+          "max": 244,
+          "status": {
+            "200": 638
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET inbox (my work)",
+          "count": 493,
+          "rps": 16.4,
+          "p50": 326.2,
+          "p95": 453.7,
+          "p99": 489.6,
+          "max": 583.9,
+          "status": {
+            "200": 493
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "POST note (write)",
+          "count": 234,
+          "rps": 7.8,
+          "p50": 137,
+          "p95": 227.9,
+          "p99": 424.4,
+          "max": 429.9,
+          "status": {
+            "200": 234
+          },
+          "errorRate": 0
+        }
+      ]
+    },
+    {
+      "concurrency": 100,
+      "seconds": 30.2,
+      "requests": 6391,
+      "rps": 211.7,
+      "p50": 295.1,
+      "p95": 1238.8,
+      "p99": 1356.5,
+      "max": 1560.8,
+      "errorRate": 0,
+      "endpoints": [
+        {
+          "name": "GET / (marketing)",
+          "count": 649,
+          "rps": 21.5,
+          "p50": 478.6,
+          "p95": 723.4,
+          "p99": 879,
+          "max": 946.9,
+          "status": {
+            "200": 649
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /pricing",
+          "count": 220,
+          "rps": 7.3,
+          "p50": 165.6,
+          "p95": 291.8,
+          "p99": 395.2,
+          "max": 464.9,
+          "status": {
+            "200": 220
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /api/v1/health/live",
+          "count": 327,
+          "rps": 10.8,
+          "p50": 5.1,
+          "p95": 19.2,
+          "p99": 43.1,
+          "max": 286.4,
+          "status": {
+            "200": 327
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /home (app page)",
+          "count": 503,
+          "rps": 16.7,
+          "p50": 181.8,
+          "p95": 279.9,
+          "p99": 324.6,
+          "max": 496,
+          "status": {
+            "200": 503
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET auth/me",
+          "count": 959,
+          "rps": 31.8,
+          "p50": 95.4,
+          "p95": 166,
+          "p99": 263.1,
+          "max": 453.8,
+          "status": {
+            "200": 959
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET dashboard",
+          "count": 1084,
+          "rps": 35.9,
+          "p50": 1165.4,
+          "p95": 1361.3,
+          "p99": 1487.7,
+          "max": 1560.8,
+          "status": {
+            "200": 1084
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET documents (drive)",
+          "count": 631,
+          "rps": 20.9,
+          "p50": 269.2,
+          "p95": 374.7,
+          "p99": 428.1,
+          "max": 636.1,
+          "status": {
+            "200": 631
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET search",
+          "count": 610,
+          "rps": 20.2,
+          "p50": 692.5,
+          "p95": 862.9,
+          "p99": 971.9,
+          "max": 988.7,
+          "status": {
+            "200": 610
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET notifications",
+          "count": 646,
+          "rps": 21.4,
+          "p50": 185.5,
+          "p95": 263.1,
+          "p99": 370.9,
+          "max": 540.2,
+          "status": {
+            "200": 646
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET inbox (my work)",
+          "count": 491,
+          "rps": 16.3,
+          "p50": 812.4,
+          "p95": 1014.8,
+          "p99": 1062.9,
+          "max": 1180.4,
+          "status": {
+            "200": 491
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "POST note (write)",
+          "count": 271,
+          "rps": 9,
+          "p50": 332.7,
+          "p95": 464.8,
+          "p99": 703.3,
+          "max": 722.5,
+          "status": {
+            "200": 271
+          },
+          "errorRate": 0
+        }
+      ]
+    },
+    {
+      "concurrency": 200,
+      "seconds": 30.3,
+      "requests": 6709,
+      "rps": 221.3,
+      "p50": 507.6,
+      "p95": 2483.6,
+      "p99": 2797.4,
+      "max": 3779.6,
+      "errorRate": 0.1,
+      "endpoints": [
+        {
+          "name": "GET / (marketing)",
+          "count": 661,
+          "rps": 21.8,
+          "p50": 428.3,
+          "p95": 690.1,
+          "p99": 1362.4,
+          "max": 1511,
+          "status": {
+            "200": 661
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /pricing",
+          "count": 252,
+          "rps": 8.3,
+          "p50": 158,
+          "p95": 356.7,
+          "p99": 806.8,
+          "max": 937.7,
+          "status": {
+            "200": 252
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /api/v1/health/live",
+          "count": 342,
+          "rps": 11.3,
+          "p50": 5.1,
+          "p95": 22.3,
+          "p99": 176.7,
+          "max": 802,
+          "status": {
+            "200": 342
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET /home (app page)",
+          "count": 493,
+          "rps": 16.3,
+          "p50": 277.5,
+          "p95": 406.8,
+          "p99": 625.6,
+          "max": 1210,
+          "status": {
+            "200": 493
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET auth/me",
+          "count": 1029,
+          "rps": 33.9,
+          "p50": 189.1,
+          "p95": 314.1,
+          "p99": 448,
+          "max": 1023.5,
+          "status": {
+            "200": 1029
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET dashboard",
+          "count": 1175,
+          "rps": 38.8,
+          "p50": 2341.5,
+          "p95": 2816.2,
+          "p99": 3176.2,
+          "max": 3779.6,
+          "status": {
+            "200": 1175
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET documents (drive)",
+          "count": 664,
+          "rps": 21.9,
+          "p50": 553.3,
+          "p95": 788.6,
+          "p99": 935.6,
+          "max": 1682.3,
+          "status": {
+            "200": 664
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET search",
+          "count": 696,
+          "rps": 23,
+          "p50": 1407.2,
+          "p95": 1746.7,
+          "p99": 2249.8,
+          "max": 2467.7,
+          "status": {
+            "200": 696
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET notifications",
+          "count": 653,
+          "rps": 21.5,
+          "p50": 368.7,
+          "p95": 524.8,
+          "p99": 584.1,
+          "max": 1146.4,
+          "status": {
+            "200": 653
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "GET inbox (my work)",
+          "count": 483,
+          "rps": 15.9,
+          "p50": 1640.7,
+          "p95": 2061,
+          "p99": 2540.1,
+          "max": 2844.8,
+          "status": {
+            "200": 483
+          },
+          "errorRate": 0
+        },
+        {
+          "name": "POST note (write)",
+          "count": 261,
+          "rps": 8.6,
+          "p50": 669.7,
+          "p95": 846.6,
+          "p99": 1822.1,
+          "max": 1826,
+          "status": {
+            "200": 256,
+            "429": 5
+          },
+          "errorRate": 1.9
+        }
+      ]
+    }
+  ]
+}

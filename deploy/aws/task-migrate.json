@@ -1,0 +1,29 @@
+{
+  "family": "cloudesk-migrate",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": { "cpuArchitecture": "X86_64", "operatingSystemFamily": "LINUX" },
+  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/cloudeskEcsExecutionRole",
+  "taskRoleArn": "arn:aws:iam::ACCOUNT_ID:role/cloudeskEcsTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "migrate",
+      "image": "ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/cloudesk:latest",
+      "essential": true,
+      "command": ["node", "scripts/migrate.mjs"],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "DATABASE_SSL_CA", "value": "/app/certs/rds-global-bundle.pem" }
+      ],
+      "secrets": [
+        { "name": "DATABASE_URL", "valueFrom": "arn:aws:secretsmanager:REGION:ACCOUNT_ID:secret:cloudesk/prod/DATABASE_URL" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": { "awslogs-group": "/cloudesk/migrate", "awslogs-region": "REGION", "awslogs-stream-prefix": "migrate", "awslogs-create-group": "true" }
+      }
+    }
+  ]
+}

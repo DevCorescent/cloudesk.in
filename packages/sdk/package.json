@@ -1,0 +1,10 @@
+{
+  "name": "@creation-cloud/sdk",
+  "version": "1.0.0",
+  "description": "Client for the Creation Cloud public API, webhook verification and app manifests.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "license": "MIT",
+  "files": ["src", "README.md"]
+}
