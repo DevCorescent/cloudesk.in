@@ -21,8 +21,11 @@ function sslConfig(): PoolConfig["ssl"] {
 }
 
 function createDb(): Db {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
+  const raw = process.env.DATABASE_URL;
+  if (!raw) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
+  // pg already treats sslmode=require as verify-full and warns on every connection
+  // that it will stop doing so; spell out the mode it uses so nothing changes later.
+  const url = raw.replace(/([?&]sslmode=)(require|prefer|verify-ca)(?=&|$)/, "$1verify-full");
   // Each process also opens two LISTEN clients (chat, documents) outside this pool.
   // Size DB_POOL_MAX × instances to stay under the database's max_connections.
   const ssl = sslConfig();
@@ -31,6 +34,7 @@ function createDb(): Db {
     max: Number(process.env.DB_POOL_MAX) || 10,
     statement_timeout: Number(process.env.DB_STATEMENT_TIMEOUT_MS) || 15_000,
     idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: Number(process.env.DB_CONNECT_TIMEOUT_MS) || 10_000,
     ...(ssl ? { ssl } : {}),
   });
   globalForDb.__ccPool = pool;

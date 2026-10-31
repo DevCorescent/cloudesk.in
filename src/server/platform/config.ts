@@ -82,7 +82,7 @@ export function cfg(key: string): string | undefined {
 export const configSource = (key: string): "env" | "console" | null => (process.env[key] ? "env" : store.__platformConfig?.values.has(key) ? "console" : null);
 
 /** Loads console-saved settings into this server's memory (at start-up, every 30 s, and after a save). */
-export async function loadConfig() {
+export async function loadConfig(retry = true): Promise<void> {
   try {
     const rows = await db.select().from(schema.platformConfig);
     const values = new Map<string, string>();
@@ -95,7 +95,13 @@ export async function loadConfig() {
     }
     store.__platformConfig = { at: Date.now(), values };
   } catch (e) {
-    log.error("platform_config_load_failed", { error: String(e) });
+    // A database that scales to zero (Neon's free tier) can refuse the first
+    // connection while it wakes up: try once more before giving up.
+    if (retry) {
+      await new Promise((r) => setTimeout(r, 1500));
+      return loadConfig(false);
+    }
+    log.error("platform_config_load_failed", { error: String(e), cause: String((e as { cause?: unknown }).cause ?? "") });
   }
 }
 
