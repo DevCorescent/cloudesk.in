@@ -23,7 +23,7 @@ const cookieOf = (r) => r.headers.getSetCookie().map((c) => c.split(";")[0]).joi
 // development server sharing the database, then signed in here.
 async function signup(tag) {
   const email = `safety.${tag}.${T}@example.in`;
-  const s = await fetch(SIGNUP_BASE + "/api/v1/auth/signup", { method: "POST", headers: { origin: SIGNUP_BASE, "content-type": "application/json", "x-forwarded-for": ip() }, body: JSON.stringify({ name: `Safety ${tag}`, email, password: PW }) });
+  await fetch(SIGNUP_BASE + "/api/v1/auth/signup", { method: "POST", headers: { origin: SIGNUP_BASE, "content-type": "application/json", "x-forwarded-for": ip() }, body: JSON.stringify({ name: `Safety ${tag}`, email, password: PW }) });
   const r = await req("POST", "/api/v1/auth/login", { body: { email, password: PW } });
   const raw = r.headers.getSetCookie();
   const cookie = cookieOf(r);
@@ -45,7 +45,6 @@ async function signup(tag) {
   check("Headers", "No X-Powered-By", !h.get("x-powered-by"));
   check("Headers", "HSTS (expected only when APP_URL is https)", true, h.get("strict-transport-security") ?? "not sent on this http:// test URL");
   const api = await fetch(BASE + "/api/v1/auth/me");
-  const authed = null;
   check("Headers", "Signed-out API answer not cacheable", /no-store|private|no-cache/.test(api.headers.get("cache-control") ?? "") || !api.headers.get("cache-control"), api.headers.get("cache-control") ?? "no Cache-Control header (not cached by default)");
 }
 

@@ -5,7 +5,7 @@ import * as me from "@/app/api/v1/auth/me/route";
 import * as signup from "@/app/api/v1/auth/signup/route";
 import * as accApi from "@/app/api/v1/orgs/[orgId]/accounts/[[...slug]]/route";
 import * as booksRoute from "@/app/api/v1/finance/books/[[...slug]]/route";
-import { addMonths, depreciation } from "@/lib/accounting/finance";
+import { addMonths, depreciation, lastDay } from "@/lib/accounting/finance";
 import { call, cookieFrom, resetDb } from "../helpers";
 
 let orgId = "";
@@ -104,7 +104,8 @@ describe("repeating and spread journals", () => {
     const r = await A("POST", "schedules", { kind: "spread", name: "Software licence", total: 120000_00, months: 12, startDate: "2026-04-01", fromAccountId: ids.prepaid, toAccountId: ids.software });
     ids.spread = r.json.schedule.id;
     const posted = await db.select().from(schema.accJournals).where(and(eq(schema.accJournals.orgId, orgId), eq(schema.accJournals.sourceType, "spread")));
-    const due = Array.from({ length: 12 }, (_, i) => addMonths("2026-04", i)).filter((m) => m < thisMonth).length;
+    // Each month posts on its last day, so on a month-end that month is already due.
+    const due = Array.from({ length: 12 }, (_, i) => addMonths("2026-04", i)).filter((m) => lastDay(m) <= today).length;
     expect(posted).toHaveLength(due);
     const stopped = await A("POST", `schedules/${ids.spread}/stop`, {});
     expect(stopped.json.schedule).toMatchObject({ active: false, endDate: today });
