@@ -3,7 +3,7 @@
 // are logged as warnings (and shown on Admin → Go-live).
 import { log } from "../log";
 
-const MAIL_PROVIDERS = ["RESEND_API_KEY", "POSTMARK_SERVER_TOKEN", "SENDGRID_API_KEY", "SMTP_URL"];
+const MAIL_PROVIDERS = ["RESEND_API_KEY", "POSTMARK_SERVER_TOKEN", "SENDGRID_API_KEY", "SMTP_URL", "SMTP_HOST"];
 
 export function checkProductionEnv(env: Record<string, string | undefined> = process.env) {
   const fatal: string[] = [];
@@ -18,7 +18,7 @@ export function checkProductionEnv(env: Record<string, string | undefined> = pro
   if (env.RATE_LIMIT_STORE === "memory") warn.push("RATE_LIMIT_STORE=memory: rate limits are per server");
   if (!env.DATABASE_SSL_CA && env.DATABASE_SSL !== "no-verify" && !/sslmode=/.test(env.DATABASE_URL ?? "")) warn.push("DATABASE_URL has no TLS: set DATABASE_SSL_CA to the database's CA bundle (the image ships /app/certs/rds-global-bundle.pem) unless the database is on the same private network");
   if (!env.TRUST_PROXY) warn.push("TRUST_PROXY is not set: client addresses are read from the first X-Forwarded-For entry. Behind a load balancer that appends to the header (AWS ALB, most clouds) set TRUST_PROXY=xff-last, or make the proxy overwrite the header");
-  if (!env.MAIL_FROM || !MAIL_PROVIDERS.some((k) => env[k])) warn.push("No email provider in the environment (MAIL_FROM plus RESEND_API_KEY, POSTMARK_SERVER_TOKEN, SENDGRID_API_KEY or SMTP_URL). Unless one is saved in Admin → Integrations, sign-up codes and resets can't be sent");
+  if (!env.MAIL_FROM || !MAIL_PROVIDERS.some((k) => env[k])) warn.push("No email provider in the environment (MAIL_FROM plus RESEND_API_KEY, POSTMARK_SERVER_TOKEN, SENDGRID_API_KEY, SMTP_URL or SMTP_HOST). Unless one is saved in Admin → Integrations, sign-up codes and resets can't be sent");
   if (env.APP_ROLE !== "web" && !env.WORKER_SINGLETON_ACK) warn.push("This is a worker (APP_ROLE unset): run exactly one worker replica; web replicas must set APP_ROLE=web. Set WORKER_SINGLETON_ACK=1 to silence this");
   for (const w of warn) log.warn("production_config", { problem: w });
   if (fatal.length) {
