@@ -147,7 +147,10 @@ describe("API studio", () => {
   it("serves the tables over the public API with scoped keys", async () => {
     readKey = (await call(integrations.POST, { method: "POST", cookie, params: { projectId, slug: ["keys"] }, body: { name: "Reader", scopes: ["data:read"] } })).json.key;
     writeKey = (await call(integrations.POST, { method: "POST", cookie, params: { projectId, slug: ["keys"] }, body: { name: "Writer", scopes: ["data:read", "data:write"] } })).json.key;
-    expect((await pub("GET", "data/team-members?sort=name&limit=1", { key: readKey })).json.data[0].name).toBe("=HYPERLINK(\"x\")");
+    // Sorted by name, the first page of one is the first of the full list (the order itself follows the database's collation).
+    const sorted = (await pub("GET", "data/team-members?sort=name", { key: readKey })).json.data.map((r: { name: string }) => r.name);
+    expect(sorted).toContain("=HYPERLINK(\"x\")");
+    expect((await pub("GET", "data/team-members?sort=name&limit=1", { key: readKey })).json.data.map((r: { name: string }) => r.name)).toEqual([sorted[0]]);
     expect((await pub("POST", "data/team-members", { key: readKey, body: { name: "X" } })).json.error.message).toBe('This key needs the "data:write" permission');
     const c = await pub("POST", "data/team-members", { key: writeKey, body: { name: "Finn", years: 4 } });
     expect(c.status).toBe(201);
