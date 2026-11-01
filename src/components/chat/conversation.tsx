@@ -376,7 +376,7 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
         {channel.member && <HeaderBtn label="Start a video call" onClick={() => void post({ call: { title: "" } })}><Phone /></HeaderBtn>}
         <HeaderBtn label="Find in this conversation" onClick={() => setFindOpen((x) => !x)} active={findOpen}><Search /></HeaderBtn>
         {meta.ai && channel.ai && <HeaderBtn label="Catch me up (AI)" onClick={() => setSide(side?.kind === "ai" ? null : { kind: "ai" })} active={side?.kind === "ai"} tone="text-violet-600"><Sparkles /></HeaderBtn>}
-        {channel.member && <HeaderBtn label={channel.starred ? "Unstar" : "Star"} onClick={() => void act(`channels/${channel.id}/prefs`, "PATCH", { starred: !channel.starred }).then(refreshMeta)}><Star className={cx(channel.starred && "fill-amber-400 text-amber-400")} /></HeaderBtn>}
+        {channel.member && <span className="hidden @2xl/chat:contents"><HeaderBtn label={channel.starred ? "Unstar" : "Star"} onClick={() => void act(`channels/${channel.id}/prefs`, "PATCH", { starred: !channel.starred }).then(refreshMeta)}><Star className={cx(channel.starred && "fill-amber-400 text-amber-400")} /></HeaderBtn></span>}
         <HeaderBtn label="Settings and people" onClick={() => setDlg({ kind: "settings" })}><Settings2 /></HeaderBtn>
       </div>
     </header>
@@ -397,7 +397,7 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
         {header}
         <nav className="flex gap-1 overflow-x-auto border-b border-border px-2 py-1.5 [scrollbar-width:none] @2xl/chat:px-3" aria-label="Conversation views">
           {tabs.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id} className={cx("chat-press flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors [&>svg]:size-3.5", tab === t.id ? "bg-fg font-semibold text-bg shadow-sm" : "text-muted hover:bg-surface-2 hover:text-fg")}>
+            <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id} className={cx("chat-press flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors [&>svg]:size-3.5 @max-2xl/chat:[&>svg]:hidden", tab === t.id ? "bg-fg font-semibold text-bg shadow-sm" : "text-muted hover:bg-surface-2 hover:text-fg")}>
               {t.icon}{t.label}
             </button>
           ))}
@@ -445,7 +445,7 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
                 channel={channel}
                 meta={meta}
                 people={people}
-                placeholder={channel.kind === "channel" ? `Message #${channel.name} — @ people, # records, / commands` : `Message ${title}`}
+                placeholder={channel.kind === "channel" ? `Message #${channel.name}` : `Message ${title}`}
                 draftKey={`chat-draft:${channel.id}:`}
                 onSend={(p) => post(p)}
                 onEditLast={() => {

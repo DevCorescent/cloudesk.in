@@ -526,6 +526,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             </label>
           )}
           {!editing && (
+            <span className="hidden @md/chat:contents">
             <Menu
               label="Priority"
               trigger={(p) => <button {...p} type="button" aria-label="Priority" title="Priority" className={cx("grid size-7 shrink-0 place-items-center rounded-[8px] hover:bg-surface-2", priority === "urgent" ? "text-red-600" : priority === "important" ? "text-amber-600" : "text-muted hover:text-fg")}><TriangleAlert className="size-[15px]" /></button>}
@@ -535,6 +536,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
                 { label: "Urgent — re-notify until read", icon: <TriangleAlert className="text-red-600" />, onSelect: () => setPriority("urgent") },
               ]}
             />
+            </span>
           )}
           {meta.ai && channel.ai && (
             <Menu
@@ -564,7 +566,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
                 {newLine && <span className="hidden text-[11px] whitespace-nowrap text-subtle @3xl/chat:inline">{newLine} new line</span>}
                 <span className={cx("flex overflow-hidden rounded-full transition-[box-shadow,transform] duration-200", (text.trim() || files.some((f) => f.id)) && "shadow-[0_6px_16px_-6px_rgba(0,0,0,0.45)]")}>
                   <button type="button" aria-label={schedule ? "Schedule" : "Send"} disabled={sending || (!text.trim() && !files.some((f) => f.id))} onClick={() => void send()} className="chat-press grid h-8 w-9 place-items-center bg-fg text-bg transition-opacity disabled:opacity-35">{sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
-                  <button type="button" aria-label="Schedule send" title="Schedule send" onClick={() => setScheduling(true)} className="chat-press grid h-8 w-7 place-items-center border-l border-bg/20 bg-fg text-bg"><CalendarClock className="size-3.5" /></button>
+                  <button type="button" aria-label="Schedule send" title="Schedule send" onClick={() => setScheduling(true)} className="chat-press hidden h-8 w-7 place-items-center border-l border-bg/20 bg-fg text-bg @md/chat:grid"><CalendarClock className="size-3.5" /></button>
                 </span>
               </>
             )}

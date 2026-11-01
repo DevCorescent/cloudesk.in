@@ -1,6 +1,6 @@
 "use client";
 
-// Phones and tablets: a floating glass tab bar at the bottom, like an app.
+// Phones and tablets: a glass tab bar along the bottom edge, like an app.
 // The everyday places are tabs (Home, Mail, Chat — whichever this workspace
 // has), the middle button makes something new, and More opens everything
 // else as a sheet. It steps aside while the on-screen keyboard is up.
@@ -95,18 +95,17 @@ function TabLink({ tab, active, onNavigate }: { tab: Tab; active: boolean; onNav
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       aria-label={n ? `${tab.label}, ${n} ${badge?.hot ? "need you" : "new"}` : tab.label}
-      className={clsx("dock-tab relative flex h-full min-w-0 flex-col items-center justify-center gap-[3px] rounded-[20px]", active && "dock-on")}
-      style={{ ["--ink" as string]: tab.ink }}
+      className="tab-item relative flex h-full min-w-0 flex-col items-center justify-center gap-1"
     >
-      <span className="relative">
-        <Icon className="size-[21px]" strokeWidth={active ? 2.2 : 1.8} aria-hidden />
+      <span className="relative grid h-[30px] place-items-center">
+        <Icon className="size-[23px]" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
         {n && (
-          <span aria-hidden className={clsx("absolute -top-1.5 left-[13px] grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[10px] leading-none font-bold text-white tabular-nums ring-2 ring-[var(--dock-ring)]", badge?.hot ? "bg-red-500" : "bg-sky-500")}>
+          <span aria-hidden className={clsx("absolute top-0 left-[15px] grid h-[17px] min-w-[17px] place-items-center rounded-full px-1 text-[10px] leading-none font-semibold text-white tabular-nums ring-2 ring-[var(--dock-ring)]", badge?.hot ? "bg-red-500" : "bg-sky-500")}>
             {n}
           </span>
         )}
       </span>
-      <span className="max-w-full truncate text-[10.5px] leading-none font-medium tracking-[-0.005em]">{tab.label}</span>
+      <span className="max-w-full truncate text-[10.5px] leading-none font-medium">{tab.label}</span>
     </Link>
   );
 }
@@ -293,18 +292,19 @@ export function MobileNav({ pathname, nav, org: orgSwitcher }: { pathname: strin
   const slots: ("create" | "more" | Tab)[] = create ? [...tabs.slice(0, 2), "create" as const, ...tabs.slice(2), "more" as const] : [...tabs, "more" as const];
   return (
     <>
-      <nav aria-label="Tabs" data-hidden={keyboard || undefined} className="app-dock fixed inset-x-0 bottom-0 z-40 px-3 pb-[max(10px,env(safe-area-inset-bottom))] lg:hidden">
-        <div className="dock-glass mx-auto grid h-[62px] max-w-[520px] items-stretch gap-0.5 rounded-[26px] p-[5px]" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(0, 1fr))` }}>
+      <nav aria-label="Tabs" data-hidden={keyboard || undefined} className="app-dock tabbar fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="mx-auto grid h-[58px] max-w-[560px] items-stretch px-1" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(0, 1fr))` }}>
           {slots.map((s) =>
             s === "create" ? (
-              <div key="create" className="grid place-items-center">
-                <button type="button" onClick={() => setSheet("create")} aria-label="Create" aria-haspopup="dialog" aria-expanded={sheet === "create"} className="dock-plus grid size-[46px] place-items-center rounded-[17px] active:scale-90">
-                  <Plus className={clsx("size-[22px] transition-transform duration-300", sheet === "create" && "rotate-45")} strokeWidth={2.4} />
-                </button>
-              </div>
+              <button key="create" type="button" onClick={() => setSheet("create")} aria-label="Create" aria-haspopup="dialog" aria-expanded={sheet === "create"} className="tab-item flex h-full min-w-0 flex-col items-center justify-center gap-1">
+                <span className="tab-new grid size-[30px] place-items-center rounded-[10px]">
+                  <Plus className={clsx("size-[18px] transition-transform duration-300", sheet === "create" && "rotate-45")} strokeWidth={2.4} aria-hidden />
+                </span>
+                <span className="text-[10.5px] leading-none font-medium">New</span>
+              </button>
             ) : s === "more" ? (
-              <button key="more" type="button" onClick={() => setSheet("more")} aria-label="More" aria-haspopup="dialog" aria-expanded={sheet === "more"} className={clsx("dock-tab flex h-full min-w-0 flex-col items-center justify-center gap-[3px] rounded-[20px]", (activeIdx < 0 || sheet === "more") && "dock-on")} style={{ ["--ink" as string]: "#7c5cdb" }}>
-                <MoreHorizontal className="size-[21px]" aria-hidden />
+              <button key="more" type="button" onClick={() => setSheet("more")} aria-label="More" aria-haspopup="dialog" aria-expanded={sheet === "more"} aria-current={activeIdx < 0 || sheet === "more" ? "page" : undefined} className="tab-item flex h-full min-w-0 flex-col items-center justify-center gap-1">
+                <span className="grid h-[30px] place-items-center"><MoreHorizontal className="size-[23px]" strokeWidth={activeIdx < 0 || sheet === "more" ? 2.25 : 1.75} aria-hidden /></span>
                 <span className="text-[10.5px] leading-none font-medium">More</span>
               </button>
             ) : (

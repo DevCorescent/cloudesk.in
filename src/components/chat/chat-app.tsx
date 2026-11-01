@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AtSign, Bell, BellOff, Bookmark, BookmarkCheck, CheckCheck, ChevronDown, CircleCheck, Clock3, Compass, Hash, Home, Inbox, Lock, MessageSquarePlus, MoreHorizontal, Plus, Search, Sparkles, Star, Users, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { ImportButton } from "@/components/import/buttons";
 import type { ImportResult } from "@/components/import/smart-import";
 import { Dialog, Menu, useToast } from "@/components/ui/overlays";
@@ -119,12 +119,24 @@ export function ChatApp() {
   );
 }
 
+/** Phones and small tablets, where the list fills the screen and rows are thumb-sized. */
+const PHONE = "(max-width: 1023.98px)";
+const onPhoneChange = (cb: () => void) => {
+  const m = window.matchMedia(PHONE);
+  m.addEventListener("change", cb);
+  return () => m.removeEventListener("change", cb);
+};
+const usePhone = () => useSyncExternalStore(onPhoneChange, () => window.matchMedia(PHONE).matches, () => false);
+
 // ── The rail ────────────────────────────────────────────────────────────────
 
 function ConvIcon({ c, people, size = 22 }: { c: ChannelOut; people: Map<string, PersonOut>; size?: number }) {
   if (c.kind === "dm") return <Avatar id={c.people[0] ?? c.id} name={channelTitle(c, people)} person={people.get(c.people[0] ?? "")} size={size} />;
-  if (c.kind === "group") return <span className="grid shrink-0 place-items-center rounded-[7px] bg-gradient-to-br from-violet-500 to-sky-500 text-white" style={{ width: size, height: size }}><Users className="size-3" /></span>;
-  return <span className="grid shrink-0 place-items-center rounded-[7px] text-[12px] text-white" style={{ width: size, height: size, background: c.color }}>{c.emoji || (c.visibility === "private" ? <Lock className="size-3" /> : <Hash className="size-3" />)}</span>;
+  // Larger icons (phone rows) scale their emoji, glyph and corners with them.
+  const glyph = { width: Math.round(size * 0.55), height: Math.round(size * 0.55) };
+  const radius = size > 28 ? 11 : 7;
+  if (c.kind === "group") return <span className="grid shrink-0 place-items-center bg-gradient-to-br from-violet-500 to-sky-500 text-white" style={{ width: size, height: size, borderRadius: radius }}><Users style={glyph} /></span>;
+  return <span className="grid shrink-0 place-items-center text-white" style={{ width: size, height: size, borderRadius: radius, background: c.color, fontSize: Math.max(12, Math.round(size * 0.5)) }}>{c.emoji || (c.visibility === "private" ? <Lock style={glyph} /> : <Hash style={glyph} />)}</span>;
 }
 
 function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus, onSearch, onPrefs, onRead, onReadAll, refreshMeta }: { meta: MetaOut; people: Map<string, PersonOut>; active: string; onlyUnread: boolean; setOnlyUnread: (v: boolean) => void; onNew: (k: "channel" | "chat") => void; onStatus: () => void; onSearch: (q: string) => void; onPrefs: (c: ChannelOut, body: unknown, done?: string) => void; onRead: (c: ChannelOut) => void; onReadAll: () => void; refreshMeta: () => void }) {
@@ -139,6 +151,7 @@ function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus
   const dms = mine.filter((c) => !c.starred && c.kind !== "channel").sort((a, b) => (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
   const me = people.get(meta.me.id);
   const pr = presenceOf(me);
+  const phone = usePhone();
   const section = (key: string, title: string, items: ChannelOut[], add?: () => void) => (
     <div className="mt-3">
       <div className="group flex items-center px-2">
@@ -155,8 +168,8 @@ function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus
             const typing = (live.typing[c.id] ?? []).some((t) => t.u !== meta.me.id);
             return (
               <li key={c.id} className="group/row relative">
-                <Link href={`/chat/${c.id}`} className={cx("flex h-[34px] items-center gap-2.5 rounded-[10px] pr-8 pl-2 text-[13.5px] transition-[background-color,box-shadow,color] duration-150", active === c.id ? "bg-[var(--surface-solid)] font-semibold text-fg shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_var(--border)]" : "text-fg/85 hover:bg-surface-2 hover:text-fg", unread && active !== c.id && "font-semibold text-fg")}>
-                  <ConvIcon c={c} people={people} size={20} />
+                <Link href={`/chat/${c.id}`} className={cx("chat-row flex h-[34px] items-center gap-2.5 rounded-[10px] pr-8 pl-2 text-[13.5px] transition-[background-color,box-shadow,color] duration-150", active === c.id ? "bg-[var(--surface-solid)] font-semibold text-fg shadow-[0_1px_2px_rgba(0,0,0,0.06),0_0_0_1px_var(--border)]" : "text-fg/85 hover:bg-surface-2 hover:text-fg", unread && active !== c.id && "font-semibold text-fg")}>
+                  <ConvIcon c={c} people={people} size={phone ? 38 : 20} />
                   <span className={cx("min-w-0 flex-1 truncate", c.notify === "none" && active !== c.id && "text-subtle")}>{title2}</span>
                   {c.requests > 0 && <span title={`${c.requests} ${c.requests === 1 ? "guest is" : "guests are"} waiting to be let in`} className="grid h-[18px] min-w-[18px] place-items-center rounded-full bg-teal-600 px-1 text-[10.5px] font-bold text-white tabular-nums">+{c.requests}</span>}
                   {typing && active !== c.id ? <span className="inline-flex items-center gap-[3px]">{[0, 1, 2].map((i) => <span key={i} className="chat-typing-dot size-1 rounded-full bg-muted" style={{ animationDelay: `${i * 0.16}s` }} />)}</span> : c.mentions > 0 ? <span key={c.mentions} className="chat-pop grid h-[18px] min-w-[18px] place-items-center rounded-full bg-red-500 px-1 text-[10.5px] font-bold text-white tabular-nums shadow-[0_2px_8px_-2px_rgba(239,68,68,0.7)]">{c.mentions}</span> : unread ? <span key={c.unread} className="chat-pop grid h-[18px] min-w-[18px] place-items-center rounded-full bg-fg/10 px-1.5 text-[10.5px] font-semibold text-fg tabular-nums">{c.unread > 99 ? "99+" : c.unread}</span> : c.notify === "none" ? <BellOff className="size-3 text-subtle" /> : null}
@@ -204,21 +217,21 @@ function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search messages" aria-label="Search messages" className="h-9 rounded-[11px] bg-[var(--surface-solid)] pl-8 text-[13px]" />
         </div>
       </form>
-      <nav className="mt-2 grid gap-px px-2" aria-label="Chat">
+      <nav className="chat-railnav mt-2 grid gap-px px-2" aria-label="Chat">
         <RailLink href="/chat" icon={<Home />} active={active === "home"} label="Home" />
         <RailLink href="/chat/activity" icon={<AtSign />} active={active === "activity"} label="Activity" count={meta.counts.mentions} hot />
         <RailLink href="/chat/saved" icon={<Bookmark />} active={active === "saved"} label="Saved" count={meta.counts.saved} />
-        <RailLink href="/chat/browse" icon={<Compass />} active={active === "browse"} label="Browse channels" />
+        <RailLink href="/chat/browse" icon={<Compass />} active={active === "browse"} label={phone ? "Browse" : "Browse channels"} />
       </nav>
       <div className="mt-1 min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {starred.length > 0 && section("starred", "Starred", starred)}
         {section("channels", "Channels", channels, () => onNew("channel"))}
         {section("dms", "Direct messages", dms, () => onNew("chat"))}
       </div>
-      <div className="flex items-center gap-1 border-t border-border px-2 py-1.5">
+      <div className="chat-railfoot flex items-center gap-1 border-t border-border px-2 py-1.5">
         <button type="button" onClick={() => setOnlyUnread(!onlyUnread)} aria-pressed={onlyUnread} className={cx("chat-press h-7 rounded-full px-2.5 text-[12px] transition-colors", onlyUnread ? "bg-fg font-medium text-bg" : "text-muted hover:bg-surface-2")}>Unread only</button>
         <button type="button" onClick={onReadAll} disabled={!meta.counts.unread} className="h-7 rounded-full px-2.5 text-[12px] text-muted hover:bg-surface-2 disabled:opacity-40">Mark all read</button>
-        {meta.me.admin && <span className="ml-auto"><ImportButton target={target("chat.channels")} label="Import" onImport={(rows, mode) => call<ImportResult>("channels/import", "POST", { rows, mode })} onDone={refreshMeta} /></span>}
+        {meta.me.admin && <span className="ml-auto @max-4xl/chat:hidden"><ImportButton target={target("chat.channels")} label="Import" onImport={(rows, mode) => call<ImportResult>("channels/import", "POST", { rows, mode })} onDone={refreshMeta} /></span>}
       </div>
     </div>
   );

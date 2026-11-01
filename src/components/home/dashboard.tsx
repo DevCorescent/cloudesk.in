@@ -9,7 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Lightbulb,
-  AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, Clock, Contact, Eye, EyeOff, GripVertical,
+  AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, ChevronRight, Clock, Contact, Eye, EyeOff, GripVertical,
   HandCoins, Handshake, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -133,30 +133,41 @@ export function Dashboard() {
   return (
     <div className="dash mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
       {!user.emailVerified && <VerifyEmail email={user.email} />}
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+      <header className="mb-5 flex items-start justify-between gap-3 sm:mb-6 sm:flex-wrap sm:items-end sm:gap-4">
         <div className="min-w-0">
           <p className="text-[12.5px] font-medium text-muted">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}</p>
-          <h1 className="mt-0.5 text-[26px] leading-tight font-semibold tracking-[-0.025em]">
+          <h1 className="mt-0.5 text-[23px] leading-tight font-semibold tracking-[-0.025em] sm:text-[26px]">
             {greeting}, {user.name.split(" ")[0]}
           </h1>
           {d ? (
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[13.5px] text-muted">
+            <p className="mt-1 hidden flex-wrap items-center gap-x-2 text-[13.5px] text-muted sm:flex">
               <span className={clsx("inline-block size-2 rounded-full", urgent ? "bg-[#e5484d]" : notes ? "bg-[#2a86d1]" : "bg-[#1f9d6c]")} aria-hidden />
               {lines.join(" · ")}
             </p>
           ) : (
-            <Skeleton className="mt-2 h-4 w-72" />
+            <Skeleton className="mt-2 h-4 w-72 max-sm:w-48" />
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {d && <span className="hidden text-[12px] text-subtle sm:inline">Updated {timeAgo(d.generatedAt)}</span>}
           <Button size="sm" variant="ghost" aria-label="Refresh" icon={<RefreshCw className={clsx("size-3.5", q.isFetching && "animate-spin")} />} onClick={() => q.refetch()} />
           <Link href="/requests" className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium text-muted hover:bg-surface-2 hover:text-fg md:inline-flex" title="Missing something? Ask the Cloudesk team"><Lightbulb className="size-3.5" />Request a feature</Link>
-          <Button size="sm" variant={editing ? "primary" : "secondary"} icon={editing ? <CheckCircle2 className="size-3.5" /> : <Settings2 className="size-3.5" />} onClick={() => setEditing(!editing)}>
-            {editing ? "Done" : "Customise"}
+          <Button size="sm" variant={editing ? "primary" : "secondary"} aria-label={editing ? "Done" : "Customise"} icon={editing ? <CheckCircle2 className="size-3.5" /> : <Settings2 className="size-3.5" />} onClick={() => setEditing(!editing)} className="max-sm:!w-8 max-sm:!px-0">
+            <span className="max-sm:hidden">{editing ? "Done" : "Customise"}</span>
           </Button>
         </div>
       </header>
+      {/* Phones: the summary as compact chips, full width under the greeting. */}
+      {d && (
+        <div className="-mx-4 -mt-2 mb-5 flex gap-1.5 overflow-x-auto px-4 [scrollbar-width:none] sm:hidden">
+          <span className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full bg-[var(--surface-solid)] px-2.5 text-[12.5px] font-medium whitespace-nowrap ring-1 ring-border/70">
+            <span className={clsx("size-1.5 rounded-full", urgent ? "bg-[#e5484d]" : notes ? "bg-[#2a86d1]" : "bg-[#1f9d6c]")} aria-hidden />
+            {notes ? `${notes} need attention` : "All clear"}
+          </span>
+          {waitingCount > 0 && <span className="inline-flex h-7 shrink-0 items-center rounded-full whitespace-nowrap bg-[var(--surface-solid)] px-2.5 text-[12.5px] font-medium ring-1 ring-border/70">{waitingCount} waiting</span>}
+          {owed && owed.value > 0 && <span className="inline-flex h-7 shrink-0 items-center rounded-full whitespace-nowrap bg-[var(--surface-solid)] px-2.5 text-[12.5px] font-medium tabular-nums ring-1 ring-border/70">{money(owed.value)} owed</span>}
+        </div>
+      )}
 
       {!editing && <SubscriptionCard />}
 
@@ -283,13 +294,39 @@ function Glance({ d }: { d: Dash }) {
     ...(d.activity.length ? [{ id: "activity", label: "Recent activity", hint: "Who did what", icon: <History />, tint: "lavender", title: "Recent activity", href: "/settings/audit", link: "Audit log", body: <Activity rows={d.activity} /> } satisfies Stat] : []),
   ];
   const open = stats.find((x) => x.id === sel) ?? null;
+  // Phones list the stats in groups: each area's numbers together, then your work.
+  const groups: [string, Stat[]][] = [];
+  for (const x of stats) {
+    const g = x.id.startsWith("kpi:") ? x.hint : "Your work";
+    const at = groups.find(([name]) => name === g);
+    if (at) at[1].push(x);
+    else groups.push([g, [x]]);
+  }
   return (
     <div className="glance rounded-[24px] p-3 sm:p-4">
       <div className="mb-3 px-1">
         <h2 className="text-[14px] font-semibold tracking-[-0.01em]">At a glance</h2>
         <p className="text-[12.5px] text-muted">Pick a stat to see its numbers</p>
       </div>
-      <div role="group" aria-label="Stats" className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      {/* Phones: sorted into groups, as list rows. */}
+      <div className="grid gap-4 sm:hidden">
+        {groups.map(([group, items]) => (
+          <div key={group}>
+            <p className="mb-1.5 px-1 text-[12px] font-semibold tracking-[0.04em] text-muted uppercase">{group}</p>
+            <div className="stat-list overflow-hidden rounded-[16px]">
+              {items.map((x) => (
+                <button key={x.id} type="button" aria-haspopup="dialog" aria-expanded={sel === x.id} onClick={() => setSel(x.id)} className={clsx("stat-row flex h-[54px] w-full items-center gap-3 px-3.5 text-left", `tint-${x.tint}`)}>
+                  <span className="stat-chip !size-8 !rounded-[10px]">{x.icon}</span>
+                  <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{x.label}</span>
+                  {x.dot && <span aria-label={x.dot === "danger" ? "Needs a look" : "Has items"} className={clsx("size-2 shrink-0 rounded-full", x.dot === "danger" ? "bg-danger" : "bg-[var(--tint-lavender-ink)]")} />}
+                  <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div role="group" aria-label="Stats" className="hidden gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {stats.map((x) => (
           <button key={x.id} type="button" aria-haspopup="dialog" aria-expanded={sel === x.id} onClick={() => setSel(x.id)} className={clsx("stat-btn group", `tint-${x.tint}`)}>
             <span className="stat-chip">{x.icon}</span>
