@@ -10,21 +10,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Lightbulb,
   AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, ChevronRight, Clock, Contact, Eye, EyeOff, GripVertical,
-  HandCoins, Handshake, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
+  Calculator, HandCoins, Handshake, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ChartView, type Result } from "@/components/bi/chart";
-import { SubscriptionCard } from "@/components/billing/status";
-import { Desk, DeskSkeleton, deskEmpty, useCountUp, useDesk } from "@/components/home/desk";
+import { PlanStrip, SubscriptionCard } from "@/components/billing/status";
+import { Desk, DeskSkeleton, deskEmpty, useCountUp, useDesk, type DeskData } from "@/components/home/desk";
 import { ProjectCard } from "@/components/project-card";
+import { AppTile, TABS } from "@/components/shell/mobile-nav";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog, useToast } from "@/components/ui/overlays";
 import { Button, ButtonLink, Card, ErrorState, Notice, Skeleton, Textarea } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { compact, timeAgo, usd } from "@/lib/client/format";
 import type { ProjectSummary } from "@/lib/client/types";
+import { visibleTo } from "@/lib/workspace/modules";
 
 type Kpi = { id: string; module: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
 type Insight = { id: string; module: string; tone: "danger" | "warning" | "info" | "success"; title: string; detail: string; href: string };
@@ -133,6 +135,8 @@ export function Dashboard() {
   return (
     <div className="dash mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
       {!user.emailVerified && <VerifyEmail email={user.email} />}
+      <PhoneHome d={d} desk={desk.data} greeting={`${greeting}, ${user.name.split(" ")[0]}`} status={lines[0] ?? ""} tone={urgent ? "danger" : notes ? "accent" : "ok"} fetching={q.isFetching} onRefresh={() => void Promise.all([q.refetch(), desk.refetch()])} />
+      <div className="max-sm:hidden">
       <header className="mb-5 flex items-start justify-between gap-3 sm:mb-6 sm:flex-wrap sm:items-end sm:gap-4">
         <div className="min-w-0">
           <p className="text-[12.5px] font-medium text-muted">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}</p>
@@ -214,6 +218,109 @@ export function Dashboard() {
         </div>
       )}
       {d && !d.kpis.length && !d.charts.length && !editing && <GettingStarted />}
+      </div>
+    </div>
+  );
+}
+
+// ─── Phones ──────────────────────────────────────────────────────────────────
+// Home on a phone is one screen, like an app's: the day in a line, your plan,
+// four numbers, your apps and the actions you use most. Everything else is a
+// tap away (each number opens its page; the full board is on larger screens).
+
+type Cell = { label: string; value: string; sub: string; href?: string; hot?: boolean };
+
+function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d?: Dash; desk?: DeskData; greeting: string; status: string; tone: "danger" | "accent" | "ok"; fetching: boolean; onRefresh: () => void }) {
+  const { org } = useSession();
+  const router = useRouter();
+  const on = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
+  const apps = [
+    ...(on("mail") ? [TABS.mail] : []),
+    ...(on("calendar") ? [TABS.calendar] : []),
+    ...(on("chat") ? [TABS.chat] : []),
+    TABS.notes,
+    TABS.work,
+    ...(on("copilot") ? [{ href: "/copilot", label: "Copilot", icon: Sparkles, ink: "#7c5cdb" }] : []),
+    { href: "/calculator", label: "Calculator", icon: Calculator, ink: "#2a86d1" },
+    { href: "/projects", label: "Web apps", icon: AppWindow, ink: "#e8743b" },
+  ].slice(0, 8);
+
+  const cells: Cell[] = [];
+  if (d) {
+    const n = d.insights.length;
+    cells.push({ label: "Needs attention", value: String(n), sub: n ? d.insights[0]!.title : "All clear", href: d.insights[0]?.href, hot: d.insights.some((i) => i.tone === "danger" || i.tone === "warning") });
+    if (d.waiting) {
+      const c = d.waiting.counts;
+      cells.push({ label: "Waiting on you", value: String(c.approvals + c.todo), sub: c.overdue ? `${c.overdue} overdue` : c.approvals + c.todo ? `${c.approvals} approvals · ${c.todo} tasks` : "Nothing pending", href: "/inbox", hot: c.overdue > 0 });
+    }
+    for (const k of d.kpis.slice(0, 2)) cells.push({ label: k.label, value: show(k, k.value), sub: k.sub ?? modOf(k.module).label, href: k.href });
+    if (desk?.mail) cells.push({ label: "Unread mail", value: String(desk.mail.unread), sub: desk.mail.needsReply ? `${desk.mail.needsReply} to answer` : "Inbox", href: "/mail" });
+    if (desk?.calendar) cells.push({ label: "Meetings today", value: String(desk.calendar.today), sub: desk.calendar.invites ? `${desk.calendar.invites} invite${desk.calendar.invites === 1 ? "" : "s"} to answer` : "Calendar", href: "/calendar" });
+    if (desk?.chat) cells.push({ label: "Chat", value: String(desk.chat.mentions || desk.chat.unread), sub: desk.chat.mentions ? "mentions" : "unread", href: "/chat" });
+  }
+  const shown = cells.slice(0, 4);
+  const quick = (d?.quick ?? []).slice(0, 4);
+  const go = (x: Dash["quick"][number]) => {
+    void api(`/api/v1/orgs/${org.id}/dashboard/used`, { method: "POST", body: { id: x.id } }).catch(() => null);
+    router.push(x.href);
+  };
+
+  return (
+    <div className="phone-home -mt-1 flex flex-col gap-3 sm:hidden">
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[12px] font-medium text-muted">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}</p>
+          <h1 className="truncate text-[22px] leading-tight font-semibold tracking-[-0.025em]">{greeting}</h1>
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12.5px] text-muted">
+            <span className={clsx("size-1.5 shrink-0 rounded-full", !d ? "bg-subtle" : tone === "danger" ? "bg-[#e5484d]" : tone === "accent" ? "bg-[#2a86d1]" : "bg-[#1f9d6c]")} aria-hidden />
+            {d ? status.charAt(0).toUpperCase() + status.slice(1) : "Checking…"}
+          </p>
+        </div>
+        <button type="button" aria-label="Refresh" onClick={onRefresh} className="phone-card grid size-9 shrink-0 place-items-center rounded-full text-muted active:scale-95">
+          <RefreshCw className={clsx("size-4", fetching && "animate-spin")} />
+        </button>
+      </header>
+
+      <PlanStrip />
+
+      {d ? (
+        <div className="phone-card grid grid-cols-2 overflow-hidden rounded-[18px]">
+          {shown.map((c, i) => {
+            const inner = (
+              <>
+                <span className="flex items-center justify-between gap-1 text-[11.5px] font-medium text-muted">
+                  <span className="truncate">{c.label}</span>
+                  {c.href && <ChevronRight className="size-3.5 shrink-0 text-subtle" aria-hidden />}
+                </span>
+                <span className={clsx("mt-1 block truncate text-[21px] leading-none font-semibold tracking-[-0.02em] tabular-nums", c.hot && "text-danger")}>{c.value}</span>
+                <span className="mt-1.5 block truncate text-[11.5px] text-muted">{c.sub}</span>
+              </>
+            );
+            const cls = clsx("block min-w-0 px-3.5 py-3", i % 2 === 1 && "border-l border-border", i >= 2 && "border-t border-border");
+            return c.href ? <Link key={c.label} href={c.href} className={clsx(cls, "active:bg-surface-2")}>{inner}</Link> : <div key={c.label} className={cls}>{inner}</div>;
+          })}
+        </div>
+      ) : (
+        <Skeleton className="h-[150px] rounded-[18px]" />
+      )}
+
+      <nav aria-label="Apps" className="phone-card grid grid-cols-4 gap-y-0.5 rounded-[18px] px-1 py-1.5">
+        {apps.map((a) => <AppTile key={a.href} {...a} active={false} onNavigate={() => undefined} />)}
+      </nav>
+
+      {quick.length > 0 && (
+        <section aria-label="Quick actions">
+          <h2 className="mb-1.5 px-1 text-[11.5px] font-semibold tracking-[0.04em] text-muted uppercase">Quick actions</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {quick.map((x) => (
+              <button key={x.id} type="button" onClick={() => go(x)} className="phone-card flex h-11 min-w-0 items-center gap-2 rounded-[14px] px-2.5 text-left text-[13px] font-medium active:scale-[0.98]">
+                <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-surface-2 text-fg/75 [&_svg]:size-[15px]">{ICONS[x.icon] ?? <Sparkles />}</span>
+                <span className="truncate">{x.label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

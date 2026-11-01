@@ -22,7 +22,7 @@ type Badge = { n: number; hot?: boolean } | undefined;
 type Tab = { href: string; label: string; icon: LucideIcon; ink: string; match?: (p: string) => boolean; badge?: "mail" | "chat" | "calendar" };
 
 const at = (href: string, p: string) => p === href || p.startsWith(href + "/");
-const TABS = {
+export const TABS = {
   home: { href: "/home", label: "Home", icon: Home, ink: "#7c5cdb" },
   work: { href: "/inbox", label: "My work", icon: Inbox, ink: "#7c5cdb" },
   mail: { href: "/mail", label: "Mail", icon: Mail, ink: "#2a86d1", badge: "mail" },
@@ -177,7 +177,7 @@ function SheetHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 }
 
 /** A quick-launch tile in the More sheet. */
-function AppTile({ href, label, icon: Icon, ink, badge, active, onNavigate }: { href: string; label: string; icon: LucideIcon; ink: string; badge?: Tab["badge"]; active: boolean; onNavigate: () => void }) {
+export function AppTile({ href, label, icon: Icon, ink, badge, active, onNavigate }: { href: string; label: string; icon: LucideIcon; ink: string; badge?: Tab["badge"]; active: boolean; onNavigate: () => void }) {
   const b = useBadge(badge);
   const n = badge ? count(b) : null;
   return (

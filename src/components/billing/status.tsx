@@ -108,6 +108,33 @@ export function PlanChip({ className }: { className?: string }) {
 }
 
 /** Home: the plan at a glance, for owners and the billing role only. */
+/** Phones' home screen: the plan in one line, with the way to choose one. */
+export function PlanStrip() {
+  const { org } = useSession();
+  const manage = canManageBilling(org.role);
+  const q = useQuery({ queryKey: subKey(org.id), queryFn: () => api<Overview>(subPath(org.id)), enabled: manage && !!org.plan && org.plan.state !== "unrestricted", staleTime: 60_000, retry: false });
+  const o = q.data;
+  if (!manage || !o || !o.enforced || !o.subscription || o.state === "unrestricted" || o.state === "active") return null;
+  const s = o.subscription;
+  const trialPlan = s.planId === "trial";
+  const left = o.state === "trial" ? o.stats.trialDaysLeft : o.state === "grace" ? daysUntil(s.graceEndsAt) : o.state === "canceling" ? o.stats.periodDaysLeft : null;
+  const name = o.state === "free" ? "Free plan" : trialPlan ? "Free trial" : s.planName;
+  const when = o.state === "trial" || o.state === "canceling" ? (left === 0 ? "ends today" : `${plural(left ?? 0, "day")} left`) : o.state === "grace" ? `until ${shortDay(s.graceEndsAt)}` : o.state === "expired" ? "read-only" : s.complimentary ? "from Cloudesk" : "";
+  const urgent = o.state === "expired" || o.state === "grace" || (o.state === "trial" && (left ?? 99) <= 7);
+  return (
+    <Link href="/settings/billing" className="plan-strip flex h-11 items-center gap-2.5 rounded-[14px] pr-1.5 pl-3 active:scale-[0.99]">
+      <CreditCard className="size-4 shrink-0 text-[var(--tint-lavender-ink)]" strokeWidth={1.9} aria-hidden />
+      <span className="min-w-0 flex-1 truncate text-[13px]">
+        <b className="font-semibold">{name}</b>
+        {when && <span className={clsx(urgent ? "text-danger" : "text-muted")}> · {when}</span>}
+      </span>
+      <span className={clsx("inline-flex h-8 shrink-0 items-center rounded-[10px] px-3 text-[12.5px] font-semibold", urgent || trialPlan || o.state === "free" ? "bg-fg text-bg" : "bg-surface-2")}>
+        {o.state === "free" ? "Upgrade" : trialPlan || o.state === "expired" ? "Choose plan" : "Manage"}
+      </span>
+    </Link>
+  );
+}
+
 export function SubscriptionCard() {
   const { org } = useSession();
   const manage = canManageBilling(org.role);
