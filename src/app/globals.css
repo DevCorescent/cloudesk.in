@@ -884,6 +884,17 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
   animation: sheet-item 0.4s var(--ease) both;
   transition: transform 0.15s ease;
 }
+/* Chat: phones open conversations full screen (no app bar or tabs, like a
+   messaging app); on any screen, full screen also hides the sidebar and list. */
+@media (max-width: 1023.98px) {
+  :root[data-chat-open] { --bar: 0px !important; --dock: 0px !important; }
+  :root[data-chat-open] header.glass-bar, :root[data-chat-open] .app-dock { display: none !important; }
+  :root[data-chat-open] .chat-conv-head { padding-top: env(safe-area-inset-top); }
+  :root[data-chat-open] .chat-foot { padding-bottom: env(safe-area-inset-bottom); }
+}
+:root[data-chat-full] { --bar: 0px !important; --dock: 0px !important; }
+:root[data-chat-full] header.glass-bar, :root[data-chat-full] aside.side-panel, :root[data-chat-full] .app-dock, :root[data-chat-full] .chat-rail-aside { display: none !important; }
+:root[data-chat-full] .chat-grid { grid-template-columns: minmax(0, 1fr) !important; }
 /* Rows in the More sheet are thumb-sized. */
 .nav-touch nav a, .nav-touch nav button { min-height: 42px; font-size: 14px; }
 .sheet-up { animation: sheet-up 0.42s var(--ease) both; }

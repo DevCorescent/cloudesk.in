@@ -4,11 +4,11 @@
 // links), the live message list, the composer, and side panels for a thread
 // and for AI (catch me up, ask the conversation).
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowLeft, AtSign, BarChart3, Bot, ChevronDown, FileText, Gavel, Hash, Link2, Loader2, Lock, MessagesSquare, Phone, Pin, Search, Settings2, Sparkles, Star, UserPlus, Users, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, AtSign, BarChart3, Bot, Check, ChevronDown, FileText, Gavel, Hash, Link2, Loader2, Lock, Maximize2, MessagesSquare, Minimize2, Phone, Pin, Search, Settings2, Sparkles, Star, UserPlus, Users, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCompose } from "@/components/mail/compose-provider";
-import { ConfirmDialog, useToast } from "@/components/ui/overlays";
+import { ConfirmDialog, Menu, useToast } from "@/components/ui/overlays";
 import { Button, Input, Skeleton, cx } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/client/api";
 import { copyText } from "@/lib/client/copy";
@@ -23,6 +23,36 @@ import { Message, RichText, type Ops } from "./message";
 import { Avatar, channelTitle, chatKey, dayLabel, fileSize, presenceOf, shortWhen, useChatApi, useChatLive } from "./shared";
 
 type Tab = "messages" | "pinned" | "files" | "decisions" | "polls" | "links";
+
+// Full screen: the conversation takes the whole window (no app sidebar, top
+// bar or chat list). The choice is remembered on this device; Esc leaves it.
+const FULL_KEY = "cc-chat-full";
+const fullSubs = new Set<() => void>();
+const readFull = () => {
+  try {
+    return localStorage.getItem(FULL_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+function setChatFull(on: boolean) {
+  try {
+    if (on) localStorage.setItem(FULL_KEY, "1");
+    else localStorage.removeItem(FULL_KEY);
+  } catch {
+    /* storage blocked: still switch for this page view */
+  }
+  fullSubs.forEach((f) => f());
+}
+const useChatFull = () =>
+  useSyncExternalStore(
+    (cb) => {
+      fullSubs.add(cb);
+      return () => fullSubs.delete(cb);
+    },
+    readFull,
+    () => false,
+  );
 type Side = { kind: "thread"; id: string } | { kind: "ai" } | null;
 type Dlg = { kind: "poll" | "checklist" | "decision" | "approval" | "meeting"; init?: string } | { kind: "task"; m: MessageOut | null; init?: { title: string; owner?: string; due?: string }[] } | { kind: "forward" | "remind"; m: MessageOut } | { kind: "settings" } | { kind: "guests" } | { kind: "delete"; m: MessageOut } | { kind: "reject"; m: MessageOut } | null;
 
@@ -102,6 +132,27 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
   const live = useChatLive();
   const mail = useCompose();
   const [tab, setTab] = useState<Tab>("messages");
+  const full = useChatFull();
+  // While a conversation is open, phones hide the app's top bar and tabs (see globals.css).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-chat-open", "");
+    return () => root.removeAttribute("data-chat-open");
+  }, []);
+  useEffect(() => {
+    const root = document.documentElement;
+    root.toggleAttribute("data-chat-full", full);
+    if (!full) return;
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector("dialog[open], [role=menu]")) setChatFull(false);
+    };
+    // Capture phase: runs before an open menu or dialog handles (and closes on) the same key.
+    window.addEventListener("keydown", esc, true);
+    return () => {
+      window.removeEventListener("keydown", esc, true);
+      root.removeAttribute("data-chat-full");
+    };
+  }, [full]);
   const [side, setSide] = useState<Side>(focus.t ? { kind: "thread", id: focus.t } : null);
   const search = useSearchParams();
   const [dlg, setDlg] = useState<Dlg>(() => (search?.get("guests") ? { kind: "guests" } : null));
@@ -335,8 +386,18 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
     return out;
   }, [msgs.list, channel, me, editMeta, people, ops, base, editing, highlight, unreadFrom, seenUnder, act, top]);
 
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
+    { id: "messages", label: "Messages", icon: <MessagesSquare /> },
+    { id: "pinned", label: pinnedCount ? `Pinned · ${pinnedCount}` : "Pinned", icon: <Pin /> },
+    { id: "files", label: "Files", icon: <FileText /> },
+    { id: "decisions", label: "Decisions", icon: <Gavel /> },
+    { id: "polls", label: "Polls & lists", icon: <BarChart3 /> },
+    { id: "links", label: "Links & records", icon: <Link2 /> },
+  ];
+  const current = tabs.find((t) => t.id === tab) ?? tabs[0]!;
+
   const header = (
-    <header className="chat-glass relative z-10 flex min-h-[64px] items-center gap-2.5 border-b border-border px-3 @2xl/chat:px-4">
+    <header className="chat-conv-head chat-glass relative z-10 flex min-h-[64px] items-center gap-2 border-b border-border px-2.5 @2xl/chat:gap-2.5 @2xl/chat:px-4">
       <button type="button" aria-label="Back" onClick={onBack} className="chat-press grid size-9 place-items-center rounded-full hover:bg-surface-2 @4xl/chat:hidden"><ArrowLeft className="size-4" /></button>
       {channel.kind === "dm" ? (
         <Avatar id={channel.people[0] ?? ""} name={title} person={dmPerson} size={38} />
@@ -367,41 +428,37 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
           </button>
         )}
         {canInvite && (
-          <button type="button" onClick={() => setDlg({ kind: "guests" })} title={liveChannel.requests ? `${liveChannel.requests} waiting to be let in` : "Invite people from outside the workspace"} className={cx("chat-press mr-1 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold", liveChannel.requests ? "chat-pop bg-teal-600 text-white shadow-[0_4px_14px_-6px_rgba(13,148,136,0.8)] hover:bg-teal-700" : "border border-border bg-[var(--surface-solid)] hover:bg-surface-2")}>
+          <button type="button" onClick={() => setDlg({ kind: "guests" })} title={liveChannel.requests ? `${liveChannel.requests} waiting to be let in` : "Invite people from outside the workspace"} className={cx("chat-press mr-1 inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-semibold", !liveChannel.requests && "@max-md/chat:hidden", liveChannel.requests ? "chat-pop bg-teal-600 text-white shadow-[0_4px_14px_-6px_rgba(13,148,136,0.8)] hover:bg-teal-700" : "border border-border bg-[var(--surface-solid)] hover:bg-surface-2")}>
             <UserPlus className="size-3.5" />
             <span className="hidden @2xl/chat:inline">{liveChannel.requests ? `${liveChannel.requests} waiting` : "Invite"}</span>
             {liveChannel.requests > 0 && <span className="@2xl/chat:hidden">{liveChannel.requests}</span>}
           </button>
         )}
-        {channel.member && <HeaderBtn label="Start a video call" onClick={() => void post({ call: { title: "" } })}><Phone /></HeaderBtn>}
+        <Menu
+          label="Views"
+          trigger={(p) => (
+            <button {...p} type="button" aria-label={`View: ${current.label}`} title="Messages, pinned, files and more" className="chat-press mx-0.5 inline-flex h-8 items-center gap-1 rounded-full border border-border bg-[var(--surface-solid)] pr-2 pl-3 text-[12.5px] font-medium hover:bg-surface-2">
+              <span className="max-w-[6.5rem] truncate">{current.label}</span>
+              <ChevronDown className="size-3.5 text-muted" />
+            </button>
+          )}
+          items={tabs.map((t) => ({ label: t.label, icon: t.id === tab ? <Check /> : t.icon, onSelect: () => setTab(t.id) }))}
+        />
+        {channel.member && <span className="hidden @md/chat:contents"><HeaderBtn label="Start a video call" onClick={() => void post({ call: { title: "" } })}><Phone /></HeaderBtn></span>}
         <HeaderBtn label="Find in this conversation" onClick={() => setFindOpen((x) => !x)} active={findOpen}><Search /></HeaderBtn>
         {meta.ai && channel.ai && <HeaderBtn label="Catch me up (AI)" onClick={() => setSide(side?.kind === "ai" ? null : { kind: "ai" })} active={side?.kind === "ai"} tone="text-violet-600"><Sparkles /></HeaderBtn>}
         {channel.member && <span className="hidden @2xl/chat:contents"><HeaderBtn label={channel.starred ? "Unstar" : "Star"} onClick={() => void act(`channels/${channel.id}/prefs`, "PATCH", { starred: !channel.starred }).then(refreshMeta)}><Star className={cx(channel.starred && "fill-amber-400 text-amber-400")} /></HeaderBtn></span>}
+        <span className="hidden lg:contents"><HeaderBtn label={full ? "Exit full screen (Esc)" : "Full screen"} onClick={() => setChatFull(!full)} active={full}>{full ? <Minimize2 /> : <Maximize2 />}</HeaderBtn></span>
         <HeaderBtn label="Settings and people" onClick={() => setDlg({ kind: "settings" })}><Settings2 /></HeaderBtn>
       </div>
     </header>
   );
 
-  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: "messages", label: "Messages", icon: <MessagesSquare /> },
-    { id: "pinned", label: pinnedCount ? `Pinned · ${pinnedCount}` : "Pinned", icon: <Pin /> },
-    { id: "files", label: "Files", icon: <FileText /> },
-    { id: "decisions", label: "Decisions", icon: <Gavel /> },
-    { id: "polls", label: "Polls & lists", icon: <BarChart3 /> },
-    { id: "links", label: "Links & records", icon: <Link2 /> },
-  ];
 
   return (
     <div className="flex h-full min-w-0">
       <section className="flex min-w-0 flex-1 flex-col">
         {header}
-        <nav className="flex gap-1 overflow-x-auto border-b border-border px-2 py-1.5 [scrollbar-width:none] @2xl/chat:px-3" aria-label="Conversation views">
-          {tabs.map((t) => (
-            <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id} className={cx("chat-press flex h-7 shrink-0 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors [&>svg]:size-3.5 @max-2xl/chat:[&>svg]:hidden", tab === t.id ? "bg-fg font-semibold text-bg shadow-sm" : "text-muted hover:bg-surface-2 hover:text-fg")}>
-              {t.icon}{t.label}
-            </button>
-          ))}
-        </nav>
         {channel.guests > 0 && (
           <button type="button" disabled={!canInvite} onClick={() => setDlg({ kind: "guests" })} className="flex items-center gap-2 border-b border-border bg-teal-500/[0.06] px-4 py-1.5 text-left text-[12px] text-teal-800 enabled:hover:bg-teal-500/10 dark:text-teal-200">
             <Users className="size-3.5 shrink-0" />
@@ -431,7 +488,7 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
                 </>
               )}
             </div>
-            <div className="relative">
+            <div className="chat-foot relative">
               {fresh > 0 && (
                 <button type="button" onClick={toBottom} className="chat-rise absolute -top-12 left-1/2 z-10 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-sky-600 px-4 py-1.5 text-[12.5px] font-semibold text-white shadow-[0_8px_24px_-8px_rgba(2,132,199,0.7)] hover:bg-sky-700">
                   <ArrowDown className="size-3.5" />{fresh} new {fresh === 1 ? "message" : "messages"}

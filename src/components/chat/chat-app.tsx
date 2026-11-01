@@ -89,8 +89,8 @@ export function ChatApp() {
 
   return (
     <div className="@container/chat relative h-[var(--app-h)] min-h-[480px] overflow-hidden">
-      <div className="grid h-full grid-cols-1 @4xl/chat:grid-cols-[288px_minmax(0,1fr)]">
-        <aside className={cx("min-h-0 border-r border-border bg-gradient-to-b from-surface/70 to-surface/30", showRail ? "block" : "hidden @4xl/chat:block")}>{rail}</aside>
+      <div className="chat-grid grid h-full grid-cols-1 @4xl/chat:grid-cols-[288px_minmax(0,1fr)]">
+        <aside className={cx("chat-rail-aside min-h-0 border-r border-border bg-gradient-to-b from-surface/70 to-surface/30", showRail ? "block" : "hidden @4xl/chat:block")}>{rail}</aside>
         <main className={cx("min-h-0 min-w-0", showRail && "hidden @4xl/chat:block")}>
           {channelId ? (
             channel ? (

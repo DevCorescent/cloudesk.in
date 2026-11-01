@@ -6,7 +6,7 @@
 // While you type, people and records show as @Name and #Label — they become
 // exact references when it's sent.
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Bold, CalendarClock, CalendarPlus, Code2, FileUp, Gavel, Italic, Link2, List, ListChecks, ListOrdered, Loader2, Paperclip, Plus, Quote, Send, ShieldCheck, Smile, Sparkles, SquareCode, Strikethrough, TriangleAlert, Video, X } from "lucide-react";
+import { BarChart3, Bold, CalendarClock, CalendarPlus, Code2, FileUp, Gavel, Italic, Link2, List, ListChecks, ListOrdered, Loader2, Paperclip, Plus, Quote, Send, ShieldCheck, Smile, Sparkles, SquareCode, Strikethrough, TriangleAlert, Type, Video, X } from "lucide-react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog, Menu, useToast } from "@/components/ui/overlays";
@@ -128,6 +128,16 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
   const [sending, setSending] = useState(false);
   const [rewriting, setRewriting] = useState(false);
   const [linkDlg, setLinkDlg] = useState(false);
+  // Formatting buttons stay tucked away until asked for (the shortcuts and
+  // markdown always work); the choice is remembered on this device.
+  const [fmt, setFmt] = useState(false);
+  useEffect(() => {
+    try {
+      setFmt(localStorage.getItem("cc-chat-fmt") === "1");
+    } catch {
+      /* storage blocked */
+    }
+  }, []);
   const typed = useRef(0);
 
   const { withKeys, keys } = useShortcuts();
@@ -406,6 +416,18 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
     );
   }
 
+  const toggleFmt = () => {
+    setFmt((on) => {
+      try {
+        if (on) localStorage.removeItem("cc-chat-fmt");
+        else localStorage.setItem("cc-chat-fmt", "1");
+      } catch {
+        /* storage blocked */
+      }
+      return !on;
+    });
+  };
+
   const tool = (label: string, icon: ReactNode, on: () => void, keys?: string) => (
     <button type="button" aria-label={label} title={keys ? withKeys(label, keys) : label} onMouseDown={(e) => e.preventDefault()} onClick={on} className="chat-press grid size-7 shrink-0 place-items-center rounded-[8px] text-muted hover:bg-surface-2 hover:text-fg [&>svg]:size-[15px]">{icon}</button>
   );
@@ -506,7 +528,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             />
           )}
           <span className="mx-1 h-4 w-px bg-border" />
-          <span className="hidden items-center gap-0.5 @md/chat:flex">
+          <button type="button" aria-label="Formatting" aria-pressed={fmt} title={fmt ? "Hide formatting" : "Show formatting"} onMouseDown={(e) => e.preventDefault()} onClick={toggleFmt} className={cx("chat-press hidden size-7 shrink-0 place-items-center rounded-[8px] @md/chat:grid [&>svg]:size-[15px]", fmt ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg")}><Type /></button>
+          <span className={cx("chat-toolbar-in hidden items-center gap-0.5", fmt && "@md/chat:flex")}>
             {tool("Bold", <Bold />, () => wrap("**"), "mod+b")}
             {tool("Italic", <Italic />, () => wrap("_"), "mod+i")}
             {tool("Strikethrough", <Strikethrough />, () => wrap("~~"), "mod+shift+x")}
