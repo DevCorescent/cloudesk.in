@@ -146,7 +146,7 @@ export function Toolbar({ editor, page, editable, a }: { editor: Editor; page: P
       <Tool label="Redo" keys="⌘⇧Z" onClick={() => c().redo().run()} disabled={!st.redo}>
         <Redo2 />
       </Tool>
-      <Tool label="Print" keys="⌘P" onClick={a.onPrint} className="max-sm:hidden">
+      <Tool label="Print" keys="⌘P" onClick={a.onPrint} className="max-sm:!hidden">
         <Printer />
       </Tool>
       <span className="doc-sep" />
@@ -154,8 +154,8 @@ export function Toolbar({ editor, page, editable, a }: { editor: Editor; page: P
         <span className="truncate">{STYLES.find((x) => x.id === st.style)?.label}</span>
         <ChevronDown className="!size-3.5 opacity-60" />
       </button>
-      <span className="doc-sep" />
-      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={open("font")} aria-haspopup="listbox" aria-label="Font" className="doc-tool shrink-0 !justify-between gap-1 !px-2 text-[12.5px]" style={{ width: 112, display: "inline-flex" }}>
+      <span className="doc-sep max-sm:!hidden" />
+      <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={open("font")} aria-haspopup="listbox" aria-label="Font" className="doc-tool shrink-0 !justify-between gap-1 !px-2 text-[12.5px] max-sm:!hidden" style={{ width: 112, display: "inline-flex" }}>
         <span className="truncate">{fontLabel}</span>
         <ChevronDown className="!size-3.5 opacity-60" />
       </button>

@@ -50,7 +50,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useShareToChat } from "@/components/chat/share";
 import { ModuleContext } from "@/components/shell/module-frame";
@@ -127,8 +127,9 @@ function DriveLayout({ section, meta, children }: { section: string; meta: DocsM
   const tree = useQuery({ queryKey: ["drive", org.id, "tree"], queryFn: () => api<{ folders: TreeFolder[] }>(`${base}/tree`) });
   const storage = useQuery({ queryKey: ["drive", org.id, "storage"], queryFn: () => api<{ used: number; limit: number; docs: number }>(`${base}/storage`) });
   const team = (tree.data?.folders ?? []).filter((f) => f.root === "team" && !f.parentId);
-  const link = (id: string, label: string, icon: ReactNode, on: boolean, extra?: ReactNode) => (
-    <Link key={id} href={id ? `/documents/${id}` : "/documents"} aria-current={on ? "page" : undefined} className={clsx("flex shrink-0 items-center gap-2.5 rounded-[11px] px-3 py-[7px] text-[13.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-4", on ? "bg-fg text-bg" : "text-fg/70 hover:bg-fg/[0.05] hover:text-fg")}>
+  // Phones: the sections are a row of chips to swipe through.
+  const link = (id: string, label: ReactNode, icon: ReactNode, on: boolean, extra?: ReactNode) => (
+    <Link key={id} href={id ? `/documents/${id}` : "/documents"} aria-current={on ? "page" : undefined} className={clsx("flex shrink-0 items-center gap-2.5 rounded-[11px] px-3 py-[7px] text-[13.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-4 max-lg:h-8 max-lg:gap-1.5 max-lg:rounded-full max-lg:py-0 max-lg:text-[13px] max-lg:[&_svg]:size-3.5", on ? "bg-fg text-bg" : "text-fg/70 hover:bg-fg/[0.05] hover:text-fg max-lg:bg-[var(--surface-solid)] max-lg:ring-1 max-lg:ring-border max-lg:ring-inset")}>
       {icon}
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {extra}
@@ -136,12 +137,12 @@ function DriveLayout({ section, meta, children }: { section: string; meta: DocsM
   );
   const pct = storage.data ? Math.min(100, (storage.data.used / storage.data.limit) * 100) : 0;
   return (
-    <div className="mx-auto grid max-w-[1600px] grid-cols-[minmax(0,1fr)] gap-5 px-3 py-4 sm:px-6 sm:py-6 lg:grid-cols-[236px_minmax(0,1fr)]">
+    <div className="mx-auto grid max-w-[1600px] grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-3 pb-6 sm:px-6 sm:py-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:gap-5">
       <aside className="lg:sticky lg:top-[calc(var(--bar)+24px)] lg:self-start print:hidden">
         <div className="mb-3 hidden lg:block">
           <NewButton meta={meta} />
         </div>
-        <nav aria-label="Documents" className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [scrollbar-width:none] lg:flex-col lg:overflow-visible">
+        <nav aria-label="Documents" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-1 sm:px-1 lg:flex-col lg:gap-1 lg:overflow-visible">
           {NAV.map((n) => link(n.id, n.label, n.icon, section === n.id))}
           <p className="hidden px-3 pt-4 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase lg:block">Team</p>
           <span className="lg:hidden">{link("team", "Team", <Users />, section === "team")}</span>
@@ -155,7 +156,7 @@ function DriveLayout({ section, meta, children }: { section: string; meta: DocsM
             ))}
           </div>
           <p className="hidden px-3 pt-4 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase lg:block">Agreements</p>
-          {link("agreements", "Overview", <FileSignature />, section === "agreements")}
+          {link("agreements", <><span className="lg:hidden">Agreements</span><span className="max-lg:hidden">Overview</span></>, <FileSignature />, section === "agreements")}
           {link("contracts", "Contracts", <FileText />, section === "contracts")}
           {link("signatures", "Signatures", <PenLine />, section === "signatures")}
           {link("trash", "Trash", <Trash2 />, section === "trash")}
@@ -504,14 +505,16 @@ export function DriveHome({ meta }: { meta: DocsMeta }) {
   usePlace(HOME_PLACE);
   const hour = new Date().getHours();
   return (
-    <div className="grid gap-7">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 sm:gap-7">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[12.5px] text-muted">{hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, {user.name.split(" ")[0]}</p>
           <h1 className="title-xl mt-0.5">Documents</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <DriveSearch />
+        <div className="flex w-full items-center gap-2 sm:w-auto">
+          <div className="min-w-0 flex-1 sm:flex-none">
+            <DriveSearch />
+          </div>
           <span className="lg:hidden">
             <NewButton meta={meta} compact />
           </span>
@@ -524,9 +527,9 @@ export function DriveHome({ meta }: { meta: DocsMeta }) {
             All templates
           </button>
         </div>
-        <div className="grid grid-cols-3 gap-2.5 pb-2 lg:grid-cols-5 max-sm:-mx-3 max-sm:flex max-sm:snap-x max-sm:overflow-x-auto max-sm:px-3 max-sm:[scrollbar-width:none]">
+        <div className="grid grid-cols-3 gap-2.5 pb-2 lg:grid-cols-5 max-sm:-mx-4 max-sm:flex max-sm:snap-x max-sm:scroll-px-4 max-sm:overflow-x-auto max-sm:px-4 max-sm:[scrollbar-width:none]">
           {DOC_TEMPLATES.slice(0, 5).map((t, i) => (
-            <div key={t.id} className={clsx("min-w-0 max-sm:w-[44vw] max-sm:shrink-0 max-sm:snap-start", i > 2 && "sm:max-lg:hidden")}>
+            <div key={t.id} className={clsx("min-w-0 max-sm:w-[36vw] max-sm:shrink-0 max-sm:snap-start", i > 2 && "sm:max-lg:hidden")}>
               <TemplateCard t={t} busy={create.isPending && create.variables?.templateId === t.id} onClick={() => create.mutate({ templateId: t.id, folderId: null, root: "mine" })} />
             </div>
           ))}
@@ -541,11 +544,14 @@ export function DriveHome({ meta }: { meta: DocsMeta }) {
             ))}
           </div>
         ) : recent.data.files.length ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-            {recent.data.files.map((f) => (
-              <FileCard key={f.id} f={f} sub={`Opened ${ago(f.openedAt)}`} />
-            ))}
-          </div>
+          <>
+            <PhoneList files={recent.data.files} sub={(f) => `Opened ${ago((f as DriveFile & { openedAt: string }).openedAt)}`} />
+            <div className="grid grid-cols-2 gap-3 max-sm:hidden sm:grid-cols-3 xl:grid-cols-4">
+              {recent.data.files.map((f) => (
+                <FileCard key={f.id} f={f} sub={`Opened ${ago(f.openedAt)}`} />
+              ))}
+            </div>
+          </>
         ) : (
           <EmptyDrive icon={<Clock />} title="Nothing opened yet" line="Documents and files you open show up here, so you can get back to them." />
         )}
@@ -553,7 +559,8 @@ export function DriveHome({ meta }: { meta: DocsMeta }) {
       {!!starred.data?.files.length && (
         <section aria-labelledby="starred">
           <h2 id="starred" className="mb-3 text-[15px] font-semibold">Starred</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <PhoneList files={starred.data.files.slice(0, 8)} />
+          <div className="grid grid-cols-2 gap-3 max-sm:hidden sm:grid-cols-3 xl:grid-cols-4">
             {starred.data.files.slice(0, 8).map((f) => (
               <FileCard key={f.id} f={f} />
             ))}
@@ -561,6 +568,25 @@ export function DriveHome({ meta }: { meta: DocsMeta }) {
         </section>
       )}
       {templates && <TemplatesDialog place={{ folderId: null, root: "mine" }} onClose={() => setTemplates(false)} />}
+    </div>
+  );
+}
+
+/** Phones: files as rows, like a native file app (previews are too small to read there). */
+function PhoneList({ files, sub }: { files: DriveFile[]; sub?: (f: DriveFile) => string }) {
+  return (
+    <div className="overflow-hidden rounded-[16px] bg-[var(--surface-solid)] ring-1 ring-border ring-inset sm:hidden">
+      {files.map((f) => (
+        <Link key={f.id} href={hrefOf(f)} className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0 active:bg-fg/[0.04]">
+          <FileGlyph f={f} size={34} />
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[14px] font-medium">{f.title}</span>
+            <span className="block truncate text-[12px] text-muted">{sub ? sub(f) : `${KIND_LABEL[kindOf(f)]} · ${ago(f.updatedAt)}`}</span>
+          </span>
+          {f.starred && <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-400" />}
+          <ChevronRight className="size-4 shrink-0 text-subtle" aria-hidden />
+        </Link>
+      ))}
     </div>
   );
 }
@@ -647,6 +673,20 @@ type Sort = "name" | "updated" | "size";
 type Sel = { files: Set<string>; folders: Set<string> };
 const none = (): Sel => ({ files: new Set(), folders: new Set() });
 
+const narrow = "(max-width: 639.98px)";
+/** Phones always list files: thumbnails are too small to tell documents apart. */
+function usePhone() {
+  return useSyncExternalStore(
+    (cb) => {
+      const m = window.matchMedia(narrow);
+      m.addEventListener("change", cb);
+      return () => m.removeEventListener("change", cb);
+    },
+    () => window.matchMedia(narrow).matches,
+    () => false,
+  );
+}
+
 function useStoredView() {
   const [view, setView] = useState<"grid" | "list">(() => {
     try {
@@ -674,6 +714,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
   const refresh = useDriveRefresh();
   const chat = useShareToChat();
   const [view, setView] = useStoredView();
+  const phone = usePhone();
   const [sort, setSort] = useState<Sort>(section === "recent" || section === "starred" || section === "shared" ? "updated" : "name");
   const [type, setType] = useState("");
   const [owner, setOwner] = useState("");
@@ -945,7 +986,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
               <option value="size">Size</option>
             </select>
           </label>
-          <div className="flex rounded-full border border-border p-0.5" role="radiogroup" aria-label="View">
+          <div className="flex rounded-full border border-border p-0.5 max-sm:hidden" role="radiogroup" aria-label="View">
             {(
               [
                 ["grid", <Grid2x2 key="g" className="size-3.5" />, "Grid"],
@@ -1015,7 +1056,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
             ) : (
               <EmptyDrive icon={<FilePlus2 />} title={section === "folder" ? "This folder is empty" : "Nothing here yet"} line={canAdd ? "Create a document, add a folder, or drop files here from your computer." : "Nothing you can open is here."} action={canAdd ? <NewButton meta={meta} compact /> : undefined} />
             )
-          ) : view === "grid" ? (
+          ) : view === "grid" && !phone ? (
             <div className="grid gap-5">
               {folders.length > 0 && (
                 <div>
@@ -1117,7 +1158,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
                     onClick={(e) => (touch.current && !count && !trash ? (f ? open(f) : router.push(`/documents/folder/${id}`)) : pick(id, !!d, e))}
                     onDoubleClick={() => !trash && (f ? open(f) : router.push(`/documents/folder/${id}`))}
                     onContextMenu={(e) => ctx(e, row)}
-                    className={clsx("grid cursor-default grid-cols-[minmax(0,1fr)_36px] items-center gap-3 border-b border-border px-3 py-2 outline-none select-none last:border-b-0 focus-visible:bg-fg/[0.03] md:grid-cols-[minmax(0,1fr)_140px_120px_90px_40px] md:px-4", selected ? "bg-[#7c5cdb]/10" : "hover:bg-fg/[0.025]", dropOver === id && "drive-drop")}
+                    className={clsx("grid cursor-default grid-cols-[minmax(0,1fr)_36px] items-center gap-3 border-b border-border px-3 py-2 outline-none max-sm:py-2.5 select-none last:border-b-0 focus-visible:bg-fg/[0.03] md:grid-cols-[minmax(0,1fr)_140px_120px_90px_40px] md:px-4", selected ? "bg-[#7c5cdb]/10" : "hover:bg-fg/[0.025]", dropOver === id && "drive-drop")}
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       {f ? <FileGlyph f={f} size={30} /> : <FolderGlyph f={d!} size={30} />}

@@ -904,8 +904,9 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 /* Chat: phones open conversations full screen (no app bar or tabs, like a
    messaging app); on any screen, full screen also hides the sidebar and list. */
 @media (max-width: 1023.98px) {
-  :root[data-chat-open] { --bar: 0px !important; --dock: 0px !important; }
-  :root[data-chat-open] header.glass-bar, :root[data-chat-open] .app-dock { display: none !important; }
+  :root[data-chat-open], :root[data-immersive] { --bar: 0px !important; --dock: 0px !important; }
+  :root[data-chat-open] header.glass-bar, :root[data-chat-open] .app-dock, :root[data-immersive] header.glass-bar, :root[data-immersive] .app-dock { display: none !important; }
+  :root[data-immersive] .doc-titlebar { padding-top: env(safe-area-inset-top); }
   :root[data-chat-open] .chat-conv-head { padding-top: env(safe-area-inset-top); }
   :root[data-chat-open] .chat-foot { padding-bottom: env(safe-area-inset-bottom); }
 }

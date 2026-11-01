@@ -114,6 +114,12 @@ export function DocEditorPage({ id }: { id: string }) {
   const [gen, setGen] = useState(0);
   const [failed, setFailed] = useState<string | null>(null);
   const ready = !!q.data;
+  // Phones write full screen: the app's top bar and tabs step aside (globals.css).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute("data-immersive", "");
+    return () => root.removeAttribute("data-immersive");
+  }, []);
   useEffect(() => {
     if (!ready) return;
     let alive = true;
@@ -522,7 +528,7 @@ function Workspace({ data, live, refetch }: { data: OpenDoc; live: DocLive; refe
   return (
     <div className="flex min-h-[var(--app-h)] flex-col">
       {/* Title bar */}
-      <div className="sticky top-[var(--bar)] z-20 border-b border-border bg-bg/90 backdrop-blur-xl">
+      <div className="doc-titlebar sticky top-[var(--bar)] z-20 border-b border-border bg-bg/90 backdrop-blur-xl">
         <div className="flex items-center gap-2 px-3 pt-2 sm:px-4">
           <Link href={rootHref} aria-label="Back to Documents" className="grid size-9 shrink-0 place-items-center rounded-full text-muted hover:bg-fg/[0.06] hover:text-fg">
             <ArrowLeft className="size-4" />
