@@ -10,6 +10,8 @@ import { ACTION_INPUT, ACTION_LABEL, proposeInput, resultText, runReportInput, s
 import { duplicateBills, expenseSpikes, largeBills, type Finding } from "@/lib/copilot/anomalies";
 import { isOn } from "@/lib/workspace/modules";
 import { anthropicFor, COPILOT_MODEL, providerError, recordUsage } from "../ai/gateway";
+import { WORKSPACE_ACTIONS, type WorkspaceAction } from "@/lib/copilot/workspace-model";
+import { execute, readTool } from "./workspace";
 import { can } from "../authz/permissions";
 import { datasets as biDatasets, preview, scopeFor, type Scope as BiScope } from "../bi/core";
 import { ApiError, notFound } from "../http/errors";
@@ -44,7 +46,16 @@ export async function threads(s: Scope) {
 export async function thread(s: Scope, id: string) {
   const t = await getThread(s, id);
   const actions = await db.select().from(schema.copilotActions).where(eq(schema.copilotActions.threadId, t.id)).orderBy(asc(schema.copilotActions.createdAt));
-  return { id: t.id, title: t.title, items: toView(t.messages), actions: actions.map(({ payload, ...a }) => ({ ...a, toolUseId: String(payload.toolUseId ?? ""), label: ACTION_LABEL[a.kind as ActionKind] ?? a.kind })) };
+  return {
+    id: t.id,
+    title: t.title,
+    items: toView(t.messages),
+    // `input` is the suggestion's details, so it can be shown and edited (an email draft) before confirming.
+    actions: actions.map(({ payload, ...a }) => {
+      const { toolUseId, ...input } = payload as Record<string, unknown>;
+      return { ...a, toolUseId: String(toolUseId ?? ""), label: ACTION_LABEL[a.kind as ActionKind] ?? a.kind, input };
+    }),
+  };
 }
 
 export async function deleteThread(s: Scope, id: string) {
@@ -144,6 +155,8 @@ async function runTool(s: Scope, threadId: string, id: string, name: string, inp
       const [a] = await db.insert(schema.copilotActions).values({ orgId: s.orgId, threadId, userId: s.userId, kind: v.data.kind, payload: { ...p.data, toolUseId: id }, summary: v.data.summary }).returning();
       return ok(id, `Proposal saved (id ${a.id}). Nothing has changed yet: it is waiting for the person to press Confirm.`);
     }
+    const read = await readTool(s, name, (input ?? {}) as Record<string, unknown>);
+    if (read !== null) return ok(id, read);
     return fail(id, `Unknown tool ${name}`);
   } catch (err) {
     if (err instanceof ApiError) return fail(id, err.message);
@@ -208,9 +221,19 @@ async function getAction(s: Scope, id: string) {
 
 const istMorning = (d: string | null) => (d ? `${d}T10:00:00+05:30` : null);
 
-/** Carry out a proposal, as the person, through the module that owns the record. */
-export async function confirm(ctx: AuthedContext, s: Scope, id: string) {
-  const a = await getAction(s, id);
+/** Carry out a proposal, as the person, through the module that owns the record. `edited` is the person's own changes to it (an email draft they rewrote), checked like the original. */
+export async function confirm(ctx: AuthedContext, s: Scope, id: string, edited?: Record<string, unknown>) {
+  const a0 = await getAction(s, id);
+  let a = a0;
+  if (edited && Object.keys(edited).length) {
+    const kind0 = a0.kind as ActionKind;
+    const { toolUseId, ...before } = a0.payload as Record<string, unknown>;
+    const v = ACTION_INPUT[kind0].safeParse({ ...before, ...edited });
+    if (!v.success) throw new ApiError("validation_failed", v.error.issues[0]?.message ?? "Check the details", Object.fromEntries(v.error.issues.map((i) => [i.path.join(".") || "input", [i.message]])));
+    const payload = { ...(v.data as Record<string, unknown>), toolUseId };
+    await db.update(schema.copilotActions).set({ payload }).where(eq(schema.copilotActions.id, a0.id));
+    a = { ...a0, payload };
+  }
   // Claim it first, so a double click can't do it twice.
   const [claimed] = await db.update(schema.copilotActions).set({ status: "running", decidedAt: new Date() }).where(and(eq(schema.copilotActions.id, a.id), inArray(schema.copilotActions.status, ["proposed", "failed"]))).returning();
   if (!claimed) throw new ApiError("conflict", "This is already being done");
@@ -226,6 +249,10 @@ export async function confirm(ctx: AuthedContext, s: Scope, id: string) {
       const act = await createActivity(cs, kind === "crm_task" ? { kind: "task", subject: p.subject, body: p.body, dueAt: istMorning(p.dueDate ?? null), priority: p.priority, contactId: p.contactId, dealId: p.dealId, companyId: p.companyId, ownerId: s.userId } : { kind: "note", body: p.body, contactId: p.contactId, dealId: p.dealId, companyId: p.companyId });
       const link = p.dealId ? `/crm/deals/${p.dealId}` : p.contactId ? `/crm/contacts/${p.contactId}` : p.companyId ? `/crm/companies/${p.companyId}` : "/crm/tasks";
       result = { id: (act as { id: string }).id, link };
+    } else if ((WORKSPACE_ACTIONS as readonly string[]).includes(kind)) {
+      const { toolUseId: _t, ...input } = a.payload as Record<string, unknown>;
+      void _t;
+      result = await execute(ctx, s, kind as WorkspaceAction, input);
     } else {
       if (!s.has("work")) throw new ApiError("forbidden", "Projects aren't open to you");
       const { scope: workScope } = await import("../work/access");

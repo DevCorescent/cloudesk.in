@@ -5,19 +5,20 @@
 // the copilot, which answers from the workspace's data within the person's
 // role. Setup shortcuts lead the screen while the workspace is still new.
 import { useQuery } from "@tanstack/react-query";
-import { BellRing, ChartColumn, ChevronRight, Contact, Mail, Sparkles, Users } from "lucide-react";
+import { BellRing, Building2, CalendarDays, ChartColumn, ChevronRight, Contact, Inbox, Mail, PenLine, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { api, errorMessage } from "@/lib/client/api";
 import { industryById, visibleTo } from "@/lib/workspace/modules";
+import { ActionCard, type CopilotAction } from "./action-card";
 import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
 
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
 type Insight = { id: string; tone: "danger" | "warning" | "info" | "success"; title: string; detail: string; href: string };
 type Dash = { kpis: Kpi[]; insights: Insight[]; waiting: { counts: { approvals: number; todo: number; overdue: number } } | null };
-type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string })[]; actions: unknown[] };
+type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string })[]; actions: CopilotAction[] };
 
 const money = (p: number) => {
   const r = p / 100;
@@ -50,6 +51,8 @@ export function AppAiMode() {
   const [msgs, setMsgs] = useState<AiMsg[]>([]);
   const [busy, setBusy] = useState(false);
   const thread = useRef<string | null>(null);
+  // Suggestions already shown, so each answer only carries its own.
+  const shown = useRef(new Set<string>());
   const has = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
   const copilotOn = has("copilot");
 
@@ -152,10 +155,21 @@ export function AppAiMode() {
       // The answer is everything after the last thing they asked.
       const lastAsk = t.items.map((x) => x.role).lastIndexOf("user");
       const answer = t.items.slice(lastAsk + 1).filter((x): x is { role: "assistant"; text: string } => x.role === "assistant").map((x) => x.text).join("\n\n");
+      const looked = t.items.slice(lastAsk + 1).filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:"));
+      const proposed = t.actions.filter((a) => !shown.current.has(a.id));
+      proposed.forEach((a) => shown.current.add(a.id));
       add({
         role: "assistant",
-        text: answer || "Done.",
-        node: t.actions.length ? <div className="ai-panel"><Go href={`/copilot/${t.id}`}>Review the suggested change</Go></div> : undefined,
+        text: answer || (proposed.length ? "Here's what I've prepared — check it and confirm." : "Done."),
+        node:
+          looked.length || proposed.length ? (
+            <>
+              {looked.length > 0 && <p className="ai-looked">{looked.slice(0, 6).join(" · ")}</p>}
+              {proposed.map((a) => (
+                <ActionCard key={a.id} orgId={org.id} action={a} />
+              ))}
+            </>
+          ) : undefined,
       });
     } catch (e) {
       add({ role: "assistant", text: errorMessage(e) });
@@ -169,7 +183,16 @@ export function AppAiMode() {
     cards: [
       { id: "recap", title: "Get today's business recap", sub: "Sales, money owed, stock and team — at a glance.", icon: ChartColumn, tone: "#4f5ef7", onPick: () => void recap() },
       { id: "attention", title: "See what needs my attention", sub: "Overdue invoices, approvals and anything unusual.", icon: BellRing, tone: "#f5a35c", onPick: () => void attention() },
-      { id: "ask", title: "Ask about my sales", sub: "This month against last, answered from your own data.", icon: Sparkles, tone: "#8b7bff", onPick: () => void ask("How did sales do this month compared with last month?") },
+      { id: "inbox", title: "Catch me up on email", sub: "What's new, what needs a reply, and drafts ready to send.", icon: Inbox, tone: "#2ec4b6", onPick: () => void ask("Catch me up on my inbox: what's new, and what needs a reply from me? Offer to draft the replies.") },
+      { id: "week", title: "Plan my week", sub: "Meetings, overdue invoices and follow-ups in one view.", icon: CalendarDays, tone: "#8b7bff", onPick: () => void ask("What's on my calendar this week, which invoices are overdue, and what should I follow up on?") },
+      { id: "ask", title: "Ask about my sales", sub: "This month against last, answered from your own data.", icon: Sparkles, tone: "#ff7aa2", onPick: () => void ask("How did sales do this month compared with last month?") },
+    ],
+  };
+  const doIt: AiSection = {
+    title: "Get things done in a sentence.",
+    cards: [
+      { id: "draft", title: "Draft an email", sub: "Tell me who and what — I'll write it for you to check and send.", icon: PenLine, tone: "#4f5ef7", onPick: () => void ask("I want to send an email. Ask me who it's for and what it's about, then draft it.") },
+      { id: "invoice", title: "Make an invoice", sub: "Client, items and prices in your words — saved as a draft.", icon: Mail, tone: "#3ccf91", onPick: () => void ask("Help me make an invoice. Ask me for the client and what to bill, then prepare a draft.") },
     ],
   };
   const launch: AiSection = {
@@ -182,7 +205,8 @@ export function AppAiMode() {
   const finish: AiSection = {
     title: fresh ? `Let's get ${org.name} ready.` : "Finish setting up.",
     cards: [
-      { id: "team", title: "Invite my team", sub: "Their own sign-ins, with roles that limit what they see.", icon: Users, tone: "#4fb3ff", onPick: () => router.push("/team") },
+      { id: "profile", title: "Set up my business details", sub: "Legal name, GSTIN, address and UPI — just tell me in chat.", icon: Building2, tone: "#ff7a59", onPick: () => void ask("Help me set up my workspace: check what's missing, ask me for it, and save it.") },
+      { id: "team", title: "Invite my team", sub: "Give me their emails — I'll send the invitations.", icon: Users, tone: "#4fb3ff", onPick: () => void ask("I want to invite people to my team. Ask me for their emails and roles, then send the invitations.") },
       ...(has("crm") ? [{ id: "crm", title: "Bring in my customers", sub: "Import contacts from a CSV or Excel file in seconds.", icon: Contact, tone: "#3ccf91", onPick: () => router.push("/crm") }] : []),
       ...(has("mail") ? [{ id: "mail", title: "Connect my email", sub: "Gmail, Outlook or Zoho in one smart inbox.", icon: Mail, tone: "#ff7aa2", onPick: () => router.push("/mail") }] : []),
     ],
@@ -191,17 +215,18 @@ export function AppAiMode() {
   return (
     <AiScreen
       greeting={hello(user.name)}
-      sections={fresh ? [finish, launch, ahead] : [ahead, launch, finish]}
+      sections={fresh ? [finish, doIt, launch, ahead] : [ahead, doIt, launch, finish]}
       messages={msgs}
       busy={busy}
       onSend={(t) => void ask(t)}
       onClose={() => (window.history.length > 1 ? router.back() : router.push("/home"))}
       onNew={() => {
         thread.current = null;
+        shown.current.clear();
         setMsgs([]);
       }}
       placeholder="Ask about your business"
-      quick={["Who are my top customers?", "Which items are running low?", "How much am I owed?", "How many people are on leave today?"]}
+      quick={["Reply to my latest email", "Who are my top customers?", "How much am I owed?", "Schedule a call tomorrow at 4pm"]}
     />
   );
 }

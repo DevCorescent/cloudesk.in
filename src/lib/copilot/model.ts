@@ -5,9 +5,11 @@
 import { z } from "zod";
 import { AGGS, BUCKETS, OPS, PRESETS } from "@/lib/bi/model";
 
-export const ACTION_KINDS = ["crm_task", "crm_note", "work_task"] as const;
+import { WORKSPACE_ACTIONS, WORKSPACE_INPUT, WORKSPACE_LABEL, WORKSPACE_PROMPT, WORKSPACE_TOOLS } from "./workspace-model";
+
+export const ACTION_KINDS = ["crm_task", "crm_note", "work_task", ...WORKSPACE_ACTIONS] as const;
 export type ActionKind = (typeof ACTION_KINDS)[number];
-export const ACTION_LABEL: Record<ActionKind, string> = { crm_task: "CRM follow-up", crm_note: "CRM note", work_task: "Project task" };
+export const ACTION_LABEL: Record<ActionKind, string> = { crm_task: "CRM follow-up", crm_note: "CRM note", work_task: "Project task", ...WORKSPACE_LABEL };
 export const SEARCH_KINDS = ["contacts", "deals", "suppliers", "items", "employees", "projects", "documents"] as const;
 export type SearchKind = (typeof SEARCH_KINDS)[number];
 
@@ -20,7 +22,7 @@ export const searchInput = z.object({ query: z.string().trim().min(1).max(100), 
 export const crmTaskInput = z.object({ subject: z.string().trim().min(1).max(200), body: z.string().max(4000).default(""), dueDate: day.nullable().default(null), priority: z.enum(["low", "normal", "high"]).default("normal"), contactId: uuidOrNull, dealId: uuidOrNull, companyId: uuidOrNull });
 export const crmNoteInput = z.object({ body: z.string().trim().min(1).max(4000), contactId: uuidOrNull, dealId: uuidOrNull, companyId: uuidOrNull }).refine((x) => x.contactId || x.dealId || x.companyId, "A note belongs on a contact, company or deal");
 export const workTaskInput = z.object({ projectId: z.uuid(), title: z.string().trim().min(1).max(300), description: z.string().max(4000).default(""), dueDate: day.nullable().default(null), priority: z.enum(["low", "normal", "high", "urgent"]).default("normal") });
-export const ACTION_INPUT = { crm_task: crmTaskInput, crm_note: crmNoteInput, work_task: workTaskInput } as const;
+export const ACTION_INPUT = { crm_task: crmTaskInput, crm_note: crmNoteInput, work_task: workTaskInput, ...WORKSPACE_INPUT } as const;
 export const proposeInput = z.object({ kind: z.enum(ACTION_KINDS), summary: z.string().trim().min(1).max(300), input: z.record(z.string(), z.unknown()) });
 
 const target = { contactId: { type: ["string", "null"], description: "Contact id from search_records" }, dealId: { type: ["string", "null"], description: "Deal id from search_records" }, companyId: { type: ["string", "null"] } };
@@ -50,9 +52,12 @@ export const TOOLS = [
   {
     name: "propose_action",
     description:
-      'Suggest a change for the person to confirm — nothing is saved until they press Confirm, so say that it is waiting for them. kind "crm_task": input { subject, body?, dueDate? (YYYY-MM-DD), priority? (low|normal|high), contactId?, dealId?, companyId? }. kind "crm_note": input { body, contactId?, dealId?, companyId? } (at least one). kind "work_task": input { projectId, title, description?, dueDate?, priority? (low|normal|high|urgent) }. summary: one line saying what will happen.',
+      'Suggest a change for the person to confirm — nothing is saved until they press Confirm, so say that it is waiting for them. kind "crm_task": input { subject, body?, dueDate? (YYYY-MM-DD), priority? (low|normal|high), contactId?, dealId?, companyId? }. kind "crm_note": input { body, contactId?, dealId?, companyId? } (at least one). kind "work_task": input { projectId, title, description?, dueDate?, priority? (low|normal|high|urgent) }. ' +
+      WORKSPACE_PROMPT +
+      " summary: one line saying what will happen.",
     input_schema: { type: "object", properties: { kind: { type: "string", enum: [...ACTION_KINDS] }, summary: { type: "string" }, input: { type: "object", properties: { ...target } } }, required: ["kind", "summary", "input"], additionalProperties: false },
   },
+  ...WORKSPACE_TOOLS,
 ] as const;
 export type ToolName = (typeof TOOLS)[number]["name"];
 
@@ -66,7 +71,21 @@ How you work:
 - To change anything, use propose_action. You cannot save changes yourself; the person confirms each proposal. Never claim a change was made.
 - Ids come from search_records or report results — never guess an id.
 - Amounts are Indian rupees. Write them like ₹1,25,000. Dates in the workspace are in India time.
-- Keep answers short and concrete: the answer first, then the figures that support it. Use a small table when comparing several rows.`;
+- Keep answers short and concrete: the answer first, then the figures that support it. Use a small table when comparing several rows.
+- Formatting: plain sentences, **bold**, short lists and small tables only — never italics or headings.
+
+Email:
+- Find emails with mail_search, then mail_read before summarising or replying — never reply to an email you haven't read.
+- To write or reply, draft it with propose_action kind "send_email": the person reviews and edits the draft, then sends it. Write it as them, in their voice: a clear subject, a short greeting, the point in the first two lines, a specific next step, and their first name. For replies, pass threadId and replyTo (the message id you're answering), reply to the sender, and keep the subject.
+- Never say an email was sent — say the draft is ready for them to check and send.
+- For "what needs my attention" in mail, use mail_briefing or mail_search with view needsreply.
+
+Calendar and invoices: use calendar_upcoming and invoices_list for questions about the schedule, money owed or overdue invoices; suggest events and draft invoices with propose_action. Ask for a missing time, client or price rather than guessing.
+
+Setting up a new workspace (when they ask to get set up, or setup_status shows gaps):
+- Call setup_status first. Then ask for the missing details a few at a time, in plain words — legal name, GSTIN (or "not registered"), PAN, address, phone and email for invoices, UPI ID — and repeat back what you understood.
+- Save them with one propose_action kind "business_profile" holding everything they gave. Then offer the next steps: invite teammates (invite_member, ask their email and role), add first customers (crm_contact), connect a mailbox (Mail → Add account), open the online store (/launch?kind=store).
+- Check GSTIN and PAN formats before proposing; the state comes from the GSTIN's first two digits.`;
 
 /** A short title for a conversation, from its first question. */
 export function titleFrom(text: string) {
@@ -85,6 +104,13 @@ const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   search_records: (i) => `Searched for “${String(i.query ?? "")}”`,
   find_anomalies: () => "Checked the books for anything unusual",
   propose_action: (i) => `Suggested: ${String(i.summary ?? "a change")}`,
+  mail_accounts: () => "Checked your mailboxes",
+  mail_search: (i) => (i.query ? `Searched email for “${String(i.query)}”` : `Looked through your ${String(i.view ?? "inbox")}`),
+  mail_read: () => "Read the email thread",
+  mail_briefing: () => "Read what's new in your inbox",
+  calendar_upcoming: (i) => `Checked your calendar (next ${Number(i.days) || 7} days)`,
+  invoices_list: (i) => (i.status ? `Looked at ${String(i.status)} invoices` : "Looked at your invoices"),
+  setup_status: () => "Checked what's set up",
 };
 
 /** What people see of a conversation: their questions, the answers, and which tools were used (tool results stay hidden). */

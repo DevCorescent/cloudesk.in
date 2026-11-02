@@ -36,8 +36,11 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
     case "DELETE threads :id":
       await deleteThread(s, id!);
       return { ok: true };
-    case "POST actions :id confirm":
-      return confirm(ctx, s, id!);
+    case "POST actions :id confirm": {
+      // The person may have edited the suggestion (an email draft) before confirming.
+      const v = await readJson(ctx.req, z.object({ input: z.record(z.string(), z.unknown()).optional() }).default({})).catch(() => ({ input: undefined }));
+      return confirm(ctx, s, id!, v.input);
+    }
     case "POST actions :id dismiss":
       await dismiss(s, id!);
       return { ok: true };
