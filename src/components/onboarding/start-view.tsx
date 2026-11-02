@@ -20,7 +20,8 @@ import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { Field, Notice } from "@/components/ui/primitives";
 import { money, type Interval } from "@/lib/billing/catalog";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
-import { profileFor, recommend, type Profile } from "@/lib/onboarding/recommend";
+import { usePhone } from "@/lib/client/use-phone";
+import { profileFor, QUESTION_IDS, recommend, type Profile } from "@/lib/onboarding/recommend";
 import { goalsFor, industryById, moduleById, neededBy, withRequirements, type IndustryId, type ModuleId, type PartsOff } from "@/lib/workspace/modules";
 import { ChoosePlan, customFrom, featureName, priceOf, toChoice, type Catalog, type PlanPick } from "./choose-plan";
 import { Plan, PlanSummary, Questions } from "./steps";
@@ -107,6 +108,10 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
   const [done, setDone] = useState<{ email: string; workspace: string } | null>(null);
   const [sheet, setSheet] = useState(false);
   const [restored, setRestored] = useState(false);
+  // Phones take the quick questions one at a time.
+  const phone = usePhone();
+  const [question, setQuestion] = useState(0);
+  const lastQuestion = QUESTION_IDS.length - 1;
 
   const catalog = useQuery({ queryKey: ["plans-catalog"], queryFn: () => api<Catalog>("/api/v1/plans"), staleTime: 5 * 60_000 });
   // Building your own, from the features chosen, is the natural default.
@@ -176,9 +181,11 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
   const planNote = plan.kind === "later" ? `Free for ${catalog.data?.pricing.trialDays ?? 30} days · choose a plan later` : priced ? `After the trial: ${planLabel(priced)} · ${money(priced.monthly, priced.currency)}/month${interval === "year" ? ", billed yearly" : ""} + tax` : "Choose what comes after the trial";
   const footer =
     screen === "business"
-      ? { back: () => go("welcome"), next: () => go("questions"), label: "Continue", disabled: !businessReady, note: !name.trim() ? "Add your business name" : !industry ? "Pick the closest industry" : `${industry.label} · ${rec.modules.length} features so far` }
+      ? { back: () => go("welcome"), next: () => (setQuestion(0), go("questions")), label: "Continue", disabled: !businessReady, note: !name.trim() ? "Add your business name" : !industry ? "Pick the closest industry" : `${industry.label} · ${rec.modules.length} features so far` }
       : screen === "questions"
-        ? { back: () => go("business"), next: () => (setChosen(null), go("features")), label: "See my features", disabled: false, note: `${rec.modules.length} feature${rec.modules.length === 1 ? "" : "s"} recommended` }
+        ? phone && question < lastQuestion
+          ? { back: () => (question ? setQuestion(question - 1) : go("business")), next: () => setQuestion(question + 1), label: "Next", disabled: false, note: `${rec.modules.length} feature${rec.modules.length === 1 ? "" : "s"} recommended` }
+          : { back: () => (phone && question ? setQuestion(question - 1) : go("business")), next: () => (setChosen(null), go("features")), label: "See my features", disabled: false, note: `${rec.modules.length} feature${rec.modules.length === 1 ? "" : "s"} recommended` }
         : screen === "features"
           ? { back: () => go("questions"), next: () => go("plan"), label: "Choose my plan", disabled: !modules.length, note: `${modules.length} feature${modules.length === 1 ? "" : "s"} · change any time in Settings → Features` }
           : screen === "plan"
@@ -195,10 +202,15 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
         <span />
       </div>
       <header className="sticky top-0 z-30 border-b border-fg/[0.05] bg-[color-mix(in_srgb,var(--p-canvas)_72%,transparent)] backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between gap-4 px-4 sm:px-8">
+        <div className="mx-auto flex h-16 max-w-[1320px] items-center justify-between gap-4 px-4 max-sm:h-14 sm:px-8">
           <Link href="/" aria-label="Cloudesk home">
-            <Wordmark className="text-[22px]" />
+            <Wordmark className="text-[22px] max-sm:text-[19px]" />
           </Link>
+          {screen !== "welcome" && screen !== "done" && stepIdx >= 0 && (
+            <span className="rounded-full bg-fg/[0.05] px-2.5 py-1 text-[11.5px] font-medium text-fg/55 tabular-nums sm:hidden">
+              {stepIdx + 1} of {STEPS.length}
+            </span>
+          )}
           {screen !== "welcome" && <StepProgress labels={STEPS.map((x) => x.label)} index={stepIdx} finished={screen === "done"} />}
           {screen !== "done" ? (
             <Link href={`/login${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="text-[13px] whitespace-nowrap text-fg/55 transition-colors hover:text-fg">
@@ -215,7 +227,7 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
         )}
       </header>
 
-      <main className={clsx("relative z-10 mx-auto max-w-[1320px] px-4 sm:px-8", footer ? "pt-8 pb-32 sm:pt-10" : "flex min-h-[calc(100dvh-4rem)] flex-col justify-center py-10")}>
+      <main className={clsx("relative z-10 mx-auto max-w-[1320px] px-4 sm:px-8", footer ? "pt-8 pb-32 max-sm:pt-4 max-sm:pb-[calc(env(safe-area-inset-bottom,0px)+92px)] sm:pt-10" : "flex min-h-[calc(100dvh-4rem)] flex-col justify-center py-10 max-sm:min-h-[calc(100dvh-3.5rem-3px)] max-sm:py-5")}>
         {screen === "welcome" && (
           <Welcome
             eyebrow="Start free · no card needed"
@@ -233,15 +245,15 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
         {screen === "questions" && industry && (
           <>
             <Heading eyebrow={`Step 2 of 6 · ${industry.label}`} title="A few quick questions" sub="We've pre-answered them for a business like yours. Tap to change anything — the features update as you go." />
-            <div className="mt-8">
-              <Questions profile={profile} onChange={setAnswers} rec={rec} heard={derived.heard} industryLabel={industry.label} aside={<PlanSummary rec={rec} title="Features so far" />} />
+            <div className="mt-8 max-sm:mt-4">
+              <Questions profile={profile} onChange={setAnswers} rec={rec} heard={derived.heard} industryLabel={industry.label} aside={<PlanSummary rec={rec} title="Features so far" />} step={question} />
             </div>
           </>
         )}
         {screen === "features" && industry && (
           <>
             <Heading eyebrow="Step 3 of 6 · Your features" title={`${name.trim() || "Your"}'s workspace`} sub="Here's what we recommend, and why. Switch anything off, leave out parts you won't use, or add more." />
-            <div className="mt-8">
+            <div className="mt-8 max-sm:mt-4">
               <Plan
                 rec={rec}
                 modules={modules}
@@ -258,7 +270,7 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
         {screen === "plan" && (
           <>
             <Heading eyebrow="Step 4 of 6 · Your plan" title="Choose your plan" sub="Try everything first. This is only what you'll be on when the free trial ends." />
-            <div className="mx-auto mt-8 max-w-[1180px]">
+            <div className="mx-auto mt-8 max-w-[1180px] max-sm:mt-4">
               {catalog.data ? (
                 <ChoosePlan catalog={catalog.data} chosen={modules} pick={plan} onPick={setPick} interval={interval} onInterval={setInterval} />
               ) : catalog.isError ? (
@@ -270,7 +282,7 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
                   <Loader2 className="size-4 animate-spin" /> Loading plans…
                 </p>
               )}
-              <TrustStrip compact className="mt-8" />
+              <TrustStrip compact className="mt-8 max-sm:hidden" />
             </div>
           </>
         )}
@@ -336,17 +348,18 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
 
       {footer && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-fg/[0.06] bg-[color-mix(in_srgb,var(--p-canvas)_80%,transparent)] backdrop-blur-xl">
-          <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 sm:px-8">
-            <button type="button" onClick={footer.back} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-[14px] text-fg/55 transition-colors hover:text-fg">
+          <div className="mx-auto flex max-w-[1320px] items-center gap-3 px-4 py-3 max-sm:gap-2 max-sm:pb-[calc(env(safe-area-inset-bottom,0px)+12px)] sm:px-8">
+            <button type="button" onClick={footer.back} aria-label="Back" className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-[14px] text-fg/55 transition-colors hover:text-fg max-sm:size-12 max-sm:shrink-0 max-sm:justify-center max-sm:px-0 max-sm:ring-1 max-sm:ring-fg/10">
               <ArrowLeft className="size-4" /> <span className="hidden sm:inline">Back</span>
             </button>
-            <p className={clsx("min-w-0 flex-1 truncate text-[13px] text-fg/55", fromBusiness && "max-lg:invisible")} aria-live="polite">{footer.note}</p>
+            <p className={clsx("min-w-0 flex-1 truncate text-[13px] text-fg/55 max-sm:hidden", fromBusiness && "max-lg:invisible")} aria-live="polite">{footer.note}</p>
             {fromBusiness && (
-              <button type="button" onClick={() => setSheet(true)} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13.5px] font-medium ring-1 ring-fg/10 lg:hidden">
-                <Eye className="size-4" /> {screen === "features" ? modules.length : rec.modules.length} · Preview
+              <button type="button" onClick={() => setSheet(true)} aria-label={`Preview ${screen === "features" ? modules.length : rec.modules.length} features`} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3.5 text-[13.5px] font-medium ring-1 ring-fg/10 max-sm:h-12 max-sm:shrink-0 max-sm:px-3 lg:hidden">
+                <Eye className="size-4" /> {screen === "features" ? modules.length : rec.modules.length}
+                <span className="max-sm:hidden"> · Preview</span>
               </button>
             )}
-            <button type="button" disabled={footer.disabled} onClick={footer.next} className="p-cta lx-sheen inline-flex items-center gap-2 px-5 sm:px-7">
+            <button type="button" disabled={footer.disabled} onClick={footer.next} className="p-cta lx-sheen inline-flex items-center gap-2 px-5 max-sm:flex-1 max-sm:justify-center sm:px-7">
               {footer.label} <ArrowRight className="size-4" />
             </button>
           </div>
@@ -439,6 +452,7 @@ function Account(p: {
   const [error, setError] = useState<{ message: string; exists?: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [coupon, setCoupon] = useState("");
+  const phone = usePhone();
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const password = String(new FormData(e.currentTarget).get("password") ?? "");
@@ -467,10 +481,10 @@ function Account(p: {
   const login = `/login?email=${encodeURIComponent(p.email.trim())}${p.next ? `&next=${encodeURIComponent(p.next)}` : ""}`;
   const link = (href: string, label: string) => (href ? <a href={href} target="_blank" rel="noreferrer" className="font-medium text-fg underline underline-offset-2">{label}</a> : label);
   return (
-    <section className="ob-screen mx-auto grid w-full max-w-[1000px] gap-8">
+    <section className="ob-screen mx-auto grid w-full max-w-[1000px] gap-8 max-sm:gap-4">
       <Heading eyebrow="Step 5 of 6 · Your account" title="Create your account" sub="Last step. We'll email you a 6-digit code to confirm the address, then set everything up." />
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)]">
-        <form onSubmit={onSubmit} noValidate className="p-glass p-in grid gap-4 rounded-[28px] p-5 sm:p-7" style={{ animationDelay: "100ms" }}>
+        <form onSubmit={onSubmit} noValidate className="p-glass p-in grid gap-4 rounded-[28px] p-5 max-sm:gap-3 max-sm:rounded-[22px] max-sm:p-4 sm:p-7" style={{ animationDelay: "100ms" }}>
           {error && (
             <Notice tone="danger" action={error.exists ? <Link href={login} className="text-[13px] font-semibold text-fg underline underline-offset-2">Sign in instead</Link> : undefined}>
               {error.message}
@@ -478,10 +492,10 @@ function Account(p: {
           )}
           <Field label="Your name" error={errors.name?.[0]}>{(a) => <input {...a} className="p-input" name="name" autoComplete="name" value={p.person} onChange={(e) => p.setPerson(e.target.value)} maxLength={100} autoFocus />}</Field>
           <Field label="Work email" error={errors.email?.[0]}>{(a) => <input {...a} className="p-input" name="email" type="email" autoComplete="email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} maxLength={200} />}</Field>
-          <Field label="Password" hint="At least 10 characters, with a number or symbol." error={errors.password?.[0]}>
+          <Field label="Password" hint={phone ? undefined : "At least 10 characters, with a number or symbol."} error={errors.password?.[0]}>
             {(a) => <PasswordInput id={a.id} name="password" autoComplete="new-password" strength invalid={a["aria-invalid"]} describedBy={a["aria-describedby"]} />}
           </Field>
-          <Field label="Business name" hint="Your workspace's name — you can change it later." error={errors.workspaceName?.[0]}>{(a) => <input {...a} className="p-input" name="workspaceName" autoComplete="organization" value={p.workspace} onChange={(e) => p.setWorkspace(e.target.value)} maxLength={80} />}</Field>
+          <Field label="Business name" hint={phone ? undefined : "Your workspace's name — you can change it later."} error={errors.workspaceName?.[0]}>{(a) => <input {...a} className="p-input" name="workspaceName" autoComplete="organization" value={p.workspace} onChange={(e) => p.setWorkspace(e.target.value)} maxLength={80} />}</Field>
           <CouponField value={coupon} onChange={(v) => (setCoupon(v), errors.coupon && setErrors((x) => ({ ...x, coupon: [] })))} error={errors.coupon?.[0]} />
           <div className="grid gap-1">
             <label className="flex items-start gap-2.5 text-[13.5px] leading-snug text-fg/70">
@@ -492,17 +506,17 @@ function Account(p: {
             </label>
             {errors.acceptTerms?.[0] && <p id="terms-error" className="pl-6.5 text-[12px] text-danger">{errors.acceptTerms[0]}</p>}
           </div>
-          <div className="mt-1 flex items-center gap-3">
-            <button type="button" onClick={p.onBack} className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-[14px] text-fg/55 transition-colors hover:text-fg">
-              <ArrowLeft className="size-4" /> Back
+          <div className="mt-1 flex items-center gap-3 max-sm:gap-2">
+            <button type="button" onClick={p.onBack} aria-label="Back" className="inline-flex h-11 items-center gap-1.5 rounded-full px-3 text-[14px] text-fg/55 transition-colors hover:text-fg max-sm:size-12 max-sm:shrink-0 max-sm:justify-center max-sm:px-0 max-sm:ring-1 max-sm:ring-fg/10">
+              <ArrowLeft className="size-4" /> <span className="max-sm:hidden">Back</span>
             </button>
-            <button type="submit" disabled={loading} className="p-cta lx-sheen ml-auto inline-flex items-center gap-2 px-6 sm:px-8">
+            <button type="submit" disabled={loading} className="p-cta lx-sheen ml-auto inline-flex items-center gap-2 px-6 max-sm:flex-1 max-sm:justify-center sm:px-8">
               {loading ? <Loader2 className="size-4 animate-spin" /> : null}
               Continue <ArrowRight className="size-4" />
             </button>
           </div>
         </form>
-        <div className="p-in" style={{ animationDelay: "180ms" }}>
+        <div className="p-in max-sm:hidden" style={{ animationDelay: "180ms" }}>
           {p.summary}
         </div>
       </div>
@@ -650,7 +664,7 @@ function Done({ result, industryId, modules, planNote, trialDays, next }: { resu
           </span>
         </div>
       </div>
-      <div className="p-in" style={{ animationDelay: "200ms" }}>
+      <div className="p-in max-sm:hidden" style={{ animationDelay: "200ms" }}>
         <DashPreview name={result.workspace} industry={industry} modules={modules} big />
       </div>
     </section>

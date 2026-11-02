@@ -50,7 +50,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePhone } from "@/lib/client/use-phone";
 import { createPortal } from "react-dom";
 import { useShareToChat } from "@/components/chat/share";
 import { ModuleContext } from "@/components/shell/module-frame";
@@ -673,19 +674,6 @@ type Sort = "name" | "updated" | "size";
 type Sel = { files: Set<string>; folders: Set<string> };
 const none = (): Sel => ({ files: new Set(), folders: new Set() });
 
-const narrow = "(max-width: 639.98px)";
-/** Phones always list files: thumbnails are too small to tell documents apart. */
-function usePhone() {
-  return useSyncExternalStore(
-    (cb) => {
-      const m = window.matchMedia(narrow);
-      m.addEventListener("change", cb);
-      return () => m.removeEventListener("change", cb);
-    },
-    () => window.matchMedia(narrow).matches,
-    () => false,
-  );
-}
 
 function useStoredView() {
   const [view, setView] = useState<"grid" | "list">(() => {
@@ -714,6 +702,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
   const refresh = useDriveRefresh();
   const chat = useShareToChat();
   const [view, setView] = useStoredView();
+  // Phones always list files: thumbnails are too small to tell documents apart.
   const phone = usePhone();
   const [sort, setSort] = useState<Sort>(section === "recent" || section === "starred" || section === "shared" ? "updated" : "name");
   const [type, setType] = useState("");

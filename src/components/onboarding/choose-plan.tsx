@@ -5,7 +5,7 @@
 // live, itemised price), or nothing yet. Prices come from the server's
 // catalogue and are worked out with the same maths the server uses.
 import clsx from "clsx";
-import { Check, Gift, Minus, Plus, Sparkles, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, Gift, Minus, Plus, Sparkles, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { money, quote, QuoteError, taxOf, type CatalogPlan, type Choice, type Interval, type Pricing, type Quote } from "@/lib/billing/catalog";
@@ -48,18 +48,24 @@ export function ChoosePlan({ catalog, chosen, pick, onPick, interval, onInterval
     setLastCustom(p);
     onPick(p);
   };
+  // Phones show the builder folded into one line until it's opened.
+  const [building, setBuilding] = useState(false);
+  const customQuote = useMemo(() => priceOf(custom, interval, catalog), [custom, interval, catalog]);
   return (
-    <div className="grid gap-6">
-      <div className="p-glass p-in flex flex-col gap-3 rounded-[24px] p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
-        <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[var(--p-mint)] text-[var(--p-mint-ink)]">
+    <div className="grid gap-6 max-sm:gap-2.5">
+      <div className="p-glass p-in flex flex-col gap-3 rounded-[24px] p-4 max-sm:flex-row max-sm:items-center max-sm:justify-between max-sm:rounded-[18px] max-sm:py-2 max-sm:pr-2 max-sm:pl-3.5 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
+        <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[var(--p-mint)] text-[var(--p-mint-ink)] max-sm:hidden">
           <Gift className="size-5" />
         </span>
-        <p className="min-w-0 flex-1 text-[14.5px] leading-relaxed text-fg/70">
+        <p className="min-w-0 flex-1 text-[14.5px] leading-relaxed text-fg/70 max-sm:hidden">
           <b className="font-semibold text-fg">Everything is free for {pricing.trialDays} days — no card needed.</b> Pick what you&apos;d like after the trial; you can change it any time.
         </p>
-        <div role="radiogroup" aria-label="Billing period" className="inline-flex shrink-0 self-start rounded-full bg-fg/[0.06] p-1 sm:self-auto">
+        <p className="flex items-center gap-1.5 text-[12.5px] leading-tight font-medium text-fg/70 sm:hidden">
+          <Gift className="size-4 shrink-0 text-[var(--p-mint-ink)]" /> {pricing.trialDays} days free
+        </p>
+        <div role="radiogroup" aria-label="Billing period" className="inline-flex shrink-0 self-start rounded-full bg-fg/[0.06] p-1 max-sm:self-auto sm:self-auto">
           {(["month", "year"] as const).map((i) => (
-            <button key={i} type="button" role="radio" aria-checked={interval === i} onClick={() => onInterval(i)} className={clsx("inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-medium transition-all", interval === i ? "bg-[var(--surface-solid)] text-fg shadow-sm" : "text-fg/55 hover:text-fg")}>
+            <button key={i} type="button" role="radio" aria-checked={interval === i} onClick={() => onInterval(i)} className={clsx("inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13.5px] font-medium transition-all max-sm:h-8 max-sm:px-3 max-sm:text-[12.5px]", interval === i ? "bg-[var(--surface-solid)] text-fg shadow-sm" : "text-fg/55 hover:text-fg")}>
               {i === "month" ? "Monthly" : "Yearly"}
               {i === "year" && free > 0 && <span className="rounded-full bg-[var(--p-mint)] px-1.5 py-px text-[11px] font-semibold text-[var(--p-mint-ink)]">{count(free, "month")} free</span>}
             </button>
@@ -67,30 +73,50 @@ export function ChoosePlan({ catalog, chosen, pick, onPick, interval, onInterval
         </div>
       </div>
 
-      <div role="radiogroup" aria-label="Plan after the trial" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div role="radiogroup" aria-label="Plan after the trial" className="grid gap-3 max-sm:gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {plans.map((p, i) => (
           <PlanCard key={p.id} plan={p} interval={interval} chosen={chosen} selected={pick.kind === "plan" && pick.planId === p.id} onSelect={() => onPick({ kind: "plan", planId: p.id })} delay={i * 50} />
         ))}
       </div>
 
       <div className={clsx("p-in overflow-hidden rounded-[24px] border transition-all duration-300", pick.kind === "custom" ? "border-fg bg-[var(--surface-solid)] shadow-[0_24px_50px_-34px_rgb(30_20_60/0.7)]" : "border-fg/[0.08] bg-[var(--surface-solid)]/70")}>
-        <button type="button" role="radio" aria-checked={pick.kind === "custom"} onClick={() => onPick(custom)} className="flex w-full items-center gap-3 p-4 text-left sm:p-5">
-          <span className={clsx("grid size-10 shrink-0 place-items-center rounded-[13px]", pick.kind === "custom" ? "bg-fg text-bg" : "bg-[var(--p-lavender)] text-[var(--p-lavender-ink)]")}>
-            <Sparkles className="size-[18px]" />
+        <button type="button" role="radio" aria-checked={pick.kind === "custom"} onClick={() => onPick(custom)} className="flex w-full items-center gap-3 p-4 text-left max-sm:px-3.5 max-sm:py-3 sm:p-5">
+          <span className={clsx("grid size-10 shrink-0 place-items-center rounded-[13px] max-sm:size-8 max-sm:rounded-[10px]", pick.kind === "custom" ? "bg-fg text-bg" : "bg-[var(--p-lavender)] text-[var(--p-lavender-ink)]")}>
+            <Sparkles className="size-[18px] max-sm:size-4" />
           </span>
           <span className="min-w-0 flex-1">
-            <b className="block text-[16px] font-semibold tracking-[-0.01em]">Build your own</b>
-            <span className="block text-[13px] text-fg/55">Mail, Calendar and Chat, plus only the features you want — starting with the ones you picked.</span>
+            <b className="block text-[16px] font-semibold tracking-[-0.01em] max-sm:text-[15px]">Build your own</b>
+            <span className="block text-[13px] text-fg/55 max-sm:hidden">Mail, Calendar and Chat, plus only the features you want — starting with the ones you picked.</span>
           </span>
+          {customQuote && (
+            <span className="text-right sm:hidden">
+              <b className="block text-[15px] font-semibold tracking-[-0.02em] tabular-nums">{money(customQuote.amount, customQuote.currency)}</b>
+              <span className="block text-[11px] text-fg/45">/{interval === "year" ? "year" : "month"}</span>
+            </span>
+          )}
           <Radio on={pick.kind === "custom"} />
         </button>
-        {pick.kind === "custom" && <Builder catalog={catalog} pick={custom} onPick={setCustom} interval={interval} />}
+        {pick.kind === "custom" && (
+          <>
+            <button type="button" aria-expanded={building} onClick={() => setBuilding(!building)} className="flex w-full items-center justify-between gap-2 border-t border-fg/[0.06] px-3.5 py-2.5 text-[12.5px] text-fg/60 sm:hidden">
+              <span>
+                {count(custom.modules.length + pricing.customBaseModules.length, "feature")} · {count(custom.seats, "person", "people")}
+              </span>
+              <span className="inline-flex items-center gap-1 font-medium text-fg">
+                {building ? "Done" : "Customise"} <ChevronDown className={clsx("size-3.5 transition-transform", building && "rotate-180")} />
+              </span>
+            </button>
+            <div className={clsx(!building && "max-sm:hidden")}>
+              <Builder catalog={catalog} pick={custom} onPick={setCustom} interval={interval} />
+            </div>
+          </>
+        )}
       </div>
 
-      <button type="button" role="radio" aria-checked={pick.kind === "later"} onClick={() => onPick({ kind: "later" })} className={clsx("flex items-center gap-3 rounded-[20px] border px-4 py-3.5 text-left transition-all sm:px-5", pick.kind === "later" ? "border-fg bg-[var(--surface-solid)]" : "border-dashed border-fg/15 hover:border-fg/30")}>
+      <button type="button" role="radio" aria-checked={pick.kind === "later"} onClick={() => onPick({ kind: "later" })} className={clsx("flex items-center gap-3 rounded-[20px] border px-4 py-3.5 text-left transition-all max-sm:rounded-[16px] max-sm:px-3.5 max-sm:py-3 sm:px-5", pick.kind === "later" ? "border-fg bg-[var(--surface-solid)]" : "border-dashed border-fg/15 hover:border-fg/30")}>
         <span className="min-w-0 flex-1">
           <b className="block text-[14.5px] font-semibold">Decide later</b>
-          <span className="block text-[12.5px] text-fg/55">Use everything during the trial and choose a plan before it ends, in Settings → Billing.</span>
+          <span className="block text-[12.5px] text-fg/55 max-sm:hidden">Use everything during the trial and choose a plan before it ends, in Settings → Billing.</span>
         </span>
         <Radio on={pick.kind === "later"} />
       </button>
@@ -110,23 +136,33 @@ function PlanCard({ plan, interval, chosen, selected, onSelect, delay }: { plan:
   const shown = more ? included : included.slice(0, 6);
   const l = plan.limits;
   return (
-    <div className={clsx("p-in relative flex flex-col rounded-[24px] border bg-[var(--surface-solid)] transition-all duration-300", selected ? "border-fg shadow-[0_24px_50px_-30px_rgb(30_20_60/0.7)]" : plan.highlight ? "border-[color-mix(in_srgb,var(--p-lavender-ink)_45%,transparent)]" : "border-fg/[0.08]")} style={{ animationDelay: `${delay}ms` }}>
-      {plan.highlight && <span className="absolute -top-2.5 left-4 rounded-full bg-[var(--p-lavender-ink)] px-2.5 py-0.5 text-[11px] font-semibold text-white">Recommended</span>}
-      <button type="button" role="radio" aria-checked={selected} aria-label={`${plan.name}, ${money(perMonth, plan.currency)} a month`} onClick={onSelect} className="grid gap-3 p-4 pb-3 text-left sm:p-5 sm:pb-3">
+    <div className={clsx("p-in relative flex flex-col rounded-[24px] border bg-[var(--surface-solid)] transition-all duration-300 max-sm:rounded-[16px]", selected ? "border-fg shadow-[0_24px_50px_-30px_rgb(30_20_60/0.7)]" : plan.highlight ? "border-[color-mix(in_srgb,var(--p-lavender-ink)_45%,transparent)]" : "border-fg/[0.08]")} style={{ animationDelay: `${delay}ms` }}>
+      {plan.highlight && <span className="absolute -top-2.5 left-4 rounded-full bg-[var(--p-lavender-ink)] px-2.5 py-0.5 text-[11px] font-semibold text-white max-sm:right-12 max-sm:left-auto max-sm:text-[10px]">Recommended</span>}
+      {/* Phones: one row — name and fit on the left, price and the radio on the right. */}
+      <button type="button" role="radio" aria-checked={selected} aria-label={`${plan.name}, ${money(perMonth, plan.currency)} a month`} onClick={onSelect} className="grid gap-3 p-4 pb-3 text-left max-sm:grid-cols-[minmax(0,1fr)_auto_auto] max-sm:items-center max-sm:gap-x-3 max-sm:gap-y-0 max-sm:px-3.5 max-sm:py-3 sm:p-5 sm:pb-3">
         <span className="flex items-start justify-between gap-3">
           <span className="min-w-0">
-            <b className="block text-[17px] font-semibold tracking-[-0.015em]">{plan.name}</b>
-            <span className="mt-0.5 block text-[12.5px] leading-snug text-fg/55">{plan.kind === "basic" && plan.modules?.length === 3 ? "Mail, Calendar and Chat" : plan.tagline}</span>
+            <b className="block text-[17px] font-semibold tracking-[-0.015em] max-sm:text-[15px]">{plan.name}</b>
+            <span className="mt-0.5 block text-[12.5px] leading-snug text-fg/55 max-sm:hidden">{plan.kind === "basic" && plan.modules?.length === 3 ? "Mail, Calendar and Chat" : plan.tagline}</span>
+            {plan.modules !== null && chosen.length > 0 && (
+              <span className={clsx("mt-0.5 block truncate text-[11.5px] sm:hidden", missing.length ? "text-[var(--p-butter-ink)]" : "text-[var(--p-mint-ink)]")}>{missing.length ? `Leaves out ${count(missing.length, "feature")} you picked` : "Covers everything you picked"}</span>
+            )}
+            {plan.modules === null && <span className="mt-0.5 block text-[11.5px] text-[var(--p-mint-ink)] sm:hidden">Every feature</span>}
           </span>
+          <span className="max-sm:hidden">
+            <Radio on={selected} />
+          </span>
+        </span>
+        <span className="max-sm:text-right">
+          <span className="text-[28px] font-semibold tracking-[-0.03em] tabular-nums max-sm:text-[17px]">{money(perMonth, plan.currency)}</span>
+          <span className="text-[13px] text-fg/50 max-sm:block max-sm:text-[11px]"> /month</span>
+          <span className="block text-[12px] text-fg/45 max-sm:hidden">{interval === "year" ? `${money(plan.yearly, plan.currency)} billed yearly` : "billed monthly"}, plus tax</span>
+        </span>
+        <span className="sm:hidden">
           <Radio on={selected} />
         </span>
-        <span>
-          <span className="text-[28px] font-semibold tracking-[-0.03em] tabular-nums">{money(perMonth, plan.currency)}</span>
-          <span className="text-[13px] text-fg/50"> /month</span>
-          <span className="block text-[12px] text-fg/45">{interval === "year" ? `${money(plan.yearly, plan.currency)} billed yearly` : "billed monthly"}, plus tax</span>
-        </span>
       </button>
-      <div className="grid flex-1 content-start gap-3 border-t border-fg/[0.06] px-4 py-3.5 text-[12.5px] sm:px-5">
+      <div className="grid flex-1 content-start gap-3 border-t border-fg/[0.06] px-4 py-3.5 text-[12.5px] max-sm:hidden sm:px-5">
         <ul className="grid gap-1 text-fg/65">
           <li className="flex items-center gap-1.5"><Check className="size-3.5 shrink-0 text-[var(--p-mint-ink)]" /> {l.seats ? `Up to ${count(l.seats, "person", "people")}` : "No team members"}</li>
           <li className="flex items-center gap-1.5"><Check className="size-3.5 shrink-0 text-[var(--p-mint-ink)]" /> {l.projects ? count(l.projects, "web app") : "No web apps"}</li>

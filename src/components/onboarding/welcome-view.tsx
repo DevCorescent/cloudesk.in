@@ -264,30 +264,33 @@ const WELCOME_STEPS: [string, string, string][] = [
 export function Welcome({ eyebrow, onStart, steps = WELCOME_STEPS, time = "About 2 minutes" }: { eyebrow: string; onStart: () => void; steps?: [string, string, string][]; time?: string }) {
   return (
     <section className="ob-screen grid items-center gap-12 lg:grid-cols-[1fr_1.05fr]">
-      <div className="grid gap-7 text-center lg:text-left">
+      <div className="grid gap-7 text-center max-sm:gap-5 lg:text-left">
         <p className="p-in inline-flex items-center justify-center gap-2 text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase lg:justify-start">
           <span className="size-1.5 rounded-full bg-[#FF5A5F]" /> {eyebrow}
         </p>
-        <h1 className="p-in text-[clamp(2.4rem,5.6vw,4.4rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance" style={{ animationDelay: "100ms" }}>
+        <h1 className="p-in text-[clamp(2.4rem,5.6vw,4.4rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance max-sm:text-[34px] max-sm:leading-[1.04]" style={{ animationDelay: "100ms" }}>
           Your business software, <span className="bg-gradient-to-r from-[#FF5A5F] to-[#e8962a] bg-clip-text text-transparent">ready in minutes.</span>
         </h1>
-        <p className="p-in mx-auto max-w-lg text-[17px] leading-relaxed text-fg/60 lg:mx-0" style={{ animationDelay: "180ms" }}>
+        <p className="p-in mx-auto max-w-xs text-[15px] leading-snug text-fg/55 sm:hidden" style={{ animationDelay: "180ms" }}>
+          A few taps about your business. We set up exactly what you need.
+        </p>
+        <p className="p-in mx-auto max-w-lg text-[17px] leading-relaxed text-fg/60 max-sm:hidden lg:mx-0" style={{ animationDelay: "180ms" }}>
           Tell us how your business works. We&apos;ll recommend exactly the tools you need — billing, stock, payroll, bookings, accounts — explain why, and set them up for you. Nothing you don&apos;t need.
         </p>
         <ol className="p-in mx-auto grid w-full max-w-md gap-2 lg:mx-0" style={{ animationDelay: "260ms" }}>
           {steps.map(([t, s, took], i) => (
-            <li key={t} className="p-glass flex items-center gap-3 rounded-[16px] px-4 py-2.5 text-left">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-fg text-[12px] font-semibold text-bg">{i + 1}</span>
+            <li key={t} className="p-glass flex items-center gap-3 rounded-[16px] px-4 py-2.5 text-left max-sm:rounded-[14px] max-sm:py-3">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-fg text-[12px] font-semibold text-bg max-sm:size-6 max-sm:text-[11px]">{i + 1}</span>
               <span className="min-w-0 flex-1">
                 <b className="block text-[14px] font-semibold">{t}</b>
-                <span className="block text-[12.5px] text-fg/55">{s}</span>
+                <span className="block text-[12.5px] text-fg/55 max-sm:hidden">{s}</span>
               </span>
               <span className="text-[12px] text-fg/45 tabular-nums">{took}</span>
             </li>
           ))}
         </ol>
-        <div className="p-in flex flex-wrap items-center justify-center gap-4 lg:justify-start" style={{ animationDelay: "340ms" }}>
-          <button type="button" autoFocus onClick={onStart} className="p-cta lx-sheen inline-flex items-center gap-2 px-8">
+        <div className="p-in flex flex-wrap items-center justify-center gap-4 max-sm:flex-col max-sm:gap-3 lg:justify-start" style={{ animationDelay: "340ms" }}>
+          <button type="button" autoFocus onClick={onStart} className="p-cta lx-sheen inline-flex items-center justify-center gap-2 px-8 max-sm:w-full">
             Let&apos;s begin <ArrowRight className="size-4" />
           </button>
           <span className="inline-flex items-center gap-1.5 text-[13px] text-fg/50">
@@ -311,7 +314,7 @@ const ORBIT: [ModuleId, "l" | "r", number, number, number][] = [
 /** Feature tiles drifting around a dashboard that fills itself in. */
 function FeatureOrbit() {
   return (
-    <div className="relative mx-auto aspect-[1.1] w-full max-w-[560px]" aria-hidden>
+    <div className="relative mx-auto aspect-[1.1] w-full max-w-[560px] max-sm:hidden" aria-hidden>
       <div className="ob-piece absolute inset-[16%] overflow-hidden rounded-[26px] bg-[var(--surface-solid)] shadow-[0_40px_90px_-40px_rgb(40_20_80/0.5)] ring-1 ring-fg/[0.06]" style={{ ["--dur" as string]: "9s", ["--lift" as string]: "-6px" }}>
         <div className="flex h-7 items-center gap-1.5 border-b border-fg/[0.06] px-3">
           <i className="size-2 rounded-full bg-[#ff5f57]" />
@@ -368,11 +371,11 @@ function FeatureOrbit() {
 
 export function Business(p: { name: string; setName: (v: string) => void; brief: string; setBrief: (v: string) => void; industryId: IndustryId | null; suggested: boolean; onPick: (id: IndustryId) => void; heard: string[]; eyebrow?: string }) {
   return (
-    <section className="ob-screen grid gap-8">
+    <section className="ob-screen grid gap-8 max-sm:gap-4">
       <Heading eyebrow={p.eyebrow ?? "Step 1 of 4 · Your business"} title="Tell us about your business" sub="A line about what you do helps us recommend the right tools — we'll show you what we picked up." />
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] lg:gap-8">
-        <div className="p-glass p-in grid gap-5 rounded-[28px] p-5 sm:p-6 lg:sticky lg:top-24" style={{ animationDelay: "100ms" }}>
-          <label className="grid gap-2">
+      <div className="grid items-start gap-6 max-sm:gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.3fr)] lg:gap-8">
+        <div className="p-glass p-in grid gap-5 rounded-[28px] p-5 max-sm:gap-3 max-sm:rounded-[22px] max-sm:p-3.5 sm:p-6 lg:sticky lg:top-24" style={{ animationDelay: "100ms" }}>
+          <label className="grid gap-2 max-sm:gap-1.5">
             <span className="text-[12.5px] font-semibold text-fg/60">Business name</span>
             <input
               autoFocus
@@ -380,10 +383,10 @@ export function Business(p: { name: string; setName: (v: string) => void; brief:
               maxLength={60}
               onChange={(e) => p.setName(e.target.value)}
               placeholder="Saffron House"
-              className="h-14 rounded-[16px] border border-fg/10 bg-[var(--surface-solid)] px-4 text-[20px] font-semibold tracking-tight outline-none transition-[border,box-shadow] placeholder:text-fg/25 focus:border-fg/40 focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+              className="h-14 rounded-[16px] border border-fg/10 bg-[var(--surface-solid)] px-4 text-[20px] font-semibold max-sm:h-12 max-sm:rounded-[14px] max-sm:text-[17px] tracking-tight outline-none transition-[border,box-shadow] placeholder:text-fg/25 focus:border-fg/40 focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
             />
           </label>
-          <label className="grid gap-2">
+          <label className="grid gap-2 max-sm:gap-1.5">
             <span className="flex items-baseline justify-between text-[12.5px] font-semibold text-fg/60">
               What do you do? <span className="font-normal text-fg/40">optional, but it helps</span>
             </span>
@@ -393,10 +396,10 @@ export function Business(p: { name: string; setName: (v: string) => void; brief:
               rows={3}
               onChange={(e) => p.setBrief(e.target.value)}
               placeholder="e.g. A bakery in Pune with a shop and online orders, 12 staff, we deliver across the city"
-              className="resize-none rounded-[16px] border border-fg/10 bg-[var(--surface-solid)] px-4 py-3 text-[15px] leading-relaxed outline-none transition-[border,box-shadow] placeholder:text-fg/30 focus:border-fg/40 focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
+              className="resize-none rounded-[16px] border border-fg/10 bg-[var(--surface-solid)] px-4 py-3 text-[15px] leading-relaxed max-sm:h-[68px] max-sm:rounded-[14px] max-sm:py-2.5 max-sm:text-[14px] max-sm:leading-snug outline-none transition-[border,box-shadow] placeholder:text-fg/30 focus:border-fg/40 focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--fg)_8%,transparent)]"
             />
           </label>
-          <div className="min-h-[52px] rounded-[16px] bg-fg/[0.03] px-4 py-3" aria-live="polite">
+          <div className={clsx("min-h-[52px] rounded-[16px] bg-fg/[0.03] px-4 py-3 max-sm:min-h-0 max-sm:px-3 max-sm:py-2", !p.heard.length && !p.suggested && "max-sm:hidden")} aria-live="polite">
             {p.heard.length || p.suggested ? (
               <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
                 <Sparkles className="size-3.5 text-[var(--p-lavender-ink)]" />
@@ -414,8 +417,14 @@ export function Business(p: { name: string; setName: (v: string) => void; brief:
           </div>
         </div>
         <div className="grid gap-3">
-          <p className="px-1 text-[12.5px] font-semibold text-fg/60">Closest industry {p.suggested && <span className="font-normal text-fg/45">— we suggested one, change it if it&apos;s not right</span>}</p>
-          <div role="radiogroup" aria-label="Industry" className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4">
+          <p className="flex items-baseline justify-between px-1 text-[12.5px] font-semibold text-fg/60">
+            <span>
+              Closest industry <span className="font-normal text-fg/45 max-sm:hidden">{p.suggested && "— we suggested one, change it if it's not right"}</span>
+            </span>
+            <span className="font-normal text-fg/40 sm:hidden">Swipe for more</span>
+          </p>
+          {/* Phones: two rows that scroll sideways, so the whole step fits on one screen. */}
+          <div role="radiogroup" aria-label="Industry" className="grid grid-cols-2 gap-2.5 max-sm:-mx-4 max-sm:grid-cols-none max-sm:auto-cols-[40%] max-sm:grid-flow-col max-sm:grid-rows-2 max-sm:snap-x max-sm:scroll-px-4 max-sm:gap-2 max-sm:overflow-x-auto max-sm:px-4 max-sm:pb-1 max-sm:[scrollbar-width:none] sm:grid-cols-3 xl:grid-cols-4">
             {INDUSTRIES.map((ind, i) => {
               const on = p.industryId === ind.id;
               return (
@@ -425,7 +434,7 @@ export function Business(p: { name: string; setName: (v: string) => void; brief:
                   role="radio"
                   aria-checked={on}
                   onClick={() => p.onPick(ind.id)}
-                  className={clsx("p-in group relative aspect-[4/3] overflow-hidden rounded-[18px] text-left shadow-[0_12px_28px_-22px_rgb(30_20_60/0.6)] transition-all duration-500 ease-[cubic-bezier(.16,1,.3,1)] hover:-translate-y-0.5", on ? "ring-[3px] ring-fg ring-offset-2 ring-offset-[var(--p-canvas)]" : "ring-1 ring-fg/[0.06]")}
+                  className={clsx("p-in group relative aspect-[4/3] overflow-hidden rounded-[18px] text-left max-sm:aspect-[4/2.9] max-sm:snap-start max-sm:rounded-[14px] shadow-[0_12px_28px_-22px_rgb(30_20_60/0.6)] transition-all duration-500 ease-[cubic-bezier(.16,1,.3,1)] hover:-translate-y-0.5", on ? "ring-[3px] ring-fg ring-offset-2 ring-offset-[var(--p-canvas)]" : "ring-1 ring-fg/[0.06]")}
                   style={{ animationDelay: `${140 + i * 30}ms` }}
                 >
                   {ind.photo ? (
@@ -436,9 +445,9 @@ export function Business(p: { name: string; setName: (v: string) => void; brief:
                     </span>
                   )}
                   <span className={clsx("absolute inset-0", ind.photo ? "bg-gradient-to-t from-black/80 via-black/10 to-transparent" : "")} />
-                  <span className={clsx("absolute inset-x-0 bottom-0 p-3", ind.photo ? "text-white" : "text-fg")}>
-                    <b className="block text-[14px] leading-tight font-semibold tracking-[-0.01em]">{ind.label}</b>
-                    <span className={clsx("mt-0.5 block truncate text-[11.5px]", ind.photo ? "text-white/75" : "text-fg/55")}>{ind.line}</span>
+                  <span className={clsx("absolute inset-x-0 bottom-0 p-3 max-sm:p-2.5", ind.photo ? "text-white" : "text-fg")}>
+                    <b className="block text-[14px] leading-tight font-semibold tracking-[-0.01em] max-sm:text-[12.5px]">{ind.label}</b>
+                    <span className={clsx("mt-0.5 block truncate text-[11.5px] max-sm:hidden", ind.photo ? "text-white/75" : "text-fg/55")}>{ind.line}</span>
                   </span>
                   <span className={clsx("absolute top-2.5 right-2.5 grid size-6 place-items-center rounded-full transition-all duration-300", on ? "scale-100 bg-white text-black" : "scale-75 bg-white/30 text-transparent backdrop-blur-[6px]")}>
                     <Check className="size-3.5" />
@@ -822,13 +831,13 @@ export function Confetti() {
 
 export function Heading({ eyebrow, title, sub }: { eyebrow: string; title: string; sub?: string }) {
   return (
-    <div className="grid gap-3 text-center">
-      <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">{eyebrow}</p>
-      <h1 className="p-in text-[clamp(2rem,4.6vw,3.1rem)] leading-[1.02] font-semibold tracking-[-0.04em] text-balance" style={{ animationDelay: "60ms" }}>
+    <div className="grid gap-3 text-center max-sm:gap-1.5 max-sm:text-left">
+      <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase max-sm:text-[10.5px] max-sm:tracking-[0.16em]">{eyebrow}</p>
+      <h1 className="p-in text-[clamp(2rem,4.6vw,3.1rem)] leading-[1.02] font-semibold tracking-[-0.04em] text-balance max-sm:text-[26px] max-sm:leading-[1.1] max-sm:tracking-[-0.035em]" style={{ animationDelay: "60ms" }}>
         {title}
       </h1>
       {sub && (
-        <p className="p-in mx-auto max-w-xl text-[16px] leading-relaxed text-fg/60" style={{ animationDelay: "120ms" }}>
+        <p className="p-in mx-auto max-w-xl text-[16px] leading-relaxed text-fg/60 max-sm:hidden" style={{ animationDelay: "120ms" }}>
           {sub}
         </p>
       )}

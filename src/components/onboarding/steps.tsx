@@ -25,8 +25,8 @@ const optIcon = (q: QuestionId, id: string) => (q === "money" && id === "invoice
 
 const isOn = (p: Profile, q: QuestionId, id: string) => (q === "team" ? p.team === id : (p[q] as string[]).includes(id));
 
-/** Step 2: the questions, with the plan forming beside them. */
-export function Questions(p: { profile: Profile; onChange: (p: Profile) => void; rec: Recommendation; heard: string[]; industryLabel: string; aside: React.ReactNode }) {
+/** Step 2: the questions, with the plan forming beside them. On phones, `step` shows one question at a time. */
+export function Questions(p: { profile: Profile; onChange: (p: Profile) => void; rec: Recommendation; heard: string[]; industryLabel: string; aside: React.ReactNode; step?: number }) {
   const toggle = (q: QuestionId, id: string) => {
     if (q === "team") return p.onChange({ ...p.profile, team: p.profile.team === id ? null : (id as Profile["team"]) });
     const list = p.profile[q] as string[];
@@ -36,7 +36,7 @@ export function Questions(p: { profile: Profile; onChange: (p: Profile) => void;
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px] xl:grid-cols-[minmax(0,1fr)_420px]">
       <div className="grid gap-5">
         {p.heard.length > 0 && (
-          <p className="p-in flex flex-wrap items-center gap-1.5 text-[13px] text-fg/60">
+          <p className={clsx("p-in flex flex-wrap items-center gap-1.5 text-[13px] text-fg/60", p.step !== undefined && "max-sm:hidden")}>
             <Sparkles className="size-3.5 text-[var(--p-lavender-ink)]" /> From what you wrote, we&apos;ve already ticked:
             {p.heard.map((h) => <span key={h} className="rounded-full bg-[var(--p-lavender)] px-2 py-0.5 text-[12px] font-medium text-[var(--p-lavender-ink)]">{h}</span>)}
           </p>
@@ -44,16 +44,19 @@ export function Questions(p: { profile: Profile; onChange: (p: Profile) => void;
         {QUESTION_IDS.map((q, qi) => {
           const Q = QUESTIONS[q];
           return (
-            <fieldset key={q} className="p-glass p-in rounded-[24px] p-4 sm:p-5" style={{ animationDelay: `${80 + qi * 70}ms` }}>
+            <fieldset key={q} className={clsx("p-glass p-in rounded-[24px] p-4 max-sm:rounded-[22px] max-sm:p-3.5 sm:p-5", p.step !== undefined && p.step !== qi && "max-sm:hidden")} style={{ animationDelay: `${80 + qi * 70}ms` }}>
               <legend className="sr-only">{Q.title}</legend>
               <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-3">
-                <h2 className="text-[16px] font-semibold tracking-[-0.01em]">
-                  <span className="mr-2 text-fg/35 tabular-nums">{qi + 1}</span>
+                <h2 className="text-[16px] font-semibold tracking-[-0.01em] max-sm:text-[15px]">
+                  <span className="mr-2 text-fg/35 tabular-nums">
+                    {qi + 1}
+                    <span className="sm:hidden">/{QUESTION_IDS.length}</span>
+                  </span>
                   {Q.title}
                 </h2>
                 <span className="text-[12.5px] text-fg/45">{Q.sub}</span>
               </div>
-              <div className={clsx("grid gap-2", q === "team" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 min-[480px]:grid-cols-2 xl:grid-cols-3")}>
+              <div className={clsx("grid gap-2", q === "team" ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-1 max-sm:grid-cols-2 min-[480px]:grid-cols-2 xl:grid-cols-3")}>
                 {Q.options.map((o) => {
                   const on = isOn(p.profile, q, o.id);
                   return (
@@ -64,15 +67,15 @@ export function Questions(p: { profile: Profile; onChange: (p: Profile) => void;
                       aria-checked={on}
                       onClick={() => toggle(q, o.id)}
                       className={clsx(
-                        "group relative flex items-start gap-3 rounded-[16px] border p-3 text-left transition-all duration-300 ease-[cubic-bezier(.16,1,.3,1)] [&_svg]:size-[18px]",
+                        "group relative flex items-start gap-3 rounded-[16px] border p-3 text-left transition-all duration-300 ease-[cubic-bezier(.16,1,.3,1)] max-sm:items-center max-sm:gap-2.5 max-sm:rounded-[14px] max-sm:p-2.5 [&_svg]:size-[18px]",
                         on ? "border-transparent bg-fg text-bg shadow-[0_14px_30px_-18px_rgb(20_10_40/0.7)]" : "border-fg/[0.08] bg-[var(--surface-solid)] hover:-translate-y-0.5 hover:border-fg/20",
                         q === "team" && "flex-col gap-2",
                       )}
                     >
-                      <span className={clsx("grid size-9 shrink-0 place-items-center rounded-[11px] transition-colors", on ? "bg-white/15 text-bg" : "bg-fg/[0.05] text-fg/70")}>{optIcon(q, o.id)}</span>
+                      <span className={clsx("grid size-9 shrink-0 place-items-center rounded-[11px] transition-colors max-sm:size-8 max-sm:rounded-[10px]", on ? "bg-white/15 text-bg" : "bg-fg/[0.05] text-fg/70")}>{optIcon(q, o.id)}</span>
                       <span className="min-w-0 flex-1">
-                        <b className="block text-[14px] leading-tight font-semibold">{o.label}</b>
-                        <span className={clsx("mt-0.5 block text-[12px] leading-snug", on ? "text-bg/65" : "text-fg/50")}>{o.hint}</span>
+                        <b className="block text-[14px] leading-tight font-semibold max-sm:pr-4 max-sm:text-[13px]">{o.label}</b>
+                        <span className={clsx("mt-0.5 block text-[12px] leading-snug max-sm:hidden", on ? "text-bg/65" : "text-fg/50")}>{o.hint}</span>
                       </span>
                       <span className={clsx("absolute top-2.5 right-2.5 grid size-5 place-items-center rounded-full transition-all duration-300", on ? "scale-100 bg-bg text-fg" : "scale-75 opacity-0")}>
                         <Check className="!size-3" />
@@ -146,26 +149,28 @@ export function Plan(p: { rec: Recommendation; modules: ModuleId[]; partsOff: Pa
     const parts = m.parts ?? [];
     const offCount = (p.partsOff[id] ?? []).length;
     return (
-      <li key={id} className={clsx(`tint-${m.tint}`, "p-in overflow-hidden rounded-[20px] border transition-all duration-300", on ? "border-[color-mix(in_srgb,var(--t-ink)_35%,transparent)] bg-[var(--surface-solid)] shadow-[0_16px_34px_-26px_rgb(30_20_60/0.6)]" : "border-fg/[0.07] bg-[var(--surface-solid)]/60 opacity-70")} style={{ animationDelay: `${60 + i * 35}ms` }}>
-        <div className="flex items-start gap-3 p-3.5">
-          <span className={clsx("grid size-10 shrink-0 place-items-center rounded-[13px] transition-all", on ? "tint-chip" : "bg-fg/[0.05] text-fg/40")}>
+      <li key={id} className={clsx(`tint-${m.tint}`, "p-in overflow-hidden rounded-[20px] border transition-all duration-300 max-sm:rounded-[16px]", on ? "border-[color-mix(in_srgb,var(--t-ink)_35%,transparent)] bg-[var(--surface-solid)] shadow-[0_16px_34px_-26px_rgb(30_20_60/0.6)]" : "border-fg/[0.07] bg-[var(--surface-solid)]/60 opacity-70")} style={{ animationDelay: `${60 + i * 35}ms` }}>
+        <div className="flex items-start gap-3 p-3.5 max-sm:items-center max-sm:px-3 max-sm:py-2">
+          <span className={clsx("grid size-10 shrink-0 place-items-center rounded-[13px] transition-all max-sm:size-9 max-sm:rounded-[11px]", on ? "tint-chip" : "bg-fg/[0.05] text-fg/40")}>
             <ModuleGlyph id={id} className="size-[18px]" />
           </span>
           <span className="min-w-0 flex-1">
-            <b className="block text-[14.5px] leading-tight font-semibold">{m.name}</b>
-            <span className="mt-0.5 block text-[12.5px] leading-snug text-fg/55">{m.short}</span>
+            <b className="block text-[14.5px] leading-tight font-semibold max-sm:text-[14px]">{m.name}</b>
+            <span className="mt-0.5 block text-[12.5px] leading-snug text-fg/55 max-sm:hidden">{m.short}</span>
             {reason && (
-              <span className="mt-1.5 inline-flex items-start gap-1 rounded-[8px] px-2 py-0.5 text-[11.5px] leading-snug font-medium" style={{ background: "var(--t)", color: "var(--t-ink)" }}>
+              <span className="mt-1.5 inline-flex items-start gap-1 rounded-[8px] px-2 py-0.5 text-[11.5px] leading-snug font-medium max-sm:hidden" style={{ background: "var(--t)", color: "var(--t-ink)" }}>
                 <Sparkles className="mt-[3px] size-3 shrink-0" /> {reason}
               </span>
             )}
+            {/* Phones: the reason on one line, under the name. */}
+            <span className="mt-0.5 block truncate text-[12px] text-fg/50 sm:hidden">{reason ?? m.short}</span>
           </span>
           <button type="button" role="switch" aria-checked={on} aria-label={m.name} onClick={() => p.onToggle(id)} className={clsx("relative h-6 w-10 shrink-0 rounded-full transition-colors duration-300", on ? "bg-[var(--t-ink)]" : "bg-fg/15")}>
             <span className={clsx("absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform duration-300", on && "translate-x-4")} />
           </button>
         </div>
         {on && parts.length > 0 && (
-          <div className="border-t border-fg/[0.06]">
+          <div className="border-t border-fg/[0.06] max-sm:hidden">
             <button type="button" aria-expanded={open === id} onClick={() => setOpen(open === id ? null : id)} className="flex w-full items-center justify-between px-3.5 py-2 text-[12.5px] text-fg/55 hover:text-fg">
               <span>{parts.length - offCount} of {parts.length} parts on{offCount ? "" : " — tap to leave some out"}</span>
               <ChevronDown className={clsx("size-3.5 transition-transform", open === id && "rotate-180")} />
@@ -190,14 +195,14 @@ export function Plan(p: { rec: Recommendation; modules: ModuleId[]; partsOff: Pa
   };
   return (
     <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px] xl:grid-cols-[minmax(0,1fr)_460px]">
-      <div className="grid gap-6">
-        <section className="grid gap-3">
+      <div className="grid gap-6 max-sm:gap-4">
+        <section className="grid gap-3 max-sm:gap-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="text-[13px] font-semibold tracking-[0.12em] text-fg/50 uppercase">Recommended for you · {recommended.length}</h2>
             {p.changed && <button type="button" onClick={p.onReset} className="text-[13px] text-fg/50 hover:text-fg">Back to the recommendation</button>}
           </div>
           {recommended.length ? (
-            <ul className="grid gap-2.5 md:grid-cols-2">{recommended.map((id, i) => card(id, p.rec.why[id]?.[0], i))}</ul>
+            <ul className="grid gap-2.5 max-sm:gap-1.5 md:grid-cols-2">{recommended.map((id, i) => card(id, p.rec.why[id]?.[0], i))}</ul>
           ) : (
             <p className="rounded-[20px] border border-dashed border-fg/15 p-6 text-center text-[13px] text-fg/50">Nothing recommended yet — go back and answer a question, or add features below.</p>
           )}
@@ -205,16 +210,16 @@ export function Plan(p: { rec: Recommendation; modules: ModuleId[]; partsOff: Pa
         {added.length > 0 && (
           <section className="grid gap-3">
             <h2 className="text-[13px] font-semibold tracking-[0.12em] text-fg/50 uppercase">Added by you · {added.length}</h2>
-            <ul className="grid gap-2.5 md:grid-cols-2">{added.map((id, i) => card(id, undefined, i))}</ul>
+            <ul className="grid gap-2.5 max-sm:gap-1.5 md:grid-cols-2">{added.map((id, i) => card(id, undefined, i))}</ul>
           </section>
         )}
         <section className="grid gap-3">
-          <button type="button" aria-expanded={browse} onClick={() => setBrowse(!browse)} className="p-glass flex items-center justify-between gap-3 rounded-[18px] px-4 py-3.5 text-left">
+          <button type="button" aria-expanded={browse} onClick={() => setBrowse(!browse)} className="p-glass flex items-center justify-between gap-3 rounded-[18px] px-4 py-3.5 text-left max-sm:rounded-[16px] max-sm:px-3 max-sm:py-2.5">
             <span className="flex items-center gap-3">
               <span className="grid size-9 place-items-center rounded-[11px] bg-fg/[0.06]"><Plus className="size-4" /></span>
               <span>
                 <b className="block text-[14.5px] font-semibold">Add something else</b>
-                <span className="block text-[12.5px] text-fg/50">{MODULES.length - recommended.length} more features — search or browse by area</span>
+                <span className="block text-[12.5px] text-fg/50 max-sm:text-[12px]">{MODULES.length - recommended.length} more features<span className="max-sm:hidden"> — search or browse by area</span></span>
               </span>
             </span>
             <ChevronDown className={clsx("size-4 text-fg/50 transition-transform", browse && "rotate-180")} />
