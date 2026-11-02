@@ -3,17 +3,21 @@
 // Phones don't get the long marketing page: they open on a short, swipeable
 // story — too many apps, then one: the store, every inbox and chat, the
 // calendar and getting paid, all on Cloudesk — ending on the right sign-up
-// for what they came to do. One ribbon runs through every screen. "Explore the
-// website" lets them through to the full page for the rest of the visit.
+// for what they came to do. One ribbon runs through every screen, after a
+// short logo splash on every load. "Explore the website" lets them through to
+// the full page for the rest of the visit.
 import "./mobile-intro.css";
 import clsx from "clsx";
-import { ArrowRight, BadgeCheck, Bell, CalendarDays, CheckCheck, Globe, LayoutGrid, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, ShoppingBag, Store, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, BadgeCheck, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 
 const SKIP_KEY = "cc-intro";
 const AT_KEY = "cc-intro-at";
+/** The splash's length: the intro starts animating at READY, the splash is gone by DONE. */
+const SPLASH_READY_MS = 2050;
+const SPLASH_DONE_MS = 2700;
 const AUTO_MS = 5000;
 const PHONE = "(max-width: 639.98px)";
 
@@ -23,14 +27,86 @@ const SKIP_SCRIPT = `try{if(sessionStorage.getItem('${SKIP_KEY}')==='skip')docum
 // Sign-up carries where to go once the account exists: /start → emailed code → log in → next.
 const withNext = (next: string, extra = "") => `/start?${extra}${extra ? "&" : ""}next=${encodeURIComponent(next)}`;
 
-type Slide = { id: string; tone: string; title: ReactNode; art: ReactNode };
+type Slide = { id: string; tone: string; title: ReactNode; art: ReactNode; badges: Badge[] };
+
+/** A key feature floating over a screen: where it sits (CSS insets, %) and which side it flies in from. */
+type Badge = { icon: LucideIcon; text: string; at: Partial<Record<"top" | "bottom" | "left" | "right", string>>; from: "l" | "r" };
+
+function Badges({ items }: { items: Badge[] }) {
+  return (
+    <>
+      {items.map((b, i) => {
+        const Icon = b.icon;
+        return (
+          <span key={b.text} className="mi-badge" data-from={b.from} style={{ ...b.at, "--i": i } as CSSProperties}>
+            <span className="mi-badge-in">
+              <span className="mi-badge-ic">
+                <Icon className="size-3.5" aria-hidden />
+              </span>
+              {b.text}
+            </span>
+          </span>
+        );
+      })}
+    </>
+  );
+}
 
 const SLIDES: Slide[] = [
-  { id: "one", tone: "#ff7a59", title: <>Too many apps? Meet <em>one</em>.</>, art: <OneArt /> },
-  { id: "store", tone: "#ff6b6b", title: <>One link. Your <em>store</em> is live.</>, art: <StoreArt /> },
-  { id: "talk", tone: "#2ec4b6", title: <>One inbox for <em>every chat</em>.</>, art: <TalkArt /> },
-  { id: "plan", tone: "#8b7bff", title: <>One calendar, <em>zero chaos</em>.</>, art: <PlanArt /> },
-  { id: "paid", tone: "#3ccf91", title: <>One tap, and <em>you&apos;re paid</em>.</>, art: <PaidArt /> },
+  {
+    id: "one",
+    tone: "#ff7a59",
+    title: <>Too many apps? Meet <em>one</em>.</>,
+    art: <OneArt />,
+    badges: [
+      { icon: LayoutGrid, text: "35+ apps, one login", at: { top: "3%", left: "0" }, from: "l" },
+      { icon: Zap, text: "Set up in minutes", at: { top: "22%", right: "0" }, from: "r" },
+      { icon: Gift, text: "Free for 30 days", at: { bottom: "4%", left: "4%" }, from: "l" },
+    ],
+  },
+  {
+    id: "store",
+    tone: "#ff6b6b",
+    title: <>One link. Your <em>store</em> is live.</>,
+    art: <StoreArt />,
+    badges: [
+      { icon: CreditCard, text: "UPI, cards & COD", at: { top: "3%", right: "0" }, from: "r" },
+      { icon: Globe, text: "Your own domain", at: { top: "3%", left: "0" }, from: "l" },
+      { icon: ScanBarcode, text: "Shop & online, one stock", at: { bottom: "3%", left: "4%" }, from: "l" },
+    ],
+  },
+  {
+    id: "talk",
+    tone: "#2ec4b6",
+    title: <>One inbox for <em>every chat</em>.</>,
+    art: <TalkArt />,
+    badges: [
+      { icon: Sparkles, text: "Sorts itself, AI replies", at: { top: "3%", left: "18%" }, from: "l" },
+      { icon: LinkIcon, text: "Guests join by link", at: { bottom: "3%", right: "0" }, from: "r" },
+    ],
+  },
+  {
+    id: "plan",
+    tone: "#8b7bff",
+    title: <>One calendar, <em>zero chaos</em>.</>,
+    art: <PlanArt />,
+    badges: [
+      { icon: Video, text: "Meeting links built in", at: { top: "3%", left: "0" }, from: "l" },
+      { icon: RefreshCw, text: "Syncs Google & Outlook", at: { top: "20%", right: "0" }, from: "r" },
+      { icon: CalendarCheck, text: "Online bookings", at: { bottom: "3%", left: "4%" }, from: "l" },
+    ],
+  },
+  {
+    id: "paid",
+    tone: "#3ccf91",
+    title: <>One tap, and <em>you&apos;re paid</em>.</>,
+    art: <PaidArt />,
+    badges: [
+      { icon: FileCheck, text: "GST e-invoices", at: { top: "3%", right: "0" }, from: "r" },
+      { icon: TrendingUp, text: "Live profit & loss", at: { top: "3%", left: "0" }, from: "l" },
+      { icon: BellRing, text: "Reminders send themselves", at: { bottom: "3%", left: "4%" }, from: "l" },
+    ],
+  },
 ];
 const LAST = SLIDES.length; // the final "start" screen comes after the story
 const FINAL_TONE = "#f5a35c";
@@ -43,6 +119,25 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   const [dragging, setDragging] = useState(false);
   const start = useRef<{ x: number; y: number; t: number; axis: "x" | "y" | null } | null>(null);
   const stage = useRef<HTMLDivElement>(null);
+  // The logo splash plays first; nothing on the screens animates until it clears.
+  const [splash, setSplash] = useState<"on" | "leaving" | "off">("on");
+  const ready = splash !== "on";
+
+  // Every load plays it, except where motion is turned off or there's no intro (wider screens).
+  useEffect(() => {
+    const quick = window.matchMedia("(prefers-reduced-motion: reduce)").matches || !window.matchMedia(PHONE).matches;
+    if (quick) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- decided once after mount; media queries aren't there during server rendering
+      setSplash("off");
+      return;
+    }
+    const a = setTimeout(() => setSplash("leaving"), SPLASH_READY_MS);
+    const b = setTimeout(() => setSplash("off"), SPLASH_DONE_MS);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, []);
 
   const go = useCallback((i: number, manual = true) => {
     setAt(Math.max(0, Math.min(LAST, i)));
@@ -69,10 +164,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
   // Moves on by itself until they take over.
   useEffect(() => {
-    if (!auto || dragging || at >= LAST) return;
+    if (!ready || !auto || dragging || at >= LAST) return;
     const t = setTimeout(() => go(at + 1, false), AUTO_MS);
     return () => clearTimeout(t);
-  }, [auto, dragging, at, go]);
+  }, [ready, auto, dragging, at, go]);
 
   // The status bar matches the intro on phones; the page's own colour comes back when it goes.
   useEffect(() => {
@@ -165,6 +260,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
     <div className="mi" data-at={at} style={{ "--tone": toneAt(at) } as CSSProperties} role="region" aria-roledescription="carousel" aria-label="Welcome to Cloudesk">
       <script dangerouslySetInnerHTML={{ __html: SKIP_SCRIPT }} />
       <Materials />
+      {splash !== "off" && <Splash leaving={splash === "leaving"} />}
       {/* Colour light behind each screen, crossfading as they change. */}
       <div className="mi-bg" aria-hidden>
         {Array.from({ length: LAST + 1 }, (_, i) => (
@@ -187,7 +283,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
       <div className="mi-prog" aria-hidden>
         {Array.from({ length: LAST + 1 }, (_, i) => (
           <span key={i} className={clsx(i < at && "is-past", i === at && "is-on")}>
-            {i === at && <i className={clsx(auto && !last && !dragging && "is-run")} style={{ animationDuration: `${AUTO_MS}ms` }} />}
+            {i === at && <i className={clsx(ready && auto && !last && !dragging && "is-run")} style={{ animationDuration: `${AUTO_MS}ms` }} />}
           </span>
         ))}
       </div>
@@ -196,13 +292,16 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
         <div className={clsx("mi-track", dragging && "is-drag")} style={{ transform: `translate3d(calc(${-at * 100}% + ${drag}px),0,0)` }}>
           <Ribbon screens={LAST + 1} />
           {SLIDES.map((s, i) => (
-            <section key={s.id} className="mi-slide" style={{ "--tone": s.tone } as CSSProperties} data-on={i === at || undefined} aria-hidden={i !== at} aria-roledescription="slide" aria-label={`${i + 1} of ${LAST + 1}`}>
-              <div className="mi-art-wrap">{s.art}</div>
+            <section key={s.id} className="mi-slide" style={{ "--tone": s.tone } as CSSProperties} data-on={(ready && i === at) || undefined} aria-hidden={i !== at} aria-roledescription="slide" aria-label={`${i + 1} of ${LAST + 1}`}>
+              <div className="mi-art-wrap">
+                {s.art}
+                <Badges items={s.badges} />
+              </div>
               <h2 className="mi-title">{s.title}</h2>
             </section>
           ))}
 
-          <section className="mi-slide mi-final" style={{ "--tone": FINAL_TONE } as CSSProperties} data-on={last || undefined} aria-hidden={!last} aria-roledescription="slide" aria-label={`${LAST + 1} of ${LAST + 1}`}>
+          <section className="mi-slide mi-final" style={{ "--tone": FINAL_TONE } as CSSProperties} data-on={(ready && last) || undefined} aria-hidden={!last} aria-roledescription="slide" aria-label={`${LAST + 1} of ${LAST + 1}`}>
             <div className="mi-art-wrap">
               <FinalArt />
             </div>
@@ -237,9 +336,36 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
       <div className="mi-bar" data-hide={last || undefined}>
         <button type="button" className="mi-next" onClick={() => go(at + 1)} tabIndex={last ? -1 : undefined}>
-          {at === LAST - 1 ? "Get started" : "Next"}
-          <ArrowRight className="size-4" aria-hidden />
+          <span>{at === LAST - 1 ? "Get started" : "Continue"}</span>
+          <span className="mi-next-arrow" aria-hidden>
+            <ArrowRight className="size-[14px]" strokeWidth={2.25} />
+          </span>
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── The logo splash ────────────────────────────────────────────────────────
+
+/** The Cloudesk mark drawing itself stroke by stroke, the name settling in under it, then everything dissolving into the intro. */
+function Splash({ leaving }: { leaving: boolean }) {
+  return (
+    <div className={clsx("mi-splash", leaving && "is-leaving")} aria-hidden>
+      <div className="mi-splash-in">
+        <span className="mi-splash-glow" />
+        <svg viewBox="14 9 292 459" className="mi-splash-mark" fill="none" strokeWidth="28">
+          <path pathLength={1} d="M28 387V90A67 67 0 0 1 95 23" stroke="#FF5A5F" />
+          <path pathLength={1} d="M95 23A67 67 0 0 1 161 102A100 100 0 0 1 238 282" stroke="#FDBA5A" />
+          <path pathLength={1} d="M238 282A72 72 0 0 1 162 398A67 67 0 0 1 28 387" stroke="#fff" strokeOpacity=".85" />
+        </svg>
+        <p className="mi-splash-name">
+          {"cloudesk".split("").map((ch, i) => (
+            <span key={i} style={{ "--i": i } as CSSProperties}>
+              {ch}
+            </span>
+          ))}
+        </p>
       </div>
     </div>
   );
