@@ -458,9 +458,11 @@ function Materials() {
             </linearGradient>
           </Fragment>
         ))}
-        <filter id="m-soft" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="7" />
-        </filter>
+        <radialGradient id="m-shadow">
+          <stop offset="0" stopColor="#000" stopOpacity="1" />
+          <stop offset="0.55" stopColor="#000" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
       </defs>
     </svg>
   );
@@ -486,9 +488,11 @@ function Box({ x = 0, y = 0, z = 0, w, d, h, m, top, left, className, style }: B
   );
 }
 
-/** A soft shadow under a footprint. */
+/** A soft shadow under a footprint: a gradient ellipse, so redraws stay cheap (no blur filter). */
 function Shadow({ x, y, w, d, o = 0.55 }: { x: number; y: number; w: number; d: number; o?: number }) {
-  return <polygon points={pts([[x, y, 0], [x + w, y, 0], [x + w, y + d, 0], [x, y + d, 0]])} fill="#000" opacity={o} filter="url(#m-soft)" />;
+  const cx = (x + w / 2 - (y + d / 2)) * C;
+  const cy = (x + w / 2 + (y + d / 2)) * S;
+  return <ellipse cx={cx} cy={cy} rx={((w + d) / 2) * C * 1.15} ry={((w + d) / 2) * S * 1.15} fill="url(#m-shadow)" opacity={o} />;
 }
 
 /** A coin (or any disc) lying flat, radius r, height h. */
@@ -537,7 +541,7 @@ function Sparks({ items }: { items: [number, number, number, string][] }) {
 const Scene = ({ children, extra }: { children: ReactNode; extra?: ReactNode }) => (
   <div className="mi-art">
     <svg viewBox="-128 -128 256 256" className="mi-svg" aria-hidden>
-      <g className="mi-float">{children}</g>
+      {children}
     </svg>
     {extra}
   </div>
@@ -850,10 +854,15 @@ function InvoiceFace() {
 /** The Cloudesk block lit up, with what it holds hovering around it. */
 function FinalArt() {
   return (
-    <Scene>
+    <Scene
+      extra={
+        <>
+          <span className="mi-ring" />
+          <span className="mi-ring mi-ring-2" />
+        </>
+      }
+    >
       <Shadow x={-38} y={-32} w={80} d={80} />
-      <circle className="mi-halo-ring" cx="0" cy="-10" r="70" fill="none" stroke={FINAL_TONE} strokeOpacity="0.35" />
-      <circle className="mi-halo-ring mi-halo-ring-2" cx="0" cy="-10" r="70" fill="none" stroke={FINAL_TONE} strokeOpacity="0.35" />
       <Box className="mi-b-rise" x={-34} y={-34} z={-30} w={68} d={68} h={56} m="ink" left={<CloudMark u={34} v={28} s={32} />} />
       <Box className="mi-b-hover" style={{ "--k": 0 } as CSSProperties} x={-100} y={-30} z={30} w={22} d={22} h={5} m="coral" top={<Glyph icon={Store} u={11} v={11} s={12} />} />
       <Box className="mi-b-hover" style={{ "--k": 1 } as CSSProperties} x={-20} y={-108} z={36} w={22} d={22} h={5} m="teal" top={<Glyph icon={Mail} u={11} v={11} s={12} />} />

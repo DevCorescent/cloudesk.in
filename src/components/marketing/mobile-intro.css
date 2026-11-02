@@ -63,13 +63,13 @@
 .mi-prog span { position: relative; flex: 1; height: 2.5px; border-radius: 99px; background: rgb(255 255 255 / 0.13); overflow: hidden; }
 .mi-prog span.is-past { background: rgb(255 255 255 / 0.55); }
 .mi-prog i { position: absolute; inset: 0; border-radius: inherit; background: #fff; }
-.mi-prog i.is-run { transform-origin: left; animation: mi-fill linear both; }
+.mi-prog i.is-run { transform-origin: left; will-change: transform; animation: mi-fill linear both; }
 
 /* Stage, track and the ribbon */
 .mi-stage { position: relative; flex: 1; min-height: 0; touch-action: pan-y; }
 .mi-track { position: relative; display: flex; height: 100%; transition: transform 0.85s var(--ease); will-change: transform; }
 .mi-track.is-drag { transition: none; }
-.mi-ribbon { position: absolute; left: 0; top: 0; height: 100%; pointer-events: none; opacity: 0.75; animation: mi-wave 9s ease-in-out infinite; }
+.mi-ribbon { position: absolute; left: 0; top: 0; height: 100%; pointer-events: none; opacity: 0.75; }
 .mi-slide {
   position: relative;
   flex: 0 0 100%;
@@ -101,8 +101,9 @@
 .mi-final .mi-art { width: min(74vw, 300px, max(150px, calc(100dvh - 520px))); }
 .mi-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 /* Animated parts move about their own box; face transforms stay plain matrices. */
-.mi-svg [class*="mi-b-"], .mi-spark, .mi-halo-ring, .mi-stamp { transform-box: fill-box; transform-origin: center; }
-.mi-float { animation: mi-float 6s ease-in-out infinite; transform-box: view-box; }
+.mi-svg [class*="mi-b-"], .mi-stamp { transform-box: fill-box; transform-origin: center; }
+/* The whole scene floats as one composited layer; nothing inside the SVG loops, so it isn't redrawn every frame. */
+.mi-svg { will-change: transform; animation: mi-float 6s ease-in-out infinite; }
 
 /* The one line on each screen */
 .mi-title {
@@ -117,10 +118,9 @@
   color: rgb(255 255 255 / 0.93);
   opacity: 0;
   transform: translate3d(0, 14px, 0);
-  filter: blur(6px);
-  transition: opacity 0.5s var(--ease), transform 0.8s var(--ease), filter 0.6s var(--ease);
+  transition: opacity 0.5s var(--ease), transform 0.8s var(--ease);
 }
-.mi-slide[data-on] .mi-title { opacity: 1; transform: none; filter: none; transition-delay: 0.2s; }
+.mi-slide[data-on] .mi-title { opacity: 1; transform: none; transition-delay: 0.2s; }
 .mi-title em {
   font-style: normal;
   font-weight: 560;
@@ -136,12 +136,11 @@
   z-index: 3;
   opacity: 0;
   transform: translate3d(calc(var(--dir, -1) * 34px), 6px, 0) scale(0.9);
-  filter: blur(6px);
-  transition: opacity 0.6s var(--ease), transform 0.9s var(--ease), filter 0.6s var(--ease);
+  transition: opacity 0.6s var(--ease), transform 0.9s var(--ease);
   pointer-events: none;
 }
 .mi-badge[data-from="r"] { --dir: 1; }
-.mi-slide[data-on] .mi-badge { opacity: 1; transform: none; filter: none; transition-delay: calc(0.9s + var(--i) * 0.22s); }
+.mi-slide[data-on] .mi-badge { opacity: 1; transform: none; transition-delay: calc(0.9s + var(--i) * 0.22s); }
 .mi-badge-in {
   position: relative;
   display: inline-flex;
@@ -156,9 +155,8 @@
   letter-spacing: -0.01em;
   white-space: nowrap;
   color: rgb(255 255 255 / 0.88);
-  background: linear-gradient(180deg, rgb(38 38 45 / 0.82), rgb(22 22 27 / 0.82));
+  background: linear-gradient(180deg, rgb(40 40 47 / 0.94), rgb(24 24 29 / 0.94));
   border: 1px solid rgb(255 255 255 / 0.1);
-  backdrop-filter: blur(16px);
   box-shadow: 0 14px 30px -16px rgb(0 0 0 / 0.9), 0 0 0 1px color-mix(in srgb, var(--tone) 8%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.07);
   animation: mi-badge-bob 5s calc(var(--i) * -1.7s) ease-in-out infinite;
 }
@@ -194,8 +192,8 @@
   transition: opacity 0.65s var(--ease), visibility 0s 0.65s;
 }
 .mi-splash.is-leaving { opacity: 0; visibility: hidden; pointer-events: none; }
-.mi-splash-in { position: relative; display: grid; justify-items: center; gap: 22px; transition: transform 0.7s var(--ease), filter 0.7s var(--ease); }
-.mi-splash.is-leaving .mi-splash-in { transform: scale(1.08); filter: blur(8px); }
+.mi-splash-in { position: relative; display: grid; justify-items: center; gap: 22px; transition: transform 0.7s var(--ease); will-change: transform; }
+.mi-splash.is-leaving .mi-splash-in { transform: scale(1.08); }
 .mi-splash-glow {
   position: absolute;
   left: 50%;
@@ -204,8 +202,7 @@
   height: 220px;
   translate: -50% -50%;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(255 122 89 / 0.32), rgb(253 186 90 / 0.12) 55%, transparent);
-  filter: blur(10px);
+  background: radial-gradient(closest-side, rgb(255 122 89 / 0.3), rgb(253 186 90 / 0.1) 55%, transparent);
   opacity: 0;
   animation: mi-splash-glow 1.6s 0.75s var(--ease) both;
 }
@@ -215,11 +212,11 @@
 .mi-splash-mark path:nth-child(2) { animation: mi-draw-line 0.7s 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
 .mi-splash-mark path:nth-child(3) { animation: mi-draw-line 0.62s 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
 .mi-splash-name { position: relative; display: flex; margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.02em; color: #fff; }
-.mi-splash-name span { opacity: 0; filter: blur(6px); transform: translateY(6px); animation: mi-splash-letter 0.7s calc(1.05s + var(--i) * 0.045s) var(--ease) forwards; }
+.mi-splash-name span { display: inline-block; opacity: 0; transform: translateY(6px); animation: mi-splash-letter 0.7s calc(1.05s + var(--i) * 0.045s) var(--ease) forwards; }
 @keyframes mi-draw-line { to { stroke-dashoffset: 0; } }
 @keyframes mi-splash-settle { 0% { transform: scale(0.92); } 100% { transform: scale(1); } }
 @keyframes mi-splash-glow { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; } 100% { opacity: 0.75; transform: scale(1); } }
-@keyframes mi-splash-letter { to { opacity: 1; filter: blur(0); transform: none; } }
+@keyframes mi-splash-letter { to { opacity: 1; transform: none; } }
 
 /* Next */
 .mi-bar {
@@ -252,8 +249,8 @@
   /* Frosted glass: a faint tint of the screen's colour, a lit top edge, blur behind. */
   background: linear-gradient(180deg, rgb(255 255 255 / 0.13), rgb(255 255 255 / 0.04)), color-mix(in srgb, var(--tone) 10%, transparent);
   border: 1px solid rgb(255 255 255 / 0.14);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), inset 0 -1px 0 rgb(0 0 0 / 0.2), 0 12px 30px -14px rgb(0 0 0 / 0.9);
   transition: transform 0.25s var(--ease), background 0.6s, border-color 0.3s;
 }
@@ -314,7 +311,7 @@
 }
 .mi-final[data-on] .mi-btn-main::after { animation: mi-sheen 3.2s 1s var(--ease) infinite; }
 .mi-btn-main .mi-btn-arrow { opacity: 0.75; }
-.mi-btn-glass { background: var(--glass); border: 1px solid var(--line); color: #fff; backdrop-filter: blur(16px); }
+.mi-btn-glass { background: rgb(255 255 255 / 0.07); border: 1px solid var(--line); color: #fff; }
 .mi-btn-glass:active { background: rgb(255 255 255 / 0.11); }
 .mi-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; padding: 0 4px; font-size: 13.5px; color: rgb(255 255 255 / 0.55); opacity: 0; transition: opacity 0.6s 0.45s; }
 .mi-final[data-on] .mi-foot { opacity: 1; }
@@ -332,9 +329,8 @@
   border-radius: 4cqw;
   font-size: 3.2cqw;
   white-space: nowrap;
-  background: rgb(24 24 29 / 0.8);
+  background: rgb(24 24 29 / 0.94);
   border: 1px solid var(--line);
-  backdrop-filter: blur(18px);
   box-shadow: 0 18px 36px -16px rgb(0 0 0 / 0.85);
   animation: mi-bob 4.6s ease-in-out infinite;
 }
@@ -343,7 +339,8 @@
 .mi-chip small { font-size: 2.6cqw; color: var(--ink-2); }
 .mi-chip-ic { display: grid; place-items: center; width: 7.6cqw; height: 7.6cqw; border-radius: 2.4cqw; color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent); }
 .mi-chip-url { padding: 1.8cqw 3.4cqw; border-radius: 99px; gap: 1.6cqw; font-weight: 500; }
-.mi-dot-live { width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: #3ccf91; animation: mi-ping 1.8s ease-out infinite; }
+.mi-dot-live { position: relative; width: 1.8cqw; height: 1.8cqw; border-radius: 50%; background: #3ccf91; }
+.mi-dot-live::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #3ccf91; animation: mi-ping 1.8s ease-out infinite; }
 .mi-av { display: grid; place-items: center; width: 7.6cqw; height: 7.6cqw; border-radius: 50%; background: #ff8a7a; color: #09090b; font-size: 3.2cqw; font-weight: 700; }
 .mi-upi { display: grid; place-items: center; width: 12cqw; height: 7.6cqw; border-radius: 2.2cqw; background: rgb(255 255 255 / 0.07); }
 .mi-upi svg { width: 9cqw; }
@@ -370,11 +367,24 @@
 [data-on] .mi-b-note { animation: mi-b-note 0.9s 0.9s var(--pop) both; }
 [data-on] .mi-b-coin { animation: mi-b-drop 0.6s calc(1s + var(--k) * 0.12s) var(--pop) both; }
 [data-on] .mi-stamp { transform-origin: center; animation: mi-stamp 0.5s 1.5s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
-.mi-b-hover { animation: mi-hover 5s calc(var(--k) * -1.2s) ease-in-out infinite; }
-[data-on] .mi-b-hover { animation: mi-b-drop 0.8s calc(0.4s + var(--k) * 0.1s) var(--ease) both, mi-hover 5s calc(1.3s + var(--k) * 0.6s) ease-in-out infinite; }
-.mi-spark { animation: mi-twinkle 3.6s calc(var(--i) * -0.9s) ease-in-out infinite; transform-origin: center; }
-.mi-halo-ring { transform-origin: center; animation: mi-ring 3.6s ease-out infinite; }
-.mi-halo-ring-2 { animation-delay: 1.8s; }
+[data-on] .mi-b-hover { animation: mi-b-drop 0.8s calc(0.4s + var(--k) * 0.1s) var(--ease) both; }
+/* The final screen's pulse: HTML rings (composited), not SVG. */
+.mi-ring {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 56%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, transparent);
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: mi-ring 3.6s ease-out infinite;
+}
+.mi-ring-2 { animation-delay: 1.8s; }
+/* Screens out of view stop moving. */
+.mi-slide:not([data-on]) *, .mi-slide:not([data-on]) *::after { animation-play-state: paused !important; }
 [data-on] .mi-chip { animation: mi-chip-in 0.7s 1.3s var(--ease) both, mi-bob 4.6s 2s ease-in-out infinite; }
 [data-on] .mi-logo { animation: mi-logo-in 0.9s calc(0.2s + var(--i) * 0.15s) var(--ease) both, mi-bob 5s calc(1.2s + var(--i) * 0.4s) ease-in-out infinite; }
 
@@ -384,15 +394,12 @@
 @keyframes mi-b-grow { from { transform: scaleY(0.05); } }
 @keyframes mi-b-note { from { opacity: 0; transform: translate(30px, -60px) rotate(18deg); } }
 @keyframes mi-stamp { 0% { opacity: 0; transform: scale(2.6); } 70% { opacity: 1; transform: scale(0.92); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes mi-hover { 50% { transform: translateY(-7px); } }
 @keyframes mi-float { 50% { transform: translateY(-5px); } }
-@keyframes mi-twinkle { 0%, 100% { opacity: 0.4; transform: translateY(0) scale(0.85); } 50% { opacity: 1; transform: translateY(-6px) scale(1.1); } }
 @keyframes mi-ring { from { opacity: 0.9; transform: scale(0.55); } to { opacity: 0; transform: scale(1.25); } }
-@keyframes mi-wave { 50% { transform: translateY(-1.5%); } }
 @keyframes mi-chip-in { from { opacity: 0; transform: translateY(10px) scale(0.92); } }
 @keyframes mi-logo-in { from { opacity: 0; transform: scale(0.4) rotate(-20deg); } }
 @keyframes mi-bob { 50% { transform: translateY(-1.4cqw); } }
-@keyframes mi-ping { 0% { box-shadow: 0 0 0 0 rgb(60 207 145 / 0.6); } 100% { box-shadow: 0 0 0 2.4cqw rgb(60 207 145 / 0); } }
+@keyframes mi-ping { 0% { opacity: 0.6; transform: scale(1); } 100% { opacity: 0; transform: scale(2.6); } }
 @keyframes mi-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes mi-sheen { 0% { transform: translateX(-120%); } 45%, 100% { transform: translateX(120%); } }
 
