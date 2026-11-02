@@ -9,11 +9,15 @@
 import "./mobile-intro.css";
 import clsx from "clsx";
 import { ArrowRight, BadgeCheck, ChevronRight, X, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { MODULE_GROUPS, MODULES, type Tint } from "@/lib/workspace/modules";
+
+// AI mode loads only when it's opened.
+const PublicAiMode = dynamic(() => import("@/components/ai-mode/public-ai").then((m) => m.PublicAiMode), { ssr: false });
 
 const SKIP_KEY = "cc-intro";
 const AT_KEY = "cc-intro-at";
@@ -124,6 +128,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   // The logo splash plays first; nothing on the screens animates until it clears.
   const [splash, setSplash] = useState<"on" | "leaving" | "off">("on");
   const [features, setFeatures] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
   const ready = splash !== "on";
 
   // Every load plays it, except where motion is turned off or there's no intro (wider screens).
@@ -167,10 +172,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
   // Moves on by itself until they take over.
   useEffect(() => {
-    if (!ready || !auto || dragging || features || at >= LAST) return;
+    if (!ready || !auto || dragging || features || aiMode || at >= LAST) return;
     const t = setTimeout(() => go(at + 1, false), AUTO_MS);
     return () => clearTimeout(t);
-  }, [ready, auto, dragging, features, at, go]);
+  }, [ready, auto, dragging, features, aiMode, at, go]);
 
   // The status bar matches the intro on phones; the page's own colour comes back when it goes.
   useEffect(() => {
@@ -195,13 +200,13 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   // Arrow keys for anyone with a keyboard.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off") || features) return;
+      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off") || features || aiMode) return;
       if (e.key === "ArrowRight") go(at + 1);
       if (e.key === "ArrowLeft") go(at - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [at, go, features]);
+  }, [at, go, features, aiMode]);
 
   const explore = () => {
     try {
@@ -273,6 +278,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
       <header className="mi-top">
         <Wordmark className="text-[20px]" />
+        <button type="button" className="mi-ai" onClick={() => setAiMode(true)} aria-haspopup="dialog">
+          <Sparkles className="size-3.5" aria-hidden />
+          AI mode
+        </button>
         {last ? (
           <Link href={signedIn ? "/home" : "/login"} className="mi-link">
             {signedIn ? "Open app" : "Log in"}
@@ -349,6 +358,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
           </span>
         </button>
       </div>
+      {aiMode && <PublicAiMode onClose={() => setAiMode(false)} />}
       <FeatureSheet open={features} onClose={() => setFeatures(false)} startHref={signedIn ? "/home" : "/start"} startLabel={signedIn ? "Open my workspace" : "Start free"} />
     </div>
   );

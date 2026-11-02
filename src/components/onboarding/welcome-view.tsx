@@ -16,7 +16,7 @@ import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { useSession } from "@/components/shell/session-context";
 import { api, errorMessage } from "@/lib/client/api";
 import { profileFor, recommend, type Profile } from "@/lib/onboarding/recommend";
-import { understandBrief } from "@/lib/onboarding/understand";
+import { suggestIndustry } from "@/lib/onboarding/suggest";
 import { CORE, goalsFor, industryById, INDUSTRIES, MODULE_GROUPS, moduleById, MODULES, neededBy, photoUrl, SETUP_LABEL, withRequirements, type Industry, type IndustryId, type ModuleId, type PartsOff } from "@/lib/workspace/modules";
 import { Plan, PlanSummary, Questions } from "./steps";
 
@@ -30,22 +30,7 @@ const STEPS: { screen: Screen; label: string }[] = [
 
 const save = (body: Record<string, unknown>) => api("/api/v1/auth/onboarding", { method: "PUT", body }).catch(() => null);
 
-/** Suggests an industry from a one-line description. */
-export function suggestIndustry(text: string): IndustryId | null {
-  const t = text.toLowerCase();
-  if (!t.trim()) return null;
-  if (/\b(caf[eé]|coffee|espresso|brunch)\b/.test(t)) return "cafe";
-  if (/\b(bar|pub|lounge|brewery|cocktails?)\b/.test(t)) return "bar";
-  if (/\b(construction|contractor|civil|infrastructure|interiors?|epc)\b/.test(t)) return "construction";
-  if (/\b(school|college|coaching|tuition|academy|institute)\b/.test(t)) return "education";
-  const u = understandBrief(text);
-  const site: Record<string, IndustryId> = { restaurant: "restaurant", hotel: "hotel", salon: "salon", clinic: "clinic", fitness: "fitness", consulting: "services", portfolio: "services", education: "education", realestate: "services", nonprofit: "services", app: "software" };
-  const store: Record<string, IndustryId> = { fashion: "retail", jewellery: "retail", beauty: "retail", books: "retail", gadgets: "retail", fitness: "retail", bakery: "food", home: "home", gifts: "home" };
-  if (u.confidence === "none") return null;
-  if (u.kind === "store" && u.storeCategory) return store[u.storeCategory] ?? "retail";
-  if (u.websiteCategory) return site[u.websiteCategory] ?? null;
-  return null;
-}
+export { suggestIndustry } from "@/lib/onboarding/suggest";
 
 export function WelcomeView() {
   const { user, org } = useSession();

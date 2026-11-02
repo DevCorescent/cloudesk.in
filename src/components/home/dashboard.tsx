@@ -154,6 +154,9 @@ export function Dashboard() {
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {d && <span className="hidden text-[12px] text-subtle sm:inline">Updated {timeAgo(d.generatedAt)}</span>}
+          <Link href="/ai" className="ai-entry inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium">
+            <Sparkles className="size-3.5" /> AI mode
+          </Link>
           <Button size="sm" variant="ghost" aria-label="Refresh" icon={<RefreshCw className={clsx("size-3.5", q.isFetching && "animate-spin")} />} onClick={() => q.refetch()} />
           <Link href="/requests" className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium text-muted hover:bg-surface-2 hover:text-fg md:inline-flex" title="Missing something? Ask the Cloudesk team"><Lightbulb className="size-3.5" />Request a feature</Link>
           <Button size="sm" variant={editing ? "primary" : "secondary"} aria-label={editing ? "Done" : "Customise"} icon={editing ? <CheckCircle2 className="size-3.5" /> : <Settings2 className="size-3.5" />} onClick={() => setEditing(!editing)} className="max-sm:!w-8 max-sm:!px-0">
@@ -276,9 +279,14 @@ function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d
             {d ? status.charAt(0).toUpperCase() + status.slice(1) : "Checking…"}
           </p>
         </div>
-        <button type="button" aria-label="Refresh" onClick={onRefresh} className="phone-card grid size-9 shrink-0 place-items-center rounded-full text-muted active:scale-95">
-          <RefreshCw className={clsx("size-4", fetching && "animate-spin")} />
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <Link href="/ai" aria-label="AI mode" className="ai-entry inline-flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-semibold active:scale-95">
+            <Sparkles className="size-3.5" /> AI
+          </Link>
+          <button type="button" aria-label="Refresh" onClick={onRefresh} className="phone-card grid size-9 shrink-0 place-items-center rounded-full text-muted active:scale-95">
+            <RefreshCw className={clsx("size-4", fetching && "animate-spin")} />
+          </button>
+        </div>
       </header>
 
       <PlanStrip />
