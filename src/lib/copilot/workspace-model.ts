@@ -4,6 +4,8 @@
 // server side (reading and carrying out) is server/copilot/workspace.ts.
 import { z } from "zod";
 import { companySchema } from "@/lib/org/model";
+import { GST_RATES, UNITS } from "@/lib/inventory/model";
+import { DOC_KINDS } from "./advisors";
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const iso = z.iso.datetime({ offset: true, message: "Use an ISO time with offset, like 2026-11-03T15:00:00+05:30" });
@@ -13,7 +15,7 @@ const INVITE_ROLES = ["admin", "billing", "developer", "designer", "editor", "vi
 
 // ── What it may suggest ─────────────────────────────────────────────────────
 
-export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member"] as const;
+export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member", "record_bill", "inventory_items", "save_document"] as const;
 export type WorkspaceAction = (typeof WORKSPACE_ACTIONS)[number];
 export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   send_email: "Email",
@@ -23,6 +25,9 @@ export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   invoice_draft: "Draft invoice",
   business_profile: "Business details",
   invite_member: "Invite to the team",
+  record_bill: "Bill for Accounts",
+  inventory_items: "Inventory items",
+  save_document: "Save to Documents",
 };
 
 export const WORKSPACE_INPUT = {
@@ -67,6 +72,15 @@ export const WORKSPACE_INPUT = {
     })
     .refine((x) => Object.values(x).some((v) => v !== undefined), "Include at least one detail"),
   invite_member: z.object({ email, role: z.enum(INVITE_ROLES).default("editor") }),
+  /** Made by the extract_bill tool from the file (never typed by the model): the bill form's draft. */
+  record_bill: z.object({ attachmentId: z.string().regex(/^f\d+$/), kind: z.enum(["bill", "expense"]).default("bill"), draft: z.record(z.string(), z.unknown()), warnings: z.array(z.string()).default([]), fileName: z.string().default("") }),
+  inventory_items: z.object({
+    items: z
+      .array(z.object({ name: z.string().trim().min(1).max(160), sku: z.string().trim().max(60).default(""), unit: z.enum(UNITS).default("pcs"), category: z.string().trim().max(60).default(""), hsn: z.string().trim().max(10).default(""), gstRate: z.number().refine((v) => (GST_RATES as readonly number[]).includes(v), "Use a GST rate of 0, 0.25, 3, 5, 12, 18 or 28").default(18), cost: rupees.default(0) }))
+      .min(1)
+      .max(200),
+  }),
+  save_document: z.object({ attachmentId: z.string().regex(/^f\d+$/), title: z.string().trim().min(1).max(200), description: z.string().trim().max(1000).default("") }),
 } as const;
 
 /** How each suggestion is described to the model (the `input` of propose_action). */
@@ -78,6 +92,9 @@ export const WORKSPACE_PROMPT = [
   'kind "invoice_draft": input { client: { name, company?, email?, phone?, gstin?, state? }, lines: [{ name, quantity, rate (rupees per unit, before tax), taxPercent? (GST %, default 18), hsn? }], dueDate?, notes? } — saved as a draft invoice, not sent.',
   'kind "business_profile": input { legalName?, gstin?, pan?, address?: { line1, line2?, city, state, postalCode }, phone?, email?, website?, upiId? } — only what they told you; saved to the company and to invoices.',
   'kind "invite_member": input { email, role?: ' + INVITE_ROLES.join("|") + " } — emails them an invitation.",
+  'kind "inventory_items": input { items: [{ name, sku?, unit? (' + UNITS.join("|") + '), category?, hsn?, gstRate? (' + GST_RATES.join("|") + '), cost? (rupees per unit) }] } — new items in inventory.',
+  'kind "save_document": input { attachmentId (f1, f2…), title, description? } — files the upload in Documents.',
+  "Bills and receipts are never typed by you: use the extract_bill tool, which reads the file and prepares them.",
 ].join(" ");
 
 // ── Reading, as the person ──────────────────────────────────────────────────
@@ -113,6 +130,16 @@ export const WORKSPACE_TOOLS = [
     name: "invoices_list",
     description: "Invoices across the workspace's books, newest first: number, client, total, balance, due date, status. status filter: draft, sent, viewed, partial, overdue, paid. Needs invoicing access.",
     input_schema: { type: "object", properties: { status: { type: "string", enum: ["draft", "sent", "viewed", "partial", "overdue", "paid"] }, query: { type: "string" } }, additionalProperties: false },
+  },
+  {
+    name: "identify_document",
+    description: `Say what an attached file is, as soon as you've looked at it — the person sees it labelled with quick actions. kind: ${DOC_KINDS.join(", ")}. title: a short name (e.g. "Menon Traders bill MT/1182"). facts: up to 6 key facts (amounts, dates, parties).`,
+    input_schema: { type: "object", properties: { attachmentId: { type: "string" }, kind: { type: "string", enum: [...DOC_KINDS] }, title: { type: "string" }, facts: { type: "array", items: { type: "string" } } }, required: ["attachmentId", "kind", "title"], additionalProperties: false },
+  },
+  {
+    name: "extract_bill",
+    description: "Read an attached supplier bill or receipt with the accounts reader (supplier, GSTIN, bill number, dates, lines mapped to expense accounts, GST, warnings) and prepare it for the person to confirm into Accounts. kind: bill (a supplier's bill to pay) or expense (already paid, e.g. a receipt).",
+    input_schema: { type: "object", properties: { attachmentId: { type: "string" }, kind: { type: "string", enum: ["bill", "expense"] } }, required: ["attachmentId"], additionalProperties: false },
   },
   {
     name: "setup_status",

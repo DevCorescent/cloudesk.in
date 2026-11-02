@@ -3,7 +3,7 @@
 // suggestions it made (lib/copilot/workspace-model.ts), carried out by
 // `execute` only when the person confirms, through the module that owns the
 // record and with that module's own permission checks.
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { WORKSPACE_INPUT, type WorkspaceAction } from "@/lib/copilot/workspace-model";
 import { ApiError } from "../http/errors";
@@ -125,7 +125,9 @@ async function setupStatus(s: Scope) {
 
 export type Done = { id: string; link: string };
 
-export async function execute(ctx: AuthedContext, s: Scope, kind: WorkspaceAction, raw: unknown): Promise<Done> {
+/** `messages` is the conversation, for suggestions that use one of its files. */
+export async function execute(ctx: AuthedContext, s: Scope, kind: WorkspaceAction, raw: unknown, messages: unknown[] = []): Promise<Done> {
+  if (kind === "record_bill" || kind === "inventory_items" || kind === "save_document") return executeFiles(ctx, s, kind, raw, messages);
   if (kind === "send_email") {
     const p = WORKSPACE_INPUT.send_email.parse(raw);
     const { scope } = await import("../mail/access");
@@ -248,4 +250,43 @@ export async function execute(ctx: AuthedContext, s: Scope, kind: WorkspaceActio
   await rateLimit(`invite:${s.orgId}`, 50, 24 * 3600_000);
   const { invitation } = await createInvitation(s.orgId, { id: ctx.user.id, role: m.role, name: ctx.user.name }, p.email, p.role);
   return { id: invitation.id, link: "/team" };
+}
+
+async function executeFiles(ctx: AuthedContext, s: Scope, kind: "record_bill" | "inventory_items" | "save_document", raw: unknown, messages: unknown[]): Promise<Done> {
+  if (kind === "record_bill") {
+    const p = WORKSPACE_INPUT.record_bill.parse(raw);
+    const { scope } = await import("../accounting/access");
+    const { saveBill, recordExpense } = await import("../accounting/bills");
+    const as = await scope(ctx, s.orgId);
+    if (p.kind === "expense") {
+      // Paid already: from the first bank or cash account (they can change it on the expense).
+      const [acc] = await db.select({ id: schema.accAccounts.id }).from(schema.accAccounts).where(and(eq(schema.accAccounts.orgId, s.orgId), eq(schema.accAccounts.active, true), inArray(schema.accAccounts.type, ["bank", "cash"]))).limit(1);
+      if (!acc) throw new ApiError("conflict", "Add a bank or cash account in Accounts first");
+      const r = (await recordExpense(as, { ...p.draft, paidFrom: acc.id })) as { id: string };
+      return { id: r.id, link: `/accounts/bills/${r.id}` };
+    }
+    const r = (await saveBill(as, null, p.draft)) as { id: string };
+    return { id: r.id, link: `/accounts/bills/${r.id}` };
+  }
+  if (kind === "inventory_items") {
+    const p = WORKSPACE_INPUT.inventory_items.parse(raw);
+    const { scope } = await import("../inventory/access");
+    const { saveItem } = await import("../inventory/items");
+    const is = await scope(ctx, s.orgId);
+    let last = "";
+    for (const it of p.items) {
+      const r = (await saveItem(is, null, { name: it.name, sku: it.sku, unit: it.unit, category: it.category, hsn: it.hsn, gstRate: it.gstRate, avgCost: Math.round(it.cost * 100) })) as { id?: string; item?: { id: string } };
+      last = r.item?.id ?? r.id ?? last;
+    }
+    return { id: last, link: "/inventory/items" };
+  }
+  const p = WORKSPACE_INPUT.save_document.parse(raw);
+  const { findAttached } = await import("./attachments");
+  const f = findAttached(messages, p.attachmentId);
+  if (!f) throw new ApiError("not_found", "That file isn't in this conversation any more");
+  const { scope } = await import("../documents/access");
+  const { upload } = await import("../documents/core");
+  const ds = await scope(ctx, s.orgId);
+  const row = (await upload(ds, { name: f.name, bytes: f.bytes }, { title: p.title, notes: p.description })) as { id: string };
+  return { id: row.id, link: `/documents/file/${row.id}` };
 }

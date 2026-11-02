@@ -3,16 +3,16 @@
 // A change the copilot suggested, shown in AI mode: what it will do, editable
 // where that helps (an email draft), and done only when the person confirms.
 import clsx from "clsx";
-import { ArrowUpRight, CalendarDays, Check, Contact, Handshake, Loader2, Mail, ReceiptText, Building2, UserPlus, ListTodo, StickyNote, X, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, Boxes, CalendarDays, Check, Contact, FolderInput, Handshake, Loader2, Mail, Receipt, ReceiptText, Building2, UserPlus, ListTodo, StickyNote, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
 
 export type CopilotAction = { id: string; kind: string; summary: string; label: string; status: string; error?: string | null; result?: { id: string; link: string } | null; input: Record<string, unknown> };
 
-const ICON: Record<string, LucideIcon> = { send_email: Mail, calendar_event: CalendarDays, crm_contact: Contact, crm_deal: Handshake, invoice_draft: ReceiptText, business_profile: Building2, invite_member: UserPlus, crm_task: ListTodo, work_task: ListTodo, crm_note: StickyNote };
-const TONE: Record<string, string> = { send_email: "#4f5ef7", calendar_event: "#8b7bff", crm_contact: "#3ccf91", crm_deal: "#f5a35c", invoice_draft: "#2ec4b6", business_profile: "#ff7a59", invite_member: "#4fb3ff" };
-const CONFIRM: Record<string, string> = { send_email: "Send email", calendar_event: "Add to calendar", crm_contact: "Add contact", crm_deal: "Add deal", invoice_draft: "Save draft invoice", business_profile: "Save details", invite_member: "Send invitation" };
+const ICON: Record<string, LucideIcon> = { send_email: Mail, calendar_event: CalendarDays, crm_contact: Contact, crm_deal: Handshake, invoice_draft: ReceiptText, business_profile: Building2, invite_member: UserPlus, record_bill: Receipt, inventory_items: Boxes, save_document: FolderInput, crm_task: ListTodo, work_task: ListTodo, crm_note: StickyNote };
+const TONE: Record<string, string> = { send_email: "#4f5ef7", calendar_event: "#8b7bff", crm_contact: "#3ccf91", crm_deal: "#f5a35c", invoice_draft: "#2ec4b6", business_profile: "#ff7a59", invite_member: "#4fb3ff", record_bill: "#3ccf91", inventory_items: "#f5a35c", save_document: "#8b7bff" };
+const CONFIRM: Record<string, string> = { send_email: "Send email", calendar_event: "Add to calendar", crm_contact: "Add contact", crm_deal: "Add deal", invoice_draft: "Save draft invoice", business_profile: "Save details", invite_member: "Send invitation", record_bill: "Save to Accounts", inventory_items: "Add to inventory", save_document: "Save to Documents" };
 
 const list = (v: unknown) => (Array.isArray(v) ? (v as string[]).join(", ") : "");
 const emails = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
@@ -52,6 +52,27 @@ function rows(a: CopilotAction): [string, string][] {
     }
     case "invite_member":
       return [["Email", String(i.email ?? "")], ["Role", String(i.role ?? "editor")]];
+    case "record_bill": {
+      const d = (i.draft ?? {}) as { supplierName?: string; supplierGstin?: string; billNo?: string; date?: string; dueDate?: string | null; lines?: { description: string; amount: number; gstRate: number }[] };
+      const lines = d.lines ?? [];
+      const sub = lines.reduce((t, l) => t + l.amount, 0) / 100;
+      const tax = lines.reduce((t, l) => t + Math.round((l.amount * l.gstRate) / 100), 0) / 100;
+      return [
+        ["Type", i.kind === "expense" ? "Expense (already paid)" : "Bill to pay"],
+        ["Supplier", [d.supplierName, d.supplierGstin].filter(Boolean).join(" · ") || "—"],
+        ...(d.billNo ? [["Bill no.", d.billNo] as [string, string]] : []),
+        ["Date", [d.date, d.dueDate ? `due ${d.dueDate}` : ""].filter(Boolean).join(" · ")],
+        ...lines.slice(0, 8).map((l) => [`${l.description || "Line"}${l.gstRate ? ` · GST ${l.gstRate}%` : ""}`, rupees(l.amount / 100)] as [string, string]),
+        ["GST", rupees(tax)],
+        ["Total", rupees(sub + tax)],
+      ];
+    }
+    case "inventory_items": {
+      const items = (i.items ?? []) as { name: string; unit?: string; gstRate?: number; cost?: number }[];
+      return [...items.slice(0, 10).map((x) => [x.name, [x.cost ? rupees(x.cost) : "", x.unit ?? "pcs", `GST ${x.gstRate ?? 18}%`].filter(Boolean).join(" · ")] as [string, string]), ...(items.length > 10 ? [["…", `${items.length - 10} more`] as [string, string]] : [])];
+    }
+    case "save_document":
+      return [["Title", String(i.title ?? "")], ...(i.description ? [["Note", String(i.description)] as [string, string]] : [])];
     default:
       return [];
   }
@@ -136,6 +157,13 @@ export function ActionCard({ orgId, action }: { orgId: string; action: CopilotAc
         )
       )}
 
+      {action.kind === "record_bill" && Array.isArray(action.input.warnings) && action.input.warnings.length > 0 && (
+        <div className="ai-warn">
+          {(action.input.warnings as string[]).map((w, i) => (
+            <span key={i}>⚠ {w}</span>
+          ))}
+        </div>
+      )}
       {state.error && <p className="ai-err">{state.error}</p>}
       {open ? (
         <div className="ai-acts">

@@ -33,6 +33,14 @@ export async function scope(ctx: AuthedContext, orgId: string): Promise<Scope> {
   return { orgId, userId: ctx.user.id, role, write: can(role, "accounts:write"), manage: can(role, "accounts:manage"), settings: await ensureBooks(orgId), partsOff: (org?.partsOff ?? {}) as PartsOff, access: await memberAccess(orgId, ctx.user.id) };
 }
 
+/** The same scope for a member already checked by another module (the copilot), by their role. */
+export async function scopeFor(orgId: string, userId: string, role: Role): Promise<Scope> {
+  if (!can(role, "accounts:read")) throw new ApiError("forbidden", "Accounts isn't open to your role");
+  const [org] = await db.select({ modules: schema.organizations.modules, partsOff: schema.organizations.partsOff }).from(schema.organizations).where(eq(schema.organizations.id, orgId));
+  if (!isOn(org?.modules, "accounting")) throw new ApiError("forbidden", "Switch on Accounting & GST in Settings → Features first");
+  return { orgId, userId, role, write: can(role, "accounts:write"), manage: can(role, "accounts:manage"), settings: await ensureBooks(orgId), partsOff: (org?.partsOff ?? {}) as PartsOff, access: await memberAccess(orgId, userId) };
+}
+
 /** A scope for system work (sync on a schedule): acts as nobody. */
 export async function systemScope(orgId: string): Promise<Scope> {
   return { orgId, userId: "", role: "owner", write: true, manage: true, settings: await ensureBooks(orgId), partsOff: {} };

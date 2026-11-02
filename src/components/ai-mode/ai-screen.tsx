@@ -6,7 +6,7 @@
 // draws; whoever uses it decides what the suggestions do and how to answer.
 import "./ai-screen.css";
 import clsx from "clsx";
-import { ArrowUp, AudioLines, ChevronLeft, MessageCirclePlus, Mic, Plus, type LucideIcon } from "lucide-react";
+import { ArrowUp, AudioLines, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Mic, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
@@ -15,7 +15,10 @@ import { photoUrl } from "@/lib/site/media";
 export type AiCard = { id: string; title: string; sub: string; icon: LucideIcon; tone: string; onPick: () => void };
 export type AiTile = { id: string; label: string; photo: string | null; onPick: () => void };
 export type AiSection = { title: string; cards?: AiCard[]; tiles?: AiTile[] };
-export type AiMsg = { id: string; role: "user" | "assistant"; text?: string; node?: ReactNode };
+export type AiMsg = { id: string; role: "user" | "assistant"; text?: string; node?: ReactNode; files?: { name: string; mime?: string }[] };
+
+/** What the + menu accepts: photos and the documents the copilot can read. */
+const ACCEPT = "image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,.ppt,.pptx,.txt,.md";
 
 const Spans = ({ parts }: { parts: Inline[] }) => (
   <>
@@ -51,7 +54,7 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-type SpeechLike = { lang: string; interimResults: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
+type SpeechLike = { lang: string; interimResults: boolean; continuous: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
 
 /** Dictation where the browser offers it (Chrome, Safari); null elsewhere. */
 function speech(): (new () => SpeechLike) | null {
@@ -63,8 +66,18 @@ function speech(): (new () => SpeechLike) | null {
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode }) {
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const pick = useRef<HTMLInputElement>(null);
+  const shoot = useRef<HTMLInputElement>(null);
+  const addFiles = (input: HTMLInputElement) => {
+    // Copy the list now: clearing the input (so the same file can be picked again) empties it.
+    const picked = Array.from(input.files ?? []);
+    input.value = "";
+    if (picked.length) setFiles((f) => [...f, ...picked].slice(0, 4));
+    setQuickOpen(false);
+  };
   const [listening, setListening] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
   const [canSpeak, setCanSpeak] = useState(false);
@@ -91,8 +104,10 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
 
   const send = (q = text) => {
     const v = q.trim();
-    if (!v || p.busy) return;
-    p.onSend(v);
+    if ((!v && !files.length) || p.busy) return;
+    rec.current?.stop();
+    p.onSend(v, files);
+    setFiles([]);
     setText("");
     setQuickOpen(false);
     if (box.current) box.current.style.height = "";
@@ -105,7 +120,10 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
     const r = new S();
     r.lang = "en-IN";
     r.interimResults = true;
-    r.onresult = (e) => setText(Array.from(e.results, (x) => x[0]!.transcript).join(""));
+    // Keeps listening through pauses until they tap again or send.
+    r.continuous = true;
+    const before = text ? `${text.trimEnd()} ` : "";
+    r.onresult = (e) => setText(before + Array.from(e.results, (x) => x[0]!.transcript).join(""));
     r.onend = () => setListening(false);
     rec.current = r;
     setListening(true);
@@ -123,7 +141,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
         <button type="button" className="ai-round" onClick={p.onClose} aria-label={p.closeLabel ?? "Close"}>
           <ChevronLeft className="size-[22px]" strokeWidth={2} />
         </button>
-        <span className="ai-mark">AI mode</span>
+        {p.mark ?? <span className="ai-mark">AI mode</span>}
         <button type="button" className="ai-round" onClick={p.onNew} aria-label="New conversation">
           <MessageCirclePlus className="size-[21px]" strokeWidth={1.9} />
         </button>
@@ -172,6 +190,16 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             {p.messages.map((m) =>
               m.role === "user" ? (
                 <div key={m.id} className="ai-msg ai-msg-me">
+                  {m.files && m.files.length > 0 && (
+                    <span className="ai-msg-files">
+                      {m.files.map((f, i) => (
+                        <span key={i}>
+                          {f.mime?.startsWith("image/") ? <ImagePlus className="size-3.5" aria-hidden /> : <FileText className="size-3.5" aria-hidden />}
+                          {f.name}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   {m.text}
                 </div>
               ) : (
@@ -196,6 +224,44 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
       </div>
 
       <div className="ai-dock">
+        {p.below}
+        {p.attach && (
+          <>
+            <input ref={pick} type="file" multiple accept={ACCEPT} hidden onChange={(e) => addFiles(e.target)} />
+            <input ref={shoot} type="file" accept="image/*" capture="environment" hidden onChange={(e) => addFiles(e.target)} />
+          </>
+        )}
+        {quickOpen && p.attach && (
+          <div className="ai-attach">
+            <button type="button" onClick={() => pick.current?.click()}>
+              <Paperclip className="size-[18px]" aria-hidden />
+              <span>
+                <b>Photo or document</b>
+                <small>PDF, Word, Excel, images — bills, contracts, lists</small>
+              </span>
+            </button>
+            <button type="button" onClick={() => shoot.current?.click()}>
+              <Camera className="size-[18px]" aria-hidden />
+              <span>
+                <b>Take a photo</b>
+                <small>A receipt, a business card, a document</small>
+              </span>
+            </button>
+          </div>
+        )}
+        {files.length > 0 && (
+          <div className="ai-files">
+            {files.map((f, i) => (
+              <span key={`${f.name}-${i}`} className="ai-file">
+                {f.type.startsWith("image/") ? <ImagePlus className="size-3.5" aria-hidden /> : <FileText className="size-3.5" aria-hidden />}
+                <span>{f.name}</span>
+                <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setFiles((x) => x.filter((_, j) => j !== i))}>
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
         {quickOpen && p.quick && (
           <div className="ai-quick">
             {p.quick.map((q) => (
@@ -212,7 +278,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             send();
           }}
         >
-          <button type="button" className="ai-plus" aria-label="Suggestions" aria-expanded={quickOpen} onClick={() => setQuickOpen(!quickOpen)}>
+          <button type="button" className="ai-plus" aria-label={p.attach ? "Add a file or a suggestion" : "Suggestions"} aria-expanded={quickOpen} onClick={() => setQuickOpen(!quickOpen)}>
             <Plus className={clsx("size-[22px] transition-transform", quickOpen && "rotate-45")} strokeWidth={1.8} />
           </button>
           {single ? (
@@ -249,13 +315,13 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             }}
           />
           )}
-          {canSpeak && !single && text.trim() && (
+          {canSpeak && !single && (text.trim() || files.length > 0) && (
             <button type="button" className="ai-mic" onClick={dictate} aria-label={listening ? "Stop dictation" : "Dictate"}>
               <Mic className="size-[21px]" strokeWidth={1.8} />
             </button>
           )}
-          {text.trim() || !canSpeak || single ? (
-            <button type="submit" className="ai-go" disabled={!text.trim() || p.busy} aria-label="Send">
+          {text.trim() || files.length || !canSpeak || single ? (
+            <button type="submit" className="ai-go" disabled={(!text.trim() && !files.length) || p.busy} aria-label="Send">
               <ArrowUp className="size-5" strokeWidth={2.2} />
             </button>
           ) : (

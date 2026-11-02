@@ -157,8 +157,9 @@
 .ai-rows { display: grid; }
 .ai-row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; font-size: 14px; }
 .ai-row + .ai-row { border-top: 1px solid var(--ai-line); }
-.ai-row > span:first-child { flex: 1; min-width: 0; color: var(--ai-muted); }
-.ai-row b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.ai-row > span:first-child { flex: 1 0 auto; max-width: 55%; color: var(--ai-muted); }
+/* Long values (a supplier and GSTIN) wrap rather than squeeze the label. */
+.ai-row b { min-width: 0; margin-left: auto; text-align: right; overflow-wrap: anywhere; font-weight: 600; font-variant-numeric: tabular-nums; }
 .ai-row small { font-size: 12px; color: var(--ai-muted); }
 .ai-link { display: flex; align-items: center; gap: 12px; padding: 11px 2px; font-size: 14.5px; }
 .ai-link + .ai-link { border-top: 1px solid var(--ai-line); }
@@ -308,3 +309,34 @@
 .ai-mail input { height: 40px; }
 .ai-mail textarea { resize: vertical; padding: 12px; line-height: 1.5; }
 .ai-mail :disabled { opacity: 0.75; }
+
+/* Files: the + menu, chips waiting to go, and chips on a sent question */
+.ai-attach { display: grid; gap: 6px; margin-bottom: 10px; padding: 6px; border-radius: 18px; background: var(--ai-card); border: 1px solid var(--ai-line); animation: ai-up 0.3s var(--ai-ease) both; }
+.ai-attach button { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 13px; text-align: left; }
+.ai-attach button:active { background: var(--ai-soft); }
+.ai-attach svg { flex: none; color: var(--ai-blue); }
+.ai-attach b { display: block; font-size: 14px; font-weight: 550; }
+.ai-attach small { display: block; font-size: 12px; color: var(--ai-muted); }
+.ai-files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ai-file { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; height: 32px; padding: 0 6px 0 10px; border-radius: 10px; font-size: 12.5px; background: var(--ai-card); border: 1px solid var(--ai-line); }
+.ai-file > span { min-width: 0; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-file button { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; color: var(--ai-muted); }
+.ai-msg-files { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 6px; }
+.ai-msg-files > span { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 3px 8px; border-radius: 8px; font-size: 12px; background: color-mix(in srgb, var(--fg) 8%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A recognised document: what it is, its key facts and what to do with it */
+.ai-doc { display: grid; gap: 10px; margin-top: 12px; padding: 14px; border-radius: 18px; background: var(--ai-card); border: 1px solid var(--ai-line); }
+.ai-doc-h { display: flex; align-items: center; gap: 10px; }
+.ai-doc-h em { flex: none; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-style: normal; font-weight: 600; color: var(--ai-blue); background: color-mix(in srgb, var(--ai-blue) 14%, transparent); }
+.ai-doc-h b { min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-doc ul { margin: 0; padding-left: 18px; display: grid; gap: 2px; font-size: 13px; color: var(--ai-muted); list-style: disc; }
+.ai-doc .ai-chips button { cursor: pointer; }
+/* The advisor in use, in the header */
+.ai-advisor { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 99px; font-size: 13px; font-weight: 550; color: var(--fg); background: var(--ai-soft); border: 1px solid var(--ai-line); }
+.ai-advisor i { width: 8px; height: 8px; border-radius: 50%; background: var(--tone); }
+.ai-advisors { display: grid; gap: 6px; margin-bottom: 10px; padding: 6px; border-radius: 18px; background: var(--ai-card); border: 1px solid var(--ai-line); max-height: 52dvh; overflow-y: auto; animation: ai-up 0.3s var(--ai-ease) both; }
+.ai-advisors button { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 13px; text-align: left; }
+.ai-advisors button[aria-pressed="true"] { background: var(--ai-soft); }
+.ai-advisors .ai-act-ic { color: var(--tone); background: color-mix(in srgb, var(--tone) 16%, transparent); }
+.ai-advisors b { display: block; font-size: 14px; font-weight: 550; }
+.ai-advisors small { display: block; font-size: 12px; color: var(--ai-muted); }
+.ai-warn { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; font-size: 12.5px; color: #f5c35c; background: color-mix(in srgb, #f5c35c 12%, transparent); }

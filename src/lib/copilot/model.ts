@@ -5,6 +5,7 @@
 import { z } from "zod";
 import { AGGS, BUCKETS, OPS, PRESETS } from "@/lib/bi/model";
 
+import { REVIEW_STANDARD } from "./advisors";
 import { WORKSPACE_ACTIONS, WORKSPACE_INPUT, WORKSPACE_LABEL, WORKSPACE_PROMPT, WORKSPACE_TOOLS } from "./workspace-model";
 
 export const ACTION_KINDS = ["crm_task", "crm_note", "work_task", ...WORKSPACE_ACTIONS] as const;
@@ -85,7 +86,15 @@ Calendar and invoices: use calendar_upcoming and invoices_list for questions abo
 Setting up a new workspace (when they ask to get set up, or setup_status shows gaps):
 - Call setup_status first. Then ask for the missing details a few at a time, in plain words — legal name, GSTIN (or "not registered"), PAN, address, phone and email for invoices, UPI ID — and repeat back what you understood.
 - Save them with one propose_action kind "business_profile" holding everything they gave. Then offer the next steps: invite teammates (invite_member, ask their email and role), add first customers (crm_contact), connect a mailbox (Mail → Add account), open the online store (/launch?kind=store).
-- Check GSTIN and PAN formats before proposing; the state comes from the GSTIN's first two digits.`;
+- Check GSTIN and PAN formats before proposing; the state comes from the GSTIN's first two digits.
+
+Files they attach (photos, PDFs, Word, Excel, PowerPoint, CSV) appear as [Attachment f1: …]:
+- First call identify_document for each file (kind, a short title, key facts), then answer. Read the whole file carefully; quote figures, names and dates exactly as printed. If something is unreadable or missing, say so — never fill gaps with guesses.
+- Supplier bills and receipts: call extract_bill (kind "expense" for something already paid, like a receipt) — it reads the bill into Accounts' format with GST and accounts; then tell them what it found and any warnings.
+- Business cards and letterheads: propose crm_contact. Purchase orders: propose invoice_draft from their lines. Price lists and catalogues: propose inventory_items. Contracts: renewal and notice dates as calendar_event. Offer save_document to file anything worth keeping.
+- Spreadsheets: answer from the actual rows; total and compare them yourself carefully, and show the figures you used.
+
+${REVIEW_STANDARD}`;
 
 /** A short title for a conversation, from its first question. */
 export function titleFrom(text: string) {
@@ -94,9 +103,9 @@ export function titleFrom(text: string) {
   return one.length > 60 ? `${one.slice(0, 57).replace(/\s+\S*$/, "")}…` : one;
 }
 
-type Block = { type: string; text?: string; name?: string; id?: string; input?: unknown; tool_use_id?: string; is_error?: boolean; content?: unknown };
+type Block = { type: string; text?: string; name?: string; id?: string; input?: unknown; tool_use_id?: string; is_error?: boolean; content?: unknown; cc_file?: { id: string; name: string; mime: string } };
 type Message = { role: "user" | "assistant"; content: string | Block[] };
-export type ViewItem = { role: "user"; text: string } | { role: "assistant"; text: string } | { role: "tool"; name: string; label: string; toolUseId: string; failed: boolean };
+export type ViewItem = { role: "user"; text: string; files?: { id: string; name: string; mime: string }[] } | { role: "assistant"; text: string } | { role: "tool"; name: string; label: string; toolUseId: string; failed: boolean; doc?: { attachmentId: string; kind: string; title: string; facts: string[] } };
 
 const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   list_datasets: () => "Looked at the available data",
@@ -111,6 +120,8 @@ const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   calendar_upcoming: (i) => `Checked your calendar (next ${Number(i.days) || 7} days)`,
   invoices_list: (i) => (i.status ? `Looked at ${String(i.status)} invoices` : "Looked at your invoices"),
   setup_status: () => "Checked what's set up",
+  identify_document: (i) => `Read ${String(i.title ?? "the file")}`,
+  extract_bill: () => "Read the bill into Accounts' format",
 };
 
 /** What people see of a conversation: their questions, the answers, and which tools were used (tool results stay hidden). */
@@ -120,11 +131,21 @@ export function toView(messages: unknown[]): ViewItem[] {
   for (const m of messages as Message[]) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result" && b.is_error && b.tool_use_id) failed.add(b.tool_use_id);
   for (const m of messages as Message[]) {
     const blocks: Block[] = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content;
+    // Files show as chips on the question they came with, not as their text.
+    const files = m.role === "user" ? [...new Map(blocks.filter((b) => b.cc_file).map((b) => [b.cc_file!.id, b.cc_file!])).values()] : [];
+    let asked = false;
     for (const b of blocks) {
-      if (b.type === "text" && b.text?.trim()) out.push({ role: m.role, text: b.text });
+      if (b.cc_file) continue;
+      if (b.type === "text" && b.text?.trim()) {
+        if (m.role === "user" && files.length && !asked) {
+          out.push({ role: "user", text: b.text, files });
+          asked = true;
+        } else out.push({ role: m.role, text: b.text } as ViewItem);
+      }
       else if (b.type === "tool_use" && m.role === "assistant") {
         const input = (b.input ?? {}) as Record<string, unknown>;
-        out.push({ role: "tool", name: b.name ?? "", label: (TOOL_LABEL[b.name ?? ""] ?? (() => `Used ${b.name}`))(input), toolUseId: b.id ?? "", failed: failed.has(b.id ?? "") });
+        const doc = b.name === "identify_document" ? { attachmentId: String(input.attachmentId ?? ""), kind: String(input.kind ?? "other"), title: String(input.title ?? ""), facts: Array.isArray(input.facts) ? (input.facts as unknown[]).map(String).slice(0, 6) : [] } : undefined;
+        out.push({ role: "tool", name: b.name ?? "", label: (TOOL_LABEL[b.name ?? ""] ?? (() => `Used ${b.name}`))(input), toolUseId: b.id ?? "", failed: failed.has(b.id ?? ""), ...(doc ? { doc } : {}) });
       }
     }
   }

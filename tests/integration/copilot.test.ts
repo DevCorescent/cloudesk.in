@@ -89,7 +89,7 @@ describe("the copilot", () => {
 
     const [first, second, third] = requests;
     expect(first.model).toBe("claude-opus-5-5");
-    expect(first.tools.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "setup_status"]);
+    expect(first.tools.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "identify_document", "extract_bill", "setup_status"]);
     expect(first.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(first.system[1].text).toMatch(/^Today is \d{4}-\d{2}-\d{2} \(India\)\. You're helping Om Owner\.$/);
     const [datasets, found] = resultsOf(second);

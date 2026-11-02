@@ -10,6 +10,8 @@ import { ACTION_INPUT, ACTION_LABEL, proposeInput, resultText, runReportInput, s
 import { duplicateBills, expenseSpikes, largeBills, type Finding } from "@/lib/copilot/anomalies";
 import { isOn } from "@/lib/workspace/modules";
 import { anthropicFor, COPILOT_MODEL, providerError, recordUsage } from "../ai/gateway";
+import { advisorById } from "@/lib/copilot/advisors";
+import { countAttached, findAttached, forModel, toBlocks, type Upload } from "./attachments";
 import { WORKSPACE_ACTIONS, type WorkspaceAction } from "@/lib/copilot/workspace-model";
 import { execute, readTool } from "./workspace";
 import { can } from "../authz/permissions";
@@ -64,13 +66,23 @@ export async function deleteThread(s: Scope, id: string) {
 }
 
 /** Ask a question: run the model with its tools until it answers (or the turn limit), saving every message exchanged. */
-export async function ask(s: Scope, threadId: string | null, text: string) {
-  const q = text.trim();
+export async function ask(s: Scope, threadId: string | null, text: string, opts: { files?: Upload[]; advisor?: string | null } = {}) {
+  const files = opts.files ?? [];
+  const q = text.trim() || (files.length ? "What is this, and what should I do with it?" : "");
   if (!q) throw new ApiError("validation_failed", "Ask something first", { text: ["Required"] });
   if (q.length > 4000) throw new ApiError("validation_failed", "Keep the question under 4,000 characters", { text: ["Too long"] });
   const client = await anthropicFor(s.orgId);
-  const t = threadId ? await getThread(s, threadId) : (await db.insert(schema.copilotThreads).values({ orgId: s.orgId, userId: s.userId, title: titleFrom(q) }).returning())[0];
+  const t = threadId ? await getThread(s, threadId) : (await db.insert(schema.copilotThreads).values({ orgId: s.orgId, userId: s.userId, title: titleFrom(text.trim() || files.map((f) => f.name).join(", ")) }).returning())[0];
   let messages = withQuestion(t.messages, q);
+  if (files.length) {
+    // The files go just before the question, in the same turn.
+    const { blocks } = toBlocks(files, countAttached(t.messages));
+    const last = messages[messages.length - 1] as { role: string; content: string | unknown[] };
+    const content = typeof last.content === "string" ? [{ type: "text", text: last.content }] : last.content;
+    const qi = content.length - 1;
+    messages = [...messages.slice(0, -1), { role: "user", content: [...content.slice(0, qi), ...blocks, content[qi]] }];
+  }
+  const advisor = advisorById(opts.advisor);
   const save = () => db.update(schema.copilotThreads).set({ messages, updatedAt: new Date() }).where(eq(schema.copilotThreads.id, t.id));
   const note = (msg: string) => {
     messages = [...messages, { role: "assistant", content: [{ type: "text", text: msg }] }];
@@ -85,9 +97,10 @@ export async function ask(s: Scope, threadId: string | null, text: string) {
           system: [
             { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
             { type: "text", text: `Today is ${todayIst()} (India). You're helping ${s.name}.` },
+            ...(advisor.brief ? [{ type: "text", text: `Advisor mode — ${advisor.name}.\n${advisor.brief}` }] : []),
           ],
           tools: TOOLS.map((x) => ({ ...x, eager_input_streaming: true })) as unknown as Anthropic.Beta.BetaToolUnion[],
-          messages: messages as Anthropic.Beta.BetaMessageParam[],
+          messages: forModel(messages) as Anthropic.Beta.BetaMessageParam[],
           thinking: { type: "adaptive" },
           output_config: { effort: "medium" },
           betas: ["server-side-fallback-2026-07-01"],
@@ -106,7 +119,7 @@ export async function ask(s: Scope, threadId: string | null, text: string) {
       }
       if (res.stop_reason !== "tool_use") break;
       const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
-      for (const b of res.content) if (b.type === "tool_use") results.push(await runTool(s, t.id, b.id, b.name, b.input));
+      for (const b of res.content) if (b.type === "tool_use") results.push(await runTool(s, t.id, b.id, b.name, b.input, messages));
       messages = [...messages, { role: "user", content: results }];
       if (turn === MAX_TURNS - 1) note("I stopped after several lookups without a final answer. Ask again, perhaps more specifically.");
     }
@@ -124,7 +137,7 @@ export async function ask(s: Scope, threadId: string | null, text: string) {
 const ok = (id: string, content: string): Anthropic.Beta.BetaToolResultBlockParam => ({ type: "tool_result", tool_use_id: id, content });
 const fail = (id: string, content: string): Anthropic.Beta.BetaToolResultBlockParam => ({ type: "tool_result", tool_use_id: id, content, is_error: true });
 
-async function runTool(s: Scope, threadId: string, id: string, name: string, input: unknown): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
+async function runTool(s: Scope, threadId: string, id: string, name: string, input: unknown, messages: unknown[] = []): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
   try {
     if (name === "list_datasets") {
       const list = biDatasets(s).map((d) => `${d.id} — ${d.label}${d.dateField ? ` (dates: ${d.dateField})` : ""}\n  fields: ${d.fields.map((f) => `${f.key} (${f.label}, ${f.type})`).join(", ")}`);
@@ -150,10 +163,33 @@ async function runTool(s: Scope, threadId: string, id: string, name: string, inp
     if (name === "propose_action") {
       const v = proposeInput.safeParse(input);
       if (!v.success) return fail(id, `Invalid input: ${v.error.issues[0]?.message}`);
+      if (v.data.kind === "record_bill") return fail(id, "Bills are prepared by the extract_bill tool from the file, not typed — call extract_bill with the attachment id.");
       const p = ACTION_INPUT[v.data.kind].safeParse(v.data.input);
       if (!p.success) return fail(id, `Invalid ${v.data.kind} input: ${p.error.issues.map((i) => `${i.path.join(".") || "input"}: ${i.message}`).join("; ")}`);
       const [a] = await db.insert(schema.copilotActions).values({ orgId: s.orgId, threadId, userId: s.userId, kind: v.data.kind, payload: { ...p.data, toolUseId: id }, summary: v.data.summary }).returning();
       return ok(id, `Proposal saved (id ${a.id}). Nothing has changed yet: it is waiting for the person to press Confirm.`);
+    }
+    if (name === "identify_document") {
+      const i = (input ?? {}) as { attachmentId?: string; kind?: string };
+      if (!i.attachmentId || !findAttached(messages, i.attachmentId)) return fail(id, "Use the id of a file in this conversation (f1, f2…).");
+      return ok(id, `Labelled ${i.attachmentId} as ${i.kind}. Now say in one line what it is and offer the most useful next step.`);
+    }
+    if (name === "extract_bill") {
+      const i = (input ?? {}) as { attachmentId?: string; kind?: string };
+      const f = i.attachmentId ? findAttached(messages, i.attachmentId) : null;
+      if (!f) return fail(id, "Use the id of a file in this conversation (f1, f2…).");
+      if (!s.has("accounting")) return fail(id, "Accounts isn't switched on for this workspace.");
+      const { scopeFor } = await import("../accounting/access");
+      const { extractBill } = await import("../accounting/extract");
+      const as = await scopeFor(s.orgId, s.userId, s.role);
+      const r = (await extractBill(as, { name: f.name, bytes: f.bytes })) as { draft: Record<string, unknown>; warnings: string[] };
+      const kind = i.kind === "expense" ? "expense" : "bill";
+      const d = r.draft as { supplierName?: string; billNo?: string; date?: string; lines?: { amount: number; gstRate: number }[] };
+      const sub = (d.lines ?? []).reduce((n, l) => n + l.amount, 0);
+      const tax = (d.lines ?? []).reduce((n, l) => n + Math.round((l.amount * l.gstRate) / 100), 0);
+      const summary = `${kind === "expense" ? "Expense" : "Bill"} from ${d.supplierName || "an unnamed supplier"}${d.billNo ? ` (${d.billNo})` : ""} — ₹${((sub + tax) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+      const [a] = await db.insert(schema.copilotActions).values({ orgId: s.orgId, threadId, userId: s.userId, kind: "record_bill", payload: { attachmentId: i.attachmentId, kind, draft: r.draft, warnings: r.warnings, fileName: f.name, toolUseId: id }, summary }).returning();
+      return ok(id, `Read the file and prepared it (proposal ${a.id}), waiting for the person to confirm: ${summary}. Lines: ${(d.lines ?? []).length}, GST ₹${(tax / 100).toFixed(2)}, dated ${d.date ?? "?"}.${r.warnings.length ? ` Warnings to tell them: ${r.warnings.join(" ")}` : " No warnings."}`);
     }
     const read = await readTool(s, name, (input ?? {}) as Record<string, unknown>);
     if (read !== null) return ok(id, read);
@@ -252,7 +288,8 @@ export async function confirm(ctx: AuthedContext, s: Scope, id: string, edited?:
     } else if ((WORKSPACE_ACTIONS as readonly string[]).includes(kind)) {
       const { toolUseId: _t, ...input } = a.payload as Record<string, unknown>;
       void _t;
-      result = await execute(ctx, s, kind as WorkspaceAction, input);
+      const [th] = await db.select({ messages: schema.copilotThreads.messages }).from(schema.copilotThreads).where(eq(schema.copilotThreads.id, a.threadId));
+      result = await execute(ctx, s, kind as WorkspaceAction, input, (th?.messages as unknown[]) ?? []);
     } else {
       if (!s.has("work")) throw new ApiError("forbidden", "Projects aren't open to you");
       const { scope: workScope } = await import("../work/access");

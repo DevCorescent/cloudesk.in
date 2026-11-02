@@ -5,12 +5,13 @@
 // the copilot, which answers from the workspace's data within the person's
 // role. Setup shortcuts lead the screen while the workspace is still new.
 import { useQuery } from "@tanstack/react-query";
-import { BellRing, Building2, CalendarDays, ChartColumn, ChevronRight, Contact, Inbox, Mail, PenLine, Sparkles, Users } from "lucide-react";
+import { Boxes, BellRing, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, Compass, Contact, FileSearch, Inbox, Landmark, Mail, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { api, errorMessage } from "@/lib/client/api";
+import { ADVISORS, advisorById, DOC_KIND_INFO, type AdvisorId, type DocKind } from "@/lib/copilot/advisors";
 import { industryById, visibleTo } from "@/lib/workspace/modules";
 import { ActionCard, type CopilotAction } from "./action-card";
 import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
@@ -18,7 +19,38 @@ import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
 type Insight = { id: string; tone: "danger" | "warning" | "info" | "success"; title: string; detail: string; href: string };
 type Dash = { kpis: Kpi[]; insights: Insight[]; waiting: { counts: { approvals: number; todo: number; overdue: number } } | null };
-type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string })[]; actions: CopilotAction[] };
+type Doc = { attachmentId: string; kind: string; title: string; facts: string[] };
+type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string; doc?: Doc })[]; actions: CopilotAction[] };
+const ADVISOR_ICON: Record<string, LucideIcon> = { sparkles: Sparkles, landmark: Landmark, scale: Scale, trending: TrendingUp, boxes: Boxes, users: Users, compass: Compass };
+
+/** Photos are shrunk before they're sent (a phone photo is 3–8 MB; 1,800 px is plenty to read). */
+async function shrink(f: File): Promise<File> {
+  if (!f.type.startsWith("image/") || f.type === "image/gif" || f.size < 700_000) return f;
+  try {
+    const bmp = await createImageBitmap(f);
+    const k = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * k);
+    c.height = Math.round(bmp.height * k);
+    c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise<Blob | null>((res) => c.toBlob(res, "image/jpeg", 0.85));
+    return blob ? new File([blob], f.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" }) : f;
+  } catch {
+    return f;
+  }
+}
+
+/** A question with files goes as a form; the answer has the same shape as a JSON question's. */
+async function postForm<T>(path: string, text: string, files: File[], advisor: string): Promise<T> {
+  const form = new FormData();
+  form.set("text", text);
+  form.set("advisor", advisor);
+  for (const f of files) form.append("files", f, f.name);
+  const res = await fetch(path, { method: "POST", body: form, credentials: "same-origin" });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((json as { error?: { message?: string } })?.error?.message ?? "Couldn't send that — try again");
+  return json as T;
+}
 
 const money = (p: number) => {
   const r = p / 100;
@@ -53,6 +85,9 @@ export function AppAiMode() {
   const thread = useRef<string | null>(null);
   // Suggestions already shown, so each answer only carries its own.
   const shown = useRef(new Set<string>());
+  const [advisor, setAdvisor] = useState<AdvisorId>("general");
+  const [picking, setPicking] = useState(false);
+  const adv = advisorById(advisor);
   const has = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
   const copilotOn = has("copilot");
 
@@ -131,8 +166,8 @@ export function AppAiMode() {
     });
   };
 
-  const ask = async (text: string) => {
-    add({ role: "user", text });
+  const ask = async (text: string, files: File[] = []) => {
+    add({ role: "user", text, files: files.map((f) => ({ name: f.name, mime: f.type })) });
     if (!copilotOn) {
       return add({
         role: "assistant",
@@ -150,21 +185,26 @@ export function AppAiMode() {
     setBusy(true);
     try {
       const path = thread.current ? `threads/${thread.current}/messages` : "threads";
-      const t = await api<Thread>(`/api/v1/orgs/${org.id}/copilot/${path}`, { method: "POST", body: { text } });
+      const url = `/api/v1/orgs/${org.id}/copilot/${path}`;
+      const t = files.length ? await postForm<Thread>(url, text, await Promise.all(files.map(shrink)), advisor) : await api<Thread>(url, { method: "POST", body: { text, advisor } });
       thread.current = t.id;
       // The answer is everything after the last thing they asked.
       const lastAsk = t.items.map((x) => x.role).lastIndexOf("user");
       const answer = t.items.slice(lastAsk + 1).filter((x): x is { role: "assistant"; text: string } => x.role === "assistant").map((x) => x.text).join("\n\n");
       const looked = t.items.slice(lastAsk + 1).filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:"));
+      const docs = t.items.slice(lastAsk + 1).flatMap((x) => (x.role === "tool" && "doc" in x && x.doc ? [x.doc] : []));
       const proposed = t.actions.filter((a) => !shown.current.has(a.id));
       proposed.forEach((a) => shown.current.add(a.id));
       add({
         role: "assistant",
         text: answer || (proposed.length ? "Here's what I've prepared — check it and confirm." : "Done."),
         node:
-          looked.length || proposed.length ? (
+          looked.length || proposed.length || docs.length ? (
             <>
               {looked.length > 0 && <p className="ai-looked">{looked.slice(0, 6).join(" · ")}</p>}
+              {docs.map((d) => (
+                <DocCard key={d.attachmentId} doc={d} onAct={(prompt) => void ask(prompt)} />
+              ))}
               {proposed.map((a) => (
                 <ActionCard key={a.id} orgId={org.id} action={a} />
               ))}
@@ -176,6 +216,27 @@ export function AppAiMode() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Switch advisor, and let them introduce themselves with what to ask. */
+  const meet = (id: AdvisorId) => {
+    const a = advisorById(id);
+    setAdvisor(id);
+    setPicking(false);
+    if (a.id === "general") return;
+    add({
+      role: "assistant",
+      text: `I'm your **${a.name}** — ${a.role.toLowerCase()}. I look at your workspace's numbers before I advise. Ask me anything, or start with one of these:`,
+      node: (
+        <div className="ai-chips" style={{ marginTop: 10 }}>
+          {a.starters.map((q) => (
+            <button key={q} type="button" className="ai-chip" onClick={() => void ask(q)}>
+              {q}
+            </button>
+          ))}
+        </div>
+      ),
+    });
   };
 
   const ahead: AiSection = {
@@ -194,6 +255,17 @@ export function AppAiMode() {
       { id: "draft", title: "Draft an email", sub: "Tell me who and what — I'll write it for you to check and send.", icon: PenLine, tone: "#4f5ef7", onPick: () => void ask("I want to send an email. Ask me who it's for and what it's about, then draft it.") },
       { id: "invoice", title: "Make an invoice", sub: "Client, items and prices in your words — saved as a draft.", icon: Mail, tone: "#3ccf91", onPick: () => void ask("Help me make an invoice. Ask me for the client and what to bill, then prepare a draft.") },
     ],
+  };
+  const files: AiSection = {
+    title: "Hand me a document.",
+    cards: [
+      { id: "bill", title: "Record a bill or receipt", sub: "Snap or upload it — I read it into Accounts with GST.", icon: Receipt, tone: "#3ccf91", onPick: () => add({ role: "assistant", text: "Tap **+** below and choose **Take a photo** or **Photo or document**, then send it. I'll read the bill — supplier, GSTIN, lines and GST — and prepare it for Accounts." }) },
+      { id: "review", title: "Review a contract", sub: "Risks, money, dates and what to negotiate, clause by clause.", icon: FileSearch, tone: "#8b7bff", onPick: () => (setAdvisor("legal"), add({ role: "assistant", text: "Your **Legal & contracts advisor** is on. Tap **+** and add the contract (PDF, Word or photos), and I'll review it in depth." })) },
+    ],
+  };
+  const advisors: AiSection = {
+    title: "Talk to an advisor.",
+    cards: ADVISORS.filter((a) => a.id !== "general").map((a) => ({ id: a.id, title: a.name, sub: a.role, icon: ADVISOR_ICON[a.icon]!, tone: a.tone, onPick: () => meet(a.id) })),
   };
   const launch: AiSection = {
     title: "Set up in a few taps.",
@@ -215,18 +287,76 @@ export function AppAiMode() {
   return (
     <AiScreen
       greeting={hello(user.name)}
-      sections={fresh ? [finish, doIt, launch, ahead] : [ahead, doIt, launch, finish]}
+      sections={fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
       messages={msgs}
       busy={busy}
-      onSend={(t) => void ask(t)}
+      attach
+      onSend={(t, f) => void ask(t, f)}
+      mark={
+        <button type="button" className="ai-advisor" style={{ "--tone": adv.tone } as React.CSSProperties} onClick={() => setPicking(!picking)} aria-expanded={picking} aria-label={`Advisor: ${adv.name}`}>
+          <i aria-hidden />
+          {adv.id === "general" ? "AI mode" : adv.name.replace(/ advisor$/, "")}
+          <ChevronDown className="size-3.5" aria-hidden />
+        </button>
+      }
+      below={
+        picking ? (
+          <div className="ai-advisors">
+            {ADVISORS.map((a) => {
+              const Icon = ADVISOR_ICON[a.icon]!;
+              return (
+                <button key={a.id} type="button" aria-pressed={a.id === advisor} onClick={() => meet(a.id)} style={{ "--tone": a.tone } as React.CSSProperties}>
+                  <span className="ai-act-ic">
+                    <Icon className="size-4" aria-hidden />
+                  </span>
+                  <span>
+                    <b>{a.name}</b>
+                    <small>{a.role}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ) : undefined
+      }
       onClose={() => (window.history.length > 1 ? router.back() : router.push("/home"))}
       onNew={() => {
         thread.current = null;
         shown.current.clear();
         setMsgs([]);
       }}
-      placeholder="Ask about your business"
+      placeholder={adv.id === "general" ? "Ask, or add a file" : `Ask your ${adv.name.toLowerCase()}`}
       quick={["Reply to my latest email", "Who are my top customers?", "How much am I owed?", "Schedule a call tomorrow at 4pm"]}
     />
+  );
+}
+
+/** A file the copilot recognised: what it is, its key facts, and what to do next. */
+function DocCard({ doc, onAct }: { doc: Doc; onAct: (prompt: string) => void }) {
+  const info = DOC_KIND_INFO[(doc.kind in DOC_KIND_INFO ? doc.kind : "other") as DocKind];
+  return (
+    <div className="ai-doc">
+      <div className="ai-doc-h">
+        <em>{info.label}</em>
+        <b>{doc.title}</b>
+      </div>
+      {doc.facts.length > 0 && (
+        <ul>
+          {doc.facts.map((f, i) => (
+            <li key={i}>{f}</li>
+          ))}
+        </ul>
+      )}
+      <div className="ai-chips">
+        {info.actions.map((a) => (
+          <button key={a.label} type="button" className="ai-chip" onClick={() => onAct(`${a.prompt} (${doc.attachmentId})`)}>
+            {a.label}
+          </button>
+        ))}
+        <button type="button" className="ai-chip" onClick={() => onAct(`Save ${doc.attachmentId} to Documents as “${doc.title}”.`)}>
+          Save to Documents
+        </button>
+      </div>
+    </div>
   );
 }
