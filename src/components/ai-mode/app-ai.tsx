@@ -295,7 +295,7 @@ export function AppAiMode() {
       mark={
         <button type="button" className="ai-advisor" style={{ "--tone": adv.tone } as React.CSSProperties} onClick={() => setPicking(!picking)} aria-expanded={picking} aria-label={`Advisor: ${adv.name}`}>
           <i aria-hidden />
-          {adv.id === "general" ? "AI mode" : adv.name.replace(/ advisor$/, "")}
+          <span>{adv.id === "general" ? "AI mode" : adv.name.replace(/ advisor$/, "")}</span>
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
       }

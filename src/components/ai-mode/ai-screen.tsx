@@ -83,6 +83,19 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   const [canSpeak, setCanSpeak] = useState(false);
   const rec = useRef<SpeechLike | null>(null);
   const end = useRef<HTMLDivElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  // The bars turn to frosted glass once something scrolls beneath them.
+  const [under, setUnder] = useState({ top: false, bottom: false });
+  const frame = useRef(0);
+  const measure = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      const el = scroller.current;
+      if (!el) return;
+      const next = { top: el.scrollTop > 4, bottom: el.scrollHeight - el.scrollTop - el.clientHeight > 8 };
+      setUnder((u) => (u.top === next.top && u.bottom === next.bottom ? u : next));
+    });
+  };
   const box = useRef<HTMLTextAreaElement>(null);
   const field = useRef<HTMLInputElement>(null);
   const chatting = p.showHome === undefined ? p.messages.length > 0 : !p.showHome;
@@ -99,7 +112,16 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   }, []);
   useEffect(() => {
     if (chatting) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    measure();
   }, [p.messages.length, p.busy, chatting]);
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => measure());
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => (ro.disconnect(), cancelAnimationFrame(frame.current));
+  }, [chatting]);
   useEffect(() => () => rec.current?.stop(), []);
 
   const send = (q = text) => {
@@ -137,7 +159,8 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
 
   return (
     <div className={clsx("ai", p.className)}>
-      <header className="ai-top">
+      <header className={clsx("ai-top", under.top && "is-glass")}>
+        <div className="ai-top-in">
         <button type="button" className="ai-round" onClick={p.onClose} aria-label={p.closeLabel ?? "Close"}>
           <ChevronLeft className="size-[22px]" strokeWidth={2} />
         </button>
@@ -145,9 +168,10 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
         <button type="button" className="ai-round" onClick={p.onNew} aria-label="New conversation">
           <MessageCirclePlus className="size-[21px]" strokeWidth={1.9} />
         </button>
+        </div>
       </header>
 
-      <div className="ai-scroll">
+      <div ref={scroller} className="ai-scroll" onScroll={measure}>
         {!chatting ? (
           <div className="ai-home">
             {p.greeting && <p className="ai-greet">{p.greeting}</p>}
@@ -223,7 +247,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
         )}
       </div>
 
-      <div className="ai-dock">
+      <div className={clsx("ai-dock", under.bottom && "is-glass")}>
         {p.below}
         {p.attach && (
           <>
