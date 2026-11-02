@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
-import { Pool, type PoolConfig } from "pg";
+import { Pool, type ClientConfig, type PoolConfig } from "pg";
 import * as schema from "./schema";
 
 export type Db = NodePgDatabase<typeof schema>;
@@ -20,12 +20,28 @@ function sslConfig(): PoolConfig["ssl"] {
   return undefined;
 }
 
+// pg already treats sslmode=require as verify-full and warns on every connection
+// that it will stop doing so; spell out the mode it uses so nothing changes later.
+const pinSslMode = (url: string) => url.replace(/([?&]sslmode=)(require|prefer|verify-ca)(?=&|$)/, "$1verify-full");
+
+/**
+ * A direct connection for LISTEN. A pooler in transaction mode (PgBouncer, Neon's
+ * "-pooler" host) accepts LISTEN but never delivers the notifications, so live
+ * chat and co-editing would only update on refresh. DATABASE_URL_UNPOOLED (or
+ * Vercel's POSTGRES_URL_NON_POOLING) wins; otherwise a Neon pooler host is
+ * turned into its direct one.
+ */
+export function listenConfig(): ClientConfig | null {
+  const raw = process.env.DATABASE_URL_UNPOOLED || process.env.POSTGRES_URL_NON_POOLING || process.env.DATABASE_URL;
+  if (!raw) return null;
+  const ssl = sslConfig();
+  return { connectionString: pinSslMode(raw).replace(/(@[^/?#@]+?)-pooler\./, "$1."), ...(ssl ? { ssl } : {}) };
+}
+
 function createDb(): Db {
   const raw = process.env.DATABASE_URL;
   if (!raw) throw new Error("DATABASE_URL is not set. Copy .env.example to .env.local.");
-  // pg already treats sslmode=require as verify-full and warns on every connection
-  // that it will stop doing so; spell out the mode it uses so nothing changes later.
-  const url = raw.replace(/([?&]sslmode=)(require|prefer|verify-ca)(?=&|$)/, "$1verify-full");
+  const url = pinSslMode(raw);
   // Each process also opens two LISTEN clients (chat, documents) outside this pool.
   // Size DB_POOL_MAX × instances to stay under the database's max_connections.
   const ssl = sslConfig();

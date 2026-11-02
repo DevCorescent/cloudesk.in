@@ -3,15 +3,17 @@
 // so a dropped listener only slows delivery down, it never loses updates.
 import { EventEmitter } from "node:events";
 import { Client } from "pg";
+import { listenConfig } from "@/db";
 import { log } from "../log";
 
 const g = globalThis as unknown as { __ccCodocBus?: { emitter: EventEmitter; client: Client | null; starting: Promise<void> | null } };
 const bus = (g.__ccCodocBus ??= { emitter: new EventEmitter().setMaxListeners(10_000), client: null, starting: null });
 
 function start() {
-  if (bus.client || bus.starting || !process.env.DATABASE_URL) return;
+  const config = listenConfig();
+  if (bus.client || bus.starting || !config) return;
   bus.starting = (async () => {
-    const c = new Client({ connectionString: process.env.DATABASE_URL });
+    const c = new Client(config);
     try {
       await c.connect();
       await c.query("LISTEN codoc");

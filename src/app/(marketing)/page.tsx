@@ -15,6 +15,8 @@ import { DocumentsSpotlight } from "@/components/marketing/documents-spotlight";
 import { NotesSpotlight, PartnersSpotlight, WorkdayCards } from "@/components/marketing/home-spotlights";
 import { publicProgram } from "@/server/partners/core";
 import { SiteJsonLd } from "@/components/legal/json-ld";
+import { MobileIntro } from "@/components/marketing/mobile-intro";
+import { getPageSession } from "@/server/auth/page-session";
 
 export const metadata: Metadata = {
   title: "Cloudesk — your website, store and business software, ready in minutes",
@@ -51,11 +53,13 @@ const TRUST = [
 ];
 
 export default async function Landing() {
-  const program = await publicProgram();
+  const [program, session] = await Promise.all([publicProgram(), getPageSession()]);
   const origin = (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
   return (
     <>
       <SiteJsonLd />
+      {/* Phones open on a swipeable intro instead of the long page. */}
+      <MobileIntro signedIn={!!session} />
       <HomeHero />
       <WorkdayCards />
       <WorkdaySection />
