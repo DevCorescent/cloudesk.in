@@ -8,10 +8,12 @@
 // the full page for the rest of the visit.
 import "./mobile-intro.css";
 import clsx from "clsx";
-import { ArrowRight, BadgeCheck, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, BadgeCheck, X, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
+import { ModuleGlyph } from "@/components/shell/module-glyph";
+import { MODULE_GROUPS, MODULES, type Tint } from "@/lib/workspace/modules";
 
 const SKIP_KEY = "cc-intro";
 const AT_KEY = "cc-intro-at";
@@ -121,6 +123,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
   // The logo splash plays first; nothing on the screens animates until it clears.
   const [splash, setSplash] = useState<"on" | "leaving" | "off">("on");
+  const [features, setFeatures] = useState(false);
   const ready = splash !== "on";
 
   // Every load plays it, except where motion is turned off or there's no intro (wider screens).
@@ -164,10 +167,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
   // Moves on by itself until they take over.
   useEffect(() => {
-    if (!ready || !auto || dragging || at >= LAST) return;
+    if (!ready || !auto || dragging || features || at >= LAST) return;
     const t = setTimeout(() => go(at + 1, false), AUTO_MS);
     return () => clearTimeout(t);
-  }, [ready, auto, dragging, at, go]);
+  }, [ready, auto, dragging, features, at, go]);
 
   // The status bar matches the intro on phones; the page's own colour comes back when it goes.
   useEffect(() => {
@@ -192,13 +195,13 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   // Arrow keys for anyone with a keyboard.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off")) return;
+      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off") || features) return;
       if (e.key === "ArrowRight") go(at + 1);
       if (e.key === "ArrowLeft") go(at - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [at, go]);
+  }, [at, go, features]);
 
   const explore = () => {
     try {
@@ -335,12 +338,129 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
       </div>
 
       <div className="mi-bar" data-hide={last || undefined}>
+        <button type="button" className="mi-all" onClick={() => setFeatures(true)} tabIndex={last ? -1 : undefined} aria-haspopup="dialog">
+          <LayoutGrid className="size-[15px]" aria-hidden />
+          All features
+        </button>
         <button type="button" className="mi-next" onClick={() => go(at + 1)} tabIndex={last ? -1 : undefined}>
           <span>{at === LAST - 1 ? "Get started" : "Continue"}</span>
           <span className="mi-next-arrow" aria-hidden>
             <ArrowRight className="size-[14px]" strokeWidth={2.25} />
           </span>
         </button>
+      </div>
+      <FeatureSheet open={features} onClose={() => setFeatures(false)} startHref={signedIn ? "/home" : "/start"} startLabel={signedIn ? "Open my workspace" : "Start free"} />
+    </div>
+  );
+}
+
+// ─── Every feature, in a sheet from below ──────────────────────────────────
+
+/** Each tint as a colour that reads on the dark sheet. */
+const TINT: Record<Tint, string> = { peach: "#ff9b7a", lavender: "#a99bff", mint: "#4fd6a0", sky: "#6cc0ff", butter: "#f5c35c", rose: "#ff7aa2" };
+const GROUPS = MODULE_GROUPS.map((g) => ({ ...g, items: MODULES.filter((m) => m.group === g.id) })).filter((g) => g.items.length);
+
+function FeatureSheet({ open, onClose, startHref, startLabel }: { open: boolean; onClose: () => void; startHref: string; startLabel: string }) {
+  const list = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ y: number; t: number } | null>(null);
+  const [pull, setPull] = useState(0);
+  const [group, setGroup] = useState(GROUPS[0]!.id);
+
+  // Esc closes; each opening starts at the top.
+  useEffect(() => {
+    if (!open) return;
+    list.current?.scrollTo({ top: 0 });
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // The category strip follows the list as it scrolls.
+  const onScroll = () => {
+    const el = list.current;
+    if (!el) return;
+    const top = el.scrollTop + 8;
+    let current = GROUPS[0]!.id;
+    for (const g of GROUPS) {
+      const sec = el.querySelector<HTMLElement>(`[data-group="${g.id}"]`);
+      if (sec && sec.offsetTop <= top) current = g.id;
+    }
+    if (current !== group) setGroup(current);
+  };
+  const jump = (id: string) => {
+    const el = list.current;
+    const sec = el?.querySelector<HTMLElement>(`[data-group="${id}"]`);
+    if (el && sec) el.scrollTo({ top: sec.offsetTop, behavior: "smooth" });
+  };
+
+  // Drag the handle down to dismiss.
+  const onDown = (e: React.PointerEvent) => {
+    drag.current = { y: e.clientY, t: performance.now() };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => drag.current && setPull(Math.max(0, e.clientY - drag.current.y));
+  const onUp = () => {
+    const d = drag.current;
+    drag.current = null;
+    if (!d) return;
+    const v = pull / Math.max(1, performance.now() - d.t);
+    if (pull > 110 || v > 0.6) onClose();
+    setPull(0);
+  };
+
+  return (
+    <div className="mi-sheet-wrap" data-open={open || undefined} inert={!open}>
+      <button type="button" className="mi-sheet-scrim" aria-label="Close" tabIndex={-1} onClick={onClose} />
+      <div ref={sheet} className={clsx("mi-sheet", pull > 0 && "is-pulling")} role="dialog" aria-modal="true" aria-label="All features" style={pull ? { transform: `translate3d(0,${pull}px,0)` } : undefined}>
+        <div className="mi-sheet-grab" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
+          <span className="mi-sheet-handle" />
+          <div className="mi-sheet-head">
+            <div>
+              <h2>All features</h2>
+              <p>{MODULES.length} apps · switch on what you need</p>
+            </div>
+            <button type="button" className="mi-sheet-x" onClick={onClose} aria-label="Close">
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+        <nav className="mi-sheet-tabs" aria-label="Categories">
+          {GROUPS.map((g) => (
+            <button key={g.id} type="button" aria-current={group === g.id || undefined} onClick={() => jump(g.id)}>
+              {g.label.replace(/ — .*/, "")}
+              <span>{g.items.length}</span>
+            </button>
+          ))}
+        </nav>
+        <div ref={list} className="mi-sheet-list" onScroll={onScroll}>
+          {GROUPS.map((g, gi) => (
+            <section key={g.id} data-group={g.id} className="mi-sheet-group" style={{ "--g": gi } as CSSProperties}>
+              <h3>{g.label.replace(/ — .*/, "")}</h3>
+              <ul>
+                {g.items.map((m) => (
+                  <li key={m.id} style={{ "--c": TINT[m.tint] } as CSSProperties}>
+                    <span className="mi-sheet-ic">
+                      <ModuleGlyph id={m.id} className="size-[17px]" />
+                    </span>
+                    <span className="mi-sheet-tx">
+                      <b>{m.name}</b>
+                      {/* One line: the feature's first two highlights. */}
+                      <small>{m.adds.slice(0, 2).join(" · ")}</small>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <div className="mi-sheet-foot">
+          <Link href={startHref} className="mi-sheet-cta" tabIndex={open ? undefined : -1}>
+            {startLabel}
+            <ArrowRight className="size-4" aria-hidden />
+          </Link>
+
+        </div>
       </div>
     </div>
   );

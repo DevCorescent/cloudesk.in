@@ -278,6 +278,106 @@
 .mi-next:active { transform: scale(0.97); border-color: rgb(255 255 255 / 0.24); }
 .mi-next:active .mi-next-arrow { transform: translateX(3px); }
 
+/* All features, beside Continue */
+.mi-bar { gap: 8px; }
+.mi-all {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: rgb(255 255 255 / 0.78);
+  background: rgb(255 255 255 / 0.04);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  transition: transform 0.25s var(--ease), background 0.2s, color 0.2s;
+}
+.mi-all:active { transform: scale(0.97); background: rgb(255 255 255 / 0.09); color: #fff; }
+.mi-bar[data-hide] .mi-all { pointer-events: none; }
+
+/* The features sheet: frosted glass rising like an iOS sheet; the list scrolls inside */
+.mi-sheet-wrap { position: absolute; inset: 0; z-index: 60; pointer-events: none; }
+.mi-sheet-wrap[data-open] { pointer-events: auto; }
+.mi-sheet-scrim { position: absolute; inset: 0; background: rgb(0 0 0 / 0.35); opacity: 0; transition: opacity 0.45s var(--ease); }
+.mi-sheet-wrap[data-open] .mi-sheet-scrim { opacity: 1; }
+.mi-sheet {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  height: min(80dvh, 680px);
+  overflow: hidden;
+  border-radius: 24px;
+  /* Glass: translucent tint, blur and saturation of what's behind, a lit top edge. */
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.04)), rgb(18 18 22 / 0.55);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 30px 70px -20px rgb(0 0 0 / 0.75);
+  transform: translate3d(0, 108%, 0);
+  transition: transform 0.38s cubic-bezier(0.4, 0, 1, 1);
+  will-change: transform;
+}
+.mi-sheet-wrap[data-open] .mi-sheet { transform: none; transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1); }
+.mi-sheet.is-pulling { transition: none !important; }
+.mi-sheet-grab { touch-action: none; padding: 8px 18px 0; }
+.mi-sheet-handle { display: block; width: 34px; height: 4px; margin: 0 auto 10px; border-radius: 99px; background: rgb(255 255 255 / 0.22); }
+.mi-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mi-sheet-head h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.025em; }
+.mi-sheet-head p { margin: 2px 0 0; font-size: 12px; color: rgb(255 255 255 / 0.45); }
+.mi-sheet-x { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; color: rgb(255 255 255 / 0.7); background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.08); }
+.mi-sheet-x:active { background: rgb(255 255 255 / 0.14); }
+.mi-sheet-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 12px 12px 0;
+  padding: 3px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.22);
+  border: 1px solid rgb(255 255 255 / 0.05);
+}
+.mi-sheet-tabs::-webkit-scrollbar { display: none; }
+.mi-sheet-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 0.55);
+  transition: background 0.25s var(--ease), color 0.25s;
+}
+.mi-sheet-tabs button span { font-size: 10.5px; color: rgb(255 255 255 / 0.3); font-variant-numeric: tabular-nums; }
+.mi-sheet-tabs button[aria-current] { color: #fff; background: rgb(255 255 255 / 0.13); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1); }
+.mi-sheet-tabs button[aria-current] span { color: rgb(255 255 255 / 0.55); }
+.mi-sheet-list { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 12px 10px; }
+.mi-sheet-group { padding-top: 14px; opacity: 0; transform: translate3d(0, 12px, 0); transition: opacity 0.5s var(--ease), transform 0.6s var(--ease); }
+.mi-sheet-wrap[data-open] .mi-sheet-group { opacity: 1; transform: none; transition-delay: calc(0.18s + min(var(--g), 4) * 0.06s); }
+.mi-sheet-group h3 { margin: 0 6px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(255 255 255 / 0.38); }
+.mi-sheet-group ul { margin: 0; padding: 0; list-style: none; border-radius: 16px; background: rgb(255 255 255 / 0.045); border: 1px solid rgb(255 255 255 / 0.06); }
+.mi-sheet-group li { display: flex; align-items: center; gap: 11px; padding: 9px 11px; }
+.mi-sheet-group li + li { border-top: 1px solid rgb(255 255 255 / 0.05); }
+.mi-sheet-ic { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
+.mi-sheet-ic svg { width: 15px; height: 15px; }
+.mi-sheet-tx { display: grid; min-width: 0; line-height: 1.25; }
+.mi-sheet-tx b { font-size: 13.5px; font-weight: 550; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-sheet-tx small { font-size: 11.5px; color: rgb(255 255 255 / 0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mi-sheet-foot { padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); border-top: 1px solid rgb(255 255 255 / 0.06); }
+.mi-sheet-cta { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 44px; border-radius: 13px; font-size: 14px; font-weight: 550; color: #0b0b0e; background: rgb(255 255 255 / 0.94); transition: transform 0.2s var(--ease); }
+.mi-sheet-cta:active { transform: scale(0.98); }
+
 /* Final screen's choices */
 .mi-ctas { display: grid; gap: 10px; margin-top: 22px; }
 .mi-btn {
