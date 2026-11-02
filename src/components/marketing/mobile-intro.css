@@ -329,6 +329,7 @@
 .mi-sheet-grab { touch-action: none; padding: 8px 18px 0; }
 .mi-sheet-handle { display: block; width: 34px; height: 4px; margin: 0 auto 10px; border-radius: 99px; background: rgb(255 255 255 / 0.22); }
 .mi-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.mi-sheet-head > div { min-width: 0; }
 .mi-sheet-head h2 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -0.025em; }
 .mi-sheet-head p { margin: 2px 0 0; font-size: 12px; color: rgb(255 255 255 / 0.45); }
 .mi-sheet-x { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 50%; color: rgb(255 255 255 / 0.7); background: rgb(255 255 255 / 0.08); border: 1px solid rgb(255 255 255 / 0.08); }
@@ -362,16 +363,22 @@
 .mi-sheet-tabs button span { font-size: 10.5px; color: rgb(255 255 255 / 0.3); font-variant-numeric: tabular-nums; }
 .mi-sheet-tabs button[aria-current] { color: #fff; background: rgb(255 255 255 / 0.13); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1); }
 .mi-sheet-tabs button[aria-current] span { color: rgb(255 255 255 / 0.55); }
-.mi-sheet-list { position: relative; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 2px 12px 10px; }
+.mi-sheet-list { position: relative; flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 2px 12px 10px; }
 .mi-sheet-group { padding-top: 14px; opacity: 0; transform: translate3d(0, 12px, 0); transition: opacity 0.5s var(--ease), transform 0.6s var(--ease); }
 .mi-sheet-wrap[data-open] .mi-sheet-group { opacity: 1; transform: none; transition-delay: calc(0.18s + min(var(--g), 4) * 0.06s); }
 .mi-sheet-group h3 { margin: 0 6px 6px; font-size: 10.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(255 255 255 / 0.38); }
 .mi-sheet-group ul { margin: 0; padding: 0; list-style: none; border-radius: 16px; background: rgb(255 255 255 / 0.045); border: 1px solid rgb(255 255 255 / 0.06); }
-.mi-sheet-group li { display: flex; align-items: center; gap: 11px; padding: 9px 11px; }
+.mi-sheet-group li { min-width: 0; }
+.mi-sheet-group li a { display: flex; align-items: center; gap: 11px; min-width: 0; padding: 9px 10px 9px 11px; transition: background 0.2s; }
+.mi-sheet-group li:first-child a { border-radius: 15px 15px 0 0; }
+.mi-sheet-group li:last-child a { border-radius: 0 0 15px 15px; }
+.mi-sheet-group li:only-child a { border-radius: 15px; }
+.mi-sheet-group li a:active { background: rgb(255 255 255 / 0.06); }
+.mi-sheet-go { flex: none; margin-left: auto; color: rgb(255 255 255 / 0.28); }
 .mi-sheet-group li + li { border-top: 1px solid rgb(255 255 255 / 0.05); }
 .mi-sheet-ic { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px; color: var(--c); background: color-mix(in srgb, var(--c) 13%, transparent); }
 .mi-sheet-ic svg { width: 15px; height: 15px; }
-.mi-sheet-tx { display: grid; min-width: 0; line-height: 1.25; }
+.mi-sheet-tx { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; line-height: 1.25; }
 .mi-sheet-tx b { font-size: 13.5px; font-weight: 550; letter-spacing: -0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi-sheet-tx small { font-size: 11.5px; color: rgb(255 255 255 / 0.45); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mi-sheet-foot { padding: 10px 12px calc(env(safe-area-inset-bottom, 0px) + 10px); border-top: 1px solid rgb(255 255 255 / 0.06); }

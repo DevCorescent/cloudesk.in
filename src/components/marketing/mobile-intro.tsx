@@ -8,7 +8,7 @@
 // the full page for the rest of the visit.
 import "./mobile-intro.css";
 import clsx from "clsx";
-import { ArrowRight, BadgeCheck, X, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, BadgeCheck, ChevronRight, X, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
@@ -440,14 +440,17 @@ function FeatureSheet({ open, onClose, startHref, startLabel }: { open: boolean;
               <ul>
                 {g.items.map((m) => (
                   <li key={m.id} style={{ "--c": TINT[m.tint] } as CSSProperties}>
-                    <span className="mi-sheet-ic">
-                      <ModuleGlyph id={m.id} className="size-[17px]" />
-                    </span>
-                    <span className="mi-sheet-tx">
-                      <b>{m.name}</b>
-                      {/* One line: the feature's first two highlights. */}
-                      <small>{m.adds.slice(0, 2).join(" · ")}</small>
-                    </span>
+                    <Link href={`/features/${m.feature}`} tabIndex={open ? undefined : -1}>
+                      <span className="mi-sheet-ic">
+                        <ModuleGlyph id={m.id} className="size-[17px]" />
+                      </span>
+                      <span className="mi-sheet-tx">
+                        <b>{m.name}</b>
+                        {/* One line: the feature's first two highlights. */}
+                        <small>{m.adds.slice(0, 2).join(" · ")}</small>
+                      </span>
+                      <ChevronRight className="mi-sheet-go size-4" aria-hidden />
+                    </Link>
                   </li>
                 ))}
               </ul>
