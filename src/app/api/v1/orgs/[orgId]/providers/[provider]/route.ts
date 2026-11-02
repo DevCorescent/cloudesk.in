@@ -3,6 +3,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { PROVIDERS } from "@/server/ai/catalog";
 import { verifyAnthropicKey } from "@/server/ai/gateway";
+import { verifyGeminiKey } from "@/server/ai/gemini";
 import { ApiError } from "@/server/http/errors";
 import { readJson, requireOrg, route } from "@/server/http/handler";
 import { rateLimit } from "@/server/security/rate-limit";
@@ -22,7 +23,7 @@ export const PUT = route<{ orgId: string; provider: string }>(async (ctx, { orgI
   assertProvider(provider);
   await rateLimit(`provider:${orgId}`, 10, 3600_000);
   const { apiKey } = await readJson(ctx.req, z.object({ apiKey: z.string().trim().min(20).max(300) }));
-  const check = await verifyAnthropicKey(apiKey);
+  const check = provider === "gemini" ? await verifyGeminiKey(apiKey) : await verifyAnthropicKey(apiKey);
   if (!check.ok) throw new ApiError("validation_failed", check.error, { apiKey: [check.error] });
   const values = { ciphertext: encryptSecret(apiKey), keyHint: secretHint(apiKey), status: "verified", lastVerifiedAt: new Date(), lastError: null };
   await db

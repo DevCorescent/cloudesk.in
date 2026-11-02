@@ -74,6 +74,10 @@ const GUIDES: Record<string, { title: string; body: ReactNode }[]> = {
     { title: "Grant mail permissions", body: <>API permissions → Add → APIs my organisation uses → “Office 365 Exchange Online” → Delegated: <Code>IMAP.AccessAsUser.All</Code> and <Code>SMTP.Send</Code>; plus Microsoft Graph <Code>offline_access</Code>, <Code>openid</Code>, <Code>email</Code>, <Code>profile</Code>.</> },
     { title: "Create a client secret and enter it below", body: <>Certificates &amp; secrets → New client secret; copy its <b>Value</b> (not the ID) with the Application (client) ID.</> },
   ],
+  gemini: [
+    { title: "Get a free key", body: <><A href="https://aistudio.google.com/apikey">Google AI Studio → Get API key</A>. Sign in with any Google account — no card needed.</> },
+    { title: "Paste it below and test", body: <>The test lists models — it uses no quota. Free use is rate-limited by Google (a few requests a minute).</> },
+  ],
   anthropic: [
     { title: "Create an API key", body: <><A href="https://console.anthropic.com/settings/keys">Anthropic Console → API keys</A>. Set a monthly spend limit on the Anthropic side too.</> },
     { title: "Set the per-workspace budget", body: <>Each workspace can spend at most this much a month (USD); requests stop when it&apos;s used up. Default 20.</> },
@@ -96,7 +100,7 @@ const GUIDES: Record<string, { title: string; body: ReactNode }[]> = {
     { title: "Enable containers for code execution", body: <>On a host with Docker installed, set <Code>EXEC_DOCKER=on</Code>. Python and full Node runs in the AI IDE then use locked-down containers (no network, read-only, capped memory/CPU).</> },
   ],
 };
-const GROUP_OF: Record<string, string> = { google_mail: "google_mail", microsoft_mail: "microsoft_mail", email: "email", stripe: "stripe", razorpay: "razorpay", github: "github", anthropic: "anthropic", voyage: "voyage" };
+const GROUP_OF: Record<string, string> = { google_mail: "google_mail", microsoft_mail: "microsoft_mail", email: "email", stripe: "stripe", razorpay: "razorpay", github: "github", anthropic: "anthropic", gemini: "gemini", voyage: "voyage" };
 
 export function IntegrationsPanel() {
   const q = useAdmin<{ integrations: I[] }>("integrations");

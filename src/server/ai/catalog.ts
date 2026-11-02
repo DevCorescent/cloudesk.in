@@ -1,7 +1,7 @@
 // Explicit provider/model capability registry. Nothing assumes that every
 // provider supports the same features; the UI reads this to explain what is
 // available and why.
-export type ProviderId = "anthropic" | "openai" | "builtin";
+export type ProviderId = "anthropic" | "gemini" | "openai" | "builtin";
 
 export type ModelInfo = {
   id: string;
@@ -34,6 +34,14 @@ export const PROVIDERS: ProviderInfo[] = [
     docsUrl: "https://platform.claude.com/docs",
   },
   {
+    id: "gemini",
+    name: "Google Gemini (free)",
+    description: "Gemini Flash on Google's free tier — for trying the copilot, mail and chat AI without paying. Used when no Anthropic key is connected.",
+    implemented: true,
+    envVar: "GEMINI_API_KEY",
+    docsUrl: "https://aistudio.google.com/apikey",
+  },
+  {
     id: "openai",
     name: "OpenAI",
     description: "Adapter interface reserved. Not implemented yet, so it cannot be connected.",
@@ -57,6 +65,16 @@ export const MODELS: ModelInfo[] = [
     maxOutputTokens: 128_000,
     inputPrice: 4,
     outputPrice: 20,
+    capabilities: ["planning", "site_edit", "code_edit", "chat"],
+  },
+  {
+    id: "gemini-flash",
+    provider: "gemini",
+    label: "Gemini Flash (free tier)",
+    contextTokens: 1_000_000,
+    maxOutputTokens: 65_536,
+    inputPrice: 0,
+    outputPrice: 0,
     capabilities: ["planning", "site_edit", "code_edit", "chat"],
   },
   {

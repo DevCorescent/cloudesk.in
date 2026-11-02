@@ -3,6 +3,7 @@ import { db, schema } from "@/db";
 import { MODELS, PROVIDERS, ROUTES } from "@/server/ai/catalog";
 import { requireOrg, route } from "@/server/http/handler";
 import { cfg } from "@/server/platform/config";
+import { activeProvider } from "@/server/ai/gateway";
 
 export const GET = route<{ orgId: string }>(async (ctx, { orgId }) => {
   await requireOrg(ctx, orgId, "org:read");
@@ -18,5 +19,7 @@ export const GET = route<{ orgId: string }>(async (ctx, { orgId }) => {
     }),
     models: MODELS,
     routes: ROUTES,
+    /** What the AI features run on now: anthropic, gemini or null (built-in rules). */
+    active: await activeProvider(orgId),
   };
 });

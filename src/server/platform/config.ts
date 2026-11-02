@@ -57,6 +57,10 @@ export const CONFIG_GROUPS: Record<string, ConfigKey[]> = {
     { key: "ANTHROPIC_API_KEY", label: "API key", secret: true, pattern: /^sk-ant-[A-Za-z0-9_-]{10,}$/ },
     { key: "AI_MONTHLY_BUDGET_USD", label: "Monthly AI budget per workspace (USD)", secret: false, pattern: /^\d{1,6}(\.\d{1,2})?$/ },
   ],
+  gemini: [
+    { key: "GEMINI_API_KEY", label: "API key (free from Google AI Studio)", secret: true, pattern: /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/, hint: "AIza… or AQ.…" },
+    { key: "GEMINI_MODEL", label: "Model (optional)", secret: false, pattern: /^[a-z0-9.-]{3,60}$/, hint: "gemini-3.5-flash" },
+  ],
   cloudflare: [
     { key: "CLOUDFLARE_API_TOKEN", label: "API token (Zone: Read, Zone Settings: Edit, Firewall Services: Edit, Cache Purge, Zone WAF: Edit, Transform Rules: Edit, Analytics: Read)", secret: true, pattern: /^[A-Za-z0-9_-]{30,80}$/ },
     { key: "CLOUDFLARE_ZONE_ID", label: "Zone ID", secret: false, pattern: /^[a-f0-9]{32}$/, hint: "32 hex characters, from the zone's Overview page" },

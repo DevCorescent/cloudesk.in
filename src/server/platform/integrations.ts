@@ -34,6 +34,7 @@ export function integrations(): Integration[] {
     { id: "google_mail", name: "Mail: Sign in with Google", group: "Mail", status: status(keys("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"), false), detail: "Lets people connect Gmail and Google Workspace mailboxes by signing in with Google instead of an app password.", keys: keys("GOOGLE_OAUTH_CLIENT_ID", "GOOGLE_OAUTH_CLIENT_SECRET"), testable: false, docs: "Google Cloud console → OAuth client (web); redirect {APP_URL}/api/v1/mail/oauth/callback" },
     { id: "microsoft_mail", name: "Mail: Sign in with Microsoft", group: "Mail", status: status(keys("MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET"), false), detail: "Needed for Outlook.com and Microsoft 365 mailboxes — Microsoft doesn't accept passwords for mail apps.", keys: keys("MICROSOFT_OAUTH_CLIENT_ID", "MICROSOFT_OAUTH_CLIENT_SECRET"), testable: false, docs: "Microsoft Entra → App registrations; redirect {APP_URL}/api/v1/mail/oauth/callback" },
     { id: "anthropic", name: "AI (Claude)", group: "AI", status: has("ANTHROPIC_API_KEY") ? "ready" : "optional", detail: `Copilot, the builder assistant and AI IDE. Monthly budget per workspace: $${cfg("AI_MONTHLY_BUDGET_USD") ?? "20"}. Without a key, built-in rules are used and the UI says so.`, keys: keys("ANTHROPIC_API_KEY", "AI_MONTHLY_BUDGET_USD"), testable: has("ANTHROPIC_API_KEY"), docs: "console.anthropic.com → API keys" },
+    { id: "gemini", name: "AI (Gemini, free tier)", group: "AI", status: has("GEMINI_API_KEY") ? "ready" : "optional", detail: "A free Google key for trying the AI features. Every workspace without its own key uses it when no Claude key is set; usage is free but rate-limited by Google.", keys: keys("GEMINI_API_KEY", "GEMINI_MODEL"), testable: has("GEMINI_API_KEY"), docs: "aistudio.google.com/apikey" },
     { id: "voyage", name: "Semantic search (Voyage)", group: "AI", status: has("VOYAGE_API_KEY") ? "ready" : "optional", detail: "Embeddings for the chatbot and search; keyword search works without it.", keys: keys("VOYAGE_API_KEY", "VOYAGE_MODEL"), testable: false, docs: "dash.voyageai.com" },
     { id: "domains", name: "Custom domains", group: "Hosting", status: has("CUSTOM_DOMAIN_CNAME") || has("CUSTOM_DOMAIN_IPV4") ? "ready" : "missing", detail: "The target customers point their DNS at. Put a TLS-terminating proxy (Caddy, Cloudflare, a load balancer with on-demand certificates) in front.", keys: keys("CUSTOM_DOMAIN_CNAME", "CUSTOM_DOMAIN_IPV4"), testable: false, docs: "CUSTOM_DOMAIN_CNAME=sites.yourdomain.com" },
     { id: "jobs", name: "Background worker & schedulers", group: "Hosting", status: switchOn("JOBS_WORKER") ? "ready" : "partial", detail: switchOn("JOBS_WORKER") ? "This server runs the job worker and schedulers. On several servers, run one or two worker nodes and set APP_ROLE=web on the rest." : "The worker is off on this server — make sure a worker node runs it.", keys: keys("APP_ROLE", "JOBS_WORKER", "JOBS_POLL_MS"), testable: false, docs: "APP_ROLE=web on web-only nodes" },
@@ -70,6 +71,14 @@ export async function testIntegration(admin: { id: string; email: string }, id: 
       const r = await f("https://api.anthropic.com/v1/models?limit=1", { headers: { "x-api-key": key, "anthropic-version": "2023-06-01" }, signal: AbortSignal.timeout(10_000) });
       if (!r.ok) throw new ApiError("provider_error", r.status === 401 ? "The AI key was refused" : `The AI provider said HTTP ${r.status}`);
       note = "The AI key works (listed models — no tokens used).";
+      break;
+    }
+    case "gemini": {
+      const key = cfg("GEMINI_API_KEY");
+      if (!key) throw new ApiError("provider_not_configured", "Not configured");
+      const r = await f("https://generativelanguage.googleapis.com/v1beta/openai/models", { headers: { authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) });
+      if (!r.ok) throw new ApiError("provider_error", r.status === 400 || r.status === 401 || r.status === 403 ? "Google refused the key" : `Google said HTTP ${r.status}`);
+      note = "The Gemini key works (listed models — no quota used).";
       break;
     }
     default:

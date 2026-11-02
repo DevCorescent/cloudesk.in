@@ -28,7 +28,7 @@ export function ProvidersView() {
   const [disconnecting, setDisconnecting] = useState<Provider | null>(null);
   const [key, setKey] = useState("");
   const [keyError, setKeyError] = useState<string>();
-  const q = useQuery({ queryKey: ["providers", org.id], queryFn: () => api<{ providers: Provider[]; models: Model[]; routes: Record<string, string> }>(`/api/v1/orgs/${org.id}/providers`) });
+  const q = useQuery({ queryKey: ["providers", org.id], queryFn: () => api<{ providers: Provider[]; models: Model[]; routes: Record<string, string>; active: string | null }>(`/api/v1/orgs/${org.id}/providers`) });
   const canManage = ["owner", "admin"].includes(org.role);
   const refresh = () => qc.invalidateQueries({ queryKey: ["providers", org.id] });
 
@@ -73,6 +73,7 @@ export function ProvidersView() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h2 className="text-sm font-semibold">{p.name}</h2>
+                  {(q.data.active ?? "builtin") === p.id && <Badge tone="accent">In use</Badge>}
                   {p.id === "builtin" ? (
                     <Badge tone="success">Always available</Badge>
                   ) : !p.implemented ? (
