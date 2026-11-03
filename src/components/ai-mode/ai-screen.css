@@ -9,8 +9,9 @@
   --ai-soft: color-mix(in srgb, var(--fg) 9%, var(--bg));
   /* The accent is the logo's: coral into amber, used sparingly. */
   --ai-blue: #f2705a;
-  --ai-grad: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 24%, transparent), color-mix(in srgb, #fdba5a 16%, transparent));
-  --ai-grad-line: color-mix(in srgb, #ff7a5c 34%, var(--ai-glass-line));
+  --ai-accent-soft: color-mix(in srgb, #f2705a 13%, transparent);
+  --ai-grad: linear-gradient(var(--ai-accent-soft), var(--ai-accent-soft));
+  --ai-grad-line: color-mix(in srgb, #f2705a 28%, transparent);
   /* Shared inputs (the code boxes) paint their own surface: match the screen's. */
   --surface-solid: var(--ai-card);
   --ai-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -25,34 +26,13 @@
   overflow: hidden;
   background: var(--bg);
   color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Inter, Roboto, sans-serif;
+  font-family: var(--font-ai), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03", "calt";
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   animation: ai-in 0.45s var(--ai-ease) both;
 }
-/* The ambient background: a faint glow in the logo's colours at the top, and a fine dot grid that fades out. */
-.ai::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(70% 45% at 12% -8%, color-mix(in srgb, #ff5a5f 11%, transparent), transparent 70%),
-    radial-gradient(55% 40% at 95% -4%, color-mix(in srgb, #fdba5a 9%, transparent), transparent 70%),
-    radial-gradient(60% 50% at 50% 110%, color-mix(in srgb, #ff7a5c 5%, transparent), transparent 70%);
-}
-.ai::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--fg) 9%, transparent) 0.8px, transparent 1.1px);
-  background-size: 22px 22px;
-  -webkit-mask-image: linear-gradient(180deg, #000, transparent 55%);
-  mask-image: linear-gradient(180deg, #000, transparent 55%);
-  opacity: 0.6;
-}
-/* Everything sits above the dots (each part sets its own position further down). */
-.ai > * { position: relative; z-index: 1; }
 @keyframes ai-in { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.985); } }
 
 /* Top: two round buttons */
@@ -273,7 +253,7 @@
   color: var(--fg);
   background: var(--ai-grad), color-mix(in srgb, var(--fg) 7%, transparent);
   border: 1px solid var(--ai-grad-line);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.14), 0 6px 16px -10px rgb(255 90 95 / 0.6);
+
   transition: transform 0.2s var(--ai-ease), opacity 0.2s;
 }
 .ai-go:active { transform: scale(0.92); }
@@ -327,7 +307,7 @@
 .ai-tog[aria-pressed="true"] { color: var(--fg); border-color: color-mix(in srgb, var(--c, var(--ai-blue)) 55%, transparent); background: color-mix(in srgb, var(--c, var(--ai-blue)) 14%, var(--bg)); }
 .ai-tog[aria-pressed="true"] svg { color: var(--c, var(--ai-blue)); }
 .ai-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.ai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; font-size: 13.5px; font-weight: 560; color: var(--fg); background: var(--ai-grad), color-mix(in srgb, var(--fg) 6%, transparent); border: 1px solid var(--ai-grad-line); -webkit-backdrop-filter: blur(16px) saturate(160%); backdrop-filter: blur(16px) saturate(160%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.12), 0 8px 20px -14px rgb(255 90 95 / 0.55); transition: transform 0.2s var(--ai-ease), opacity 0.2s, border-color 0.2s; }
+.ai-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 38px; padding: 0 15px; border-radius: 11px; font-size: 13.5px; font-weight: 560; color: var(--fg); background: var(--ai-grad), color-mix(in srgb, var(--fg) 6%, transparent); border: 1px solid var(--ai-grad-line); transition: transform 0.2s var(--ai-ease), opacity 0.2s, border-color 0.2s; }
 .ai-btn svg { color: var(--ai-blue); }
 .ai-btn:active { transform: scale(0.97); }
 .ai-btn:disabled { opacity: 0.5; }
@@ -340,7 +320,7 @@
 .ai-note a { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
 .ai-err { font-size: 13px; color: #ff6b6b; }
 .ai-dev { padding: 8px 10px; border-radius: 10px; font-size: 12.5px; background: color-mix(in srgb, #f5c35c 15%, transparent); color: #f5c35c; }
-.ai-done { display: grid; gap: 12px; padding: 18px; border-radius: 20px; text-align: center; background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--ai-blue) 22%, transparent), transparent 70%), var(--ai-card); border: 1px solid var(--ai-line); }
+.ai-done { display: grid; gap: 12px; padding: 18px; border-radius: 20px; text-align: center; background: color-mix(in srgb, #f2705a 8%, var(--ai-card)); border: 1px solid var(--ai-line); }
 .ai-done b { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
 
 /* A suggestion to confirm, in the conversation */
@@ -500,11 +480,11 @@
 .pe-chips button { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 13px; border-radius: 9px; font-size: 13px; font-weight: 520; color: rgb(245 245 247 / 0.86); background: rgb(255 255 255 / 0.06); border: 1px solid var(--pe-line); transition: background-color 0.2s, color 0.2s; }
 .pe-chips button.is-on { background: #f5f5f7; color: #0b0b0d; border-color: transparent; }
 .pe-chips button:disabled { opacity: 0.4; }
-.pe-intents button.is-on { color: #fff; background: linear-gradient(135deg, rgb(255 90 95 / 0.34), rgb(253 186 90 / 0.22)); border-color: rgb(255 122 92 / 0.45); }
+.pe-intents button.is-on { color: #fff; background: rgb(242 112 90 / 0.3); border-color: rgb(242 112 90 / 0.5); }
 .pe-note { text-align: center; font-size: 12.5px; color: rgb(245 245 247 / 0.7); }
 .pe-actions { display: flex; gap: 8px; }
 .pe-actions > * { flex: 1 1 0; min-width: 0; }
-.pe-actions > .pe-go { flex-grow: 1.5; }
+.pe-actions > .pe-go { color: #fff; background: rgb(242 112 90 / 0.32); border-color: rgb(242 112 90 / 0.55); }
 .pe-act { display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 46px; padding: 0 10px; border-radius: 12px; font-size: 14px; font-weight: 560; white-space: nowrap; background: rgb(255 255 255 / 0.08); border: 1px solid var(--pe-line); transition: transform 0.15s; }
 .pe-act:active { transform: scale(0.97); }
 .pe-act:disabled { opacity: 0.45; }
@@ -581,48 +561,55 @@
 @media (max-width: 420px) { .ai-mailrow .ai-av { display: none; } }
 
 /* ── Surfaces ──────────────────────────────────────────────────────────────
-   The briefing and the inbox are bare groups on the background; what you tap
-   inside them — shortcuts, emails, the day's items — are glass tiles with a
-   trace of the logo's warmth. */
+   The briefing and the inbox are bare groups; what you tap inside them is a
+   flat tile in a soft pastel of its own colour (a shortcut's tone, an alert's
+   level, a sender's colour). No gradients, no blur: only the top bar and the
+   input bar are glass. */
 .ai {
-  --ai-tile: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 6%, transparent), color-mix(in srgb, #fdba5a 3%, transparent) 60%, transparent), color-mix(in srgb, var(--fg) 4.5%, transparent);
-  --ai-tile-hover: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 9%, transparent), color-mix(in srgb, #fdba5a 5%, transparent) 60%, transparent), color-mix(in srgb, var(--fg) 6.5%, transparent);
-  --ai-tile-line: color-mix(in srgb, var(--fg) 8%, transparent);
-  --ai-tile-shadow: inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent), 0 10px 28px -22px rgb(0 0 0 / 0.45);
+  --ai-tile-base: color-mix(in srgb, var(--fg) 5%, var(--bg));
+  --ai-neutral: #8a8f98;
 }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .ai:not(.mi .ai) { --ai-tile: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 5%, transparent), color-mix(in srgb, #fdba5a 3%, transparent) 60%, transparent), color-mix(in srgb, #fff 62%, transparent); --ai-tile-hover: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 8%, transparent), color-mix(in srgb, #fdba5a 5%, transparent) 60%, transparent), color-mix(in srgb, #fff 78%, transparent); --ai-tile-line: color-mix(in srgb, var(--fg) 7%, transparent); --ai-tile-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 1px 2px rgb(16 16 24 / 0.04), 0 10px 26px -20px rgb(16 16 24 / 0.2); }
-}
-:root[data-theme="light"] .ai:not(.mi .ai) { --ai-tile: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 5%, transparent), color-mix(in srgb, #fdba5a 3%, transparent) 60%, transparent), color-mix(in srgb, #fff 62%, transparent); --ai-tile-hover: linear-gradient(135deg, color-mix(in srgb, #ff5a5f 8%, transparent), color-mix(in srgb, #fdba5a 5%, transparent) 60%, transparent), color-mix(in srgb, #fff 78%, transparent); --ai-tile-line: color-mix(in srgb, var(--fg) 7%, transparent); --ai-tile-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 1px 2px rgb(16 16 24 / 0.04), 0 10px 26px -20px rgb(16 16 24 / 0.2); }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .ai:not(.mi .ai) { --ai-tile-base: #fff; } }
+:root[data-theme="light"] .ai:not(.mi .ai) { --ai-tile-base: #fff; }
 
 .ai-brief, .ai-inbox { padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; }
 .ai-brief { gap: 10px; margin-top: 8px; }
 .ai-inbox { margin-top: 18px; gap: 8px; }
-.ai-inbox.is-clear { padding: 12px 14px; border-radius: 14px; background: var(--ai-tile); border: 1px solid var(--ai-tile-line); }
 .ai-brief-h { font-size: 20px; font-weight: 400; letter-spacing: -0.022em; }
 
-/* The tiles */
-.ai-card, .ai-mailrow, .ai-brief .ai-link, .ai-panel, .ai-act, .ai-doc {
-  background: var(--ai-tile);
-  border: 1px solid var(--ai-tile-line);
-  box-shadow: var(--ai-tile-shadow);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
-  backdrop-filter: blur(14px) saturate(150%);
+.ai-card, .ai-mailrow, .ai-brief .ai-link, .ai-panel, .ai-act, .ai-doc, .ai-inbox.is-clear {
+  background: color-mix(in srgb, var(--tone, var(--ai-neutral)) 8%, var(--ai-tile-base));
+  border: 1px solid color-mix(in srgb, var(--tone, var(--ai-neutral)) 16%, transparent);
+  box-shadow: none;
 }
-.ai-act { border-color: color-mix(in srgb, var(--tone) 22%, var(--ai-tile-line)); }
-@media (hover: hover) { .ai-card:hover, .ai-mailrow:hover, .ai-brief .ai-link:hover { background: var(--ai-tile-hover); } }
+@media (hover: hover) { .ai-card:hover, .ai-mailrow:hover, .ai-brief .ai-link:hover { background: color-mix(in srgb, var(--tone, var(--ai-neutral)) 13%, var(--ai-tile-base)); } }
+.ai-inbox.is-clear { padding: 12px 14px; border-radius: 14px; --tone: #3ccf91; }
 .ai-inbox-list { gap: 8px; }
 .ai-mailrow { padding: 11px 12px; border-radius: 14px; }
-.ai-mailrow:first-child { border-top: 1px solid var(--ai-tile-line); }
+.ai-mailrow .ai-av { color: color-mix(in srgb, var(--tone) 70%, var(--fg)); background: color-mix(in srgb, var(--tone) 16%, transparent); }
 .ai-brief .ai-rows { gap: 6px; }
 .ai-brief .ai-link { padding: 10px 12px; border-radius: 12px; }
-.ai-brief .ai-link + .ai-link { border-top: 1px solid var(--ai-tile-line); }
 .ai-card { border-radius: 14px; }
-.ai-greet { letter-spacing: -0.005em; }
-.ai-tabs button { background: color-mix(in srgb, var(--fg) 3%, transparent); border-color: var(--ai-tile-line); }
-.ai-msg-me { background: var(--ai-tile); border: 1px solid var(--ai-tile-line); }
+.ai-tabs button { background: transparent; border-color: var(--ai-line); }
+.ai-msg-me { background: color-mix(in srgb, var(--ai-neutral) 10%, var(--ai-tile-base)); border: 1px solid var(--ai-line); }
+
 /* On phones an email's actions sit on their own line, so its text has the full width. */
 @media (max-width: 520px) {
   .ai-mailrow-top { flex-wrap: wrap; row-gap: 8px; }
   .ai-mailrow-side { flex-basis: 100%; }
 }
+
+/* ── Icons: one quiet, colourless style everywhere ─────────────────────────── */
+.ai-obj { color: color-mix(in srgb, var(--fg) 72%, transparent); background: transparent; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
+.ai-obj svg { width: 16px; height: 16px; stroke-width: 1.6; }
+.ai-mailrow .ai-av { color: color-mix(in srgb, var(--fg) 70%, transparent); background: transparent; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
+.ai svg { stroke-width: 1.6; }
+.ai-chip svg, .ai-chip.is-key svg, .ai-btn svg, .ai-next button svg, .ai-attach svg, .ai-mailrow-quick button svg, .ai-act-ic, .ai-advisors .ai-act-ic { color: color-mix(in srgb, var(--fg) 62%, transparent); }
+.ai-act-ic, .ai-advisors .ai-act-ic { background: transparent; border: 1px solid color-mix(in srgb, var(--fg) 12%, transparent); }
+.ai-chip.is-key { color: var(--fg); background: color-mix(in srgb, var(--fg) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 12%, transparent); }
+.ai-dot-tone { opacity: 0.75; }
+/* Type: tighter headings, calm labels, tabular figures. */
+.ai-brief-h, .ai-h { font-weight: 450; letter-spacing: -0.025em; }
+.ai-card-tx b, .ai-mailrow-tx b { font-weight: 560; letter-spacing: -0.012em; }
+.ai-brief h3, .ai-inbox-h b { font-weight: 560; letter-spacing: 0.08em; font-size: 10.5px; }
+.ai-row b, .ai-mailrow-tx em, .ai-rich-table { font-variant-numeric: tabular-nums; }

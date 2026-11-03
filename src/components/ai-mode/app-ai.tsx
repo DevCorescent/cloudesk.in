@@ -452,12 +452,15 @@ function BriefCard({ brief, loading, dash, onAsk, onAttention, mailShown }: { br
         {i.href && <ChevronRight className="size-4" aria-hidden />}
       </>
     );
+    const tone = { "--tone": i.tone === "danger" ? "#ff6b6b" : i.tone === "warning" ? "#f5a35c" : i.tone === "info" ? "#6b9cff" : "#8b7bff" } as React.CSSProperties;
     return i.href ? (
-      <Link href={i.href} className="ai-link">
+      <Link href={i.href} className="ai-link" style={tone}>
         {body}
       </Link>
     ) : (
-      <div className="ai-link">{body}</div>
+      <div className="ai-link" style={tone}>
+        {body}
+      </div>
     );
   };
   return (

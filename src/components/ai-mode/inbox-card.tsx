@@ -31,6 +31,9 @@ const QUICK: { label: string; body: (to: string, me: string) => string }[] = [
   { label: "Confirmed, thank you", body: (to, me) => `Dear ${to},\n\nThank you — this is confirmed from our side.\n\nBest regards,\n${me}` },
 ];
 const UNDO_S = 9;
+/** Each sender keeps one soft colour, so a conversation is easy to spot again. */
+const PASTELS = ["#6b9cff", "#3ccf91", "#f5a35c", "#b48cff", "#2ec4b6", "#ff7aa2", "#4fb3ff"];
+const toneOf = (address: string) => PASTELS[[...address].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % PASTELS.length]!;
 
 export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onAsk: (prompt: string) => void }) {
   const qc = useQueryClient();
@@ -154,7 +157,7 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
           const to = first(i.from.name, i.from.address);
           if (r.sent) {
             return (
-              <div key={i.id} className="ai-mailrow is-sent">
+              <div key={i.id} className="ai-mailrow is-sent" style={{ "--tone": "#3ccf91" } as React.CSSProperties}>
                 <span className="ai-mailrow-tx">
                   <b>Reply to {to} is on its way</b>
                   <small>{i.subject}</small>
@@ -166,7 +169,7 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
             );
           }
           return (
-            <div key={i.id} className={clsx("ai-mailrow", i.unread && "is-unread")}>
+            <div key={i.id} className={clsx("ai-mailrow", i.unread && "is-unread")} style={{ "--tone": toneOf(i.from.address) } as React.CSSProperties}>
               <div className="ai-mailrow-top">
                 <span className="ai-av" aria-hidden>
                   {to[0]}

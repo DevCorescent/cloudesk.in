@@ -8,6 +8,7 @@ import "./ai-screen.css";
 import clsx from "clsx";
 import { ArrowUp, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
+import { Inter } from "next/font/google";
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
@@ -54,6 +55,9 @@ function Rich({ text }: { text: string }) {
     </div>
   );
 }
+
+// AI mode's typeface: Inter, self-hosted by Next, with its tidier alternates turned on in the CSS.
+const inter = Inter({ subsets: ["latin"], variable: "--font-ai", display: "swap" });
 
 // The photo editor (crop, scan, PDF) loads when the camera is first used.
 const PhotoEditor = dynamic(() => import("./photo-editor").then((m) => m.PhotoEditor), { ssr: false });
@@ -137,7 +141,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   };
 
   return (
-    <div className={clsx("ai", p.className)}>
+    <div className={clsx("ai", inter.variable, p.className)}>
       <header className={clsx("ai-top", under.top && "is-glass")}>
         <div className="ai-top-in">
         <button type="button" className="ai-round" onClick={p.onClose} aria-label={p.closeLabel ?? "Close"}>
@@ -177,7 +181,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
                         return (
                           <button key={c.id} type="button" className="ai-card" onClick={c.onPick} style={{ "--tone": c.tone, "--i": i } as CSSProperties}>
                             <span className="ai-obj" aria-hidden>
-                              <Icon strokeWidth={1.9} />
+                              <Icon strokeWidth={1.6} />
                             </span>
                             <span className="ai-card-tx">
                               <b>{c.title}</b>
