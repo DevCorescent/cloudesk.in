@@ -58,7 +58,7 @@ export function NotificationBell() {
         {unread > 0 && <span className="bar-badge">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && (
-        <div role="dialog" aria-label="Notifications" className="glass-strong animate-in absolute top-full right-0 z-50 mt-1.5 w-[min(380px,calc(100vw-24px))] rounded-[16px] p-1.5">
+        <div role="dialog" aria-label="Notifications" data-popover className="glass-strong animate-in absolute top-full right-0 z-50 mt-1.5 w-[min(380px,calc(100vw-24px))] rounded-[16px] p-1.5">
           <div className="flex items-center justify-between px-2.5 py-2">
             <p className="text-[13px] font-semibold">Notifications</p>
             {unread > 0 && (

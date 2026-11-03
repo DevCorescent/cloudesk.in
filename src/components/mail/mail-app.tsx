@@ -428,7 +428,7 @@ function Inbox3({ meta, onAdd, initialOpen }: { meta: MetaOut; onAdd: () => void
               </div>
               {advanced && <AdvancedSearch q={q} onClose={() => setAdvanced(false)} onSearch={(v) => { setQ(v); setAdvanced(false); }} />}
               {hints && !q && !advanced && (
-                <div className="absolute top-full right-0 left-0 z-20 mt-1.5 grid gap-0.5 rounded-[14px] border border-border bg-[var(--surface-solid)] p-2 shadow-xl">
+                <div data-popover className="absolute top-full right-0 left-0 z-20 mt-1.5 grid gap-0.5 rounded-[14px] border border-border bg-[var(--surface-solid)] p-2 shadow-xl">
                   <p className="px-2 pb-1 text-[11px] font-semibold tracking-[0.1em] text-subtle uppercase">Search operators</p>
                   {OPERATORS.map(([op, d]) => (
                     <button key={op} type="button" onMouseDown={(e) => { e.preventDefault(); setQ(`${op}`); search.current?.focus(); }} className="flex items-center justify-between gap-2 rounded-[8px] px-2 py-1 text-left text-[12.5px] hover:bg-surface-2"><code className="text-sky-700 dark:text-sky-400">{op}</code><span className="truncate text-muted">{d}</span></button>
@@ -559,6 +559,7 @@ function AdvancedSearch({ q, onClose, onSearch }: { q: string; onClose: () => vo
     <form
       onSubmit={(e) => { e.preventDefault(); onSearch(build()); }}
       onKeyDown={(e) => e.key === "Escape" && (e.stopPropagation(), onClose())}
+      data-popover
       className="absolute top-full right-0 left-0 z-30 mt-1.5 grid gap-2 rounded-[16px] border border-border bg-[var(--surface-solid)] p-3.5 shadow-2xl"
     >
       <p className="mb-0.5 text-[12px] font-semibold">Advanced search</p>

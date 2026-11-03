@@ -490,7 +490,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
               </button>
             ))}
           </div>
-          <div ref={listRef} id="cc-palette-list" role="listbox" className="max-h-[min(58vh,520px)] overflow-y-auto overscroll-contain p-2">
+          <div ref={listRef} id="cc-palette-list" role="listbox" data-popover="static" className="max-h-[min(58vh,520px)] overflow-y-auto overscroll-contain p-2">
             {listed.length === 0 && (
               <div className="grid place-items-center gap-2 px-6 py-10 text-center">
                 <Search className="size-5 text-subtle" />

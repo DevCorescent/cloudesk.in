@@ -1527,3 +1527,21 @@ dialog.stat-pop { background: var(--glass-strong) !important; }
 .dash-plan:hover { color: var(--fg); background: color-mix(in srgb, var(--fg) 4%, transparent); }
 .dash-panel ul + .dash-plan, .dash-panel p + .dash-plan { margin-top: auto; }
 .dash-panel ul:has(+ .dash-plan) { margin-bottom: 10px; }
+
+/* ── Dropdowns everywhere: frosted glass ───────────────────────────────────────
+   Menus, suggestion lists and popovers (role menu/listbox, or data-popover)
+   share one material: the strong glass tint with a blur, a hairline and a soft
+   shadow. Lists inside dialogs (data-popover="static") and AI mode keep theirs.
+   keep-in-view.tsx keeps them inside the screen. */
+:is([role="menu"], [role="listbox"], [data-popover]):not([data-popover="static"]):not(.ai *):not(.pe *) {
+  /* Dense enough to read over anything: inside a header that is itself glass the blur only sees the header, so the tint carries it. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 97%, transparent), color-mix(in srgb, var(--surface-solid) 94%, transparent)) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.8);
+  backdrop-filter: blur(30px) saturate(1.8);
+  border-color: color-mix(in srgb, var(--fg) 10%, transparent) !important;
+  box-shadow: inset 0 1px 0 var(--edge), 0 24px 60px -20px rgb(0 0 0 / 0.35) !important;
+  max-width: calc(100vw - 16px);
+}
+@media (prefers-reduced-transparency: reduce) {
+  :is([role="menu"], [role="listbox"], [data-popover]):not([data-popover="static"]) { background: var(--surface-solid) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}

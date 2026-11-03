@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ApiClientError } from "@/lib/client/api";
+import { KeepInView } from "./ui/keep-in-view";
 import { ToastProvider } from "./ui/overlays";
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -21,6 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <ToastProvider>{children}</ToastProvider>
+      <KeepInView />
     </QueryClientProvider>
   );
 }

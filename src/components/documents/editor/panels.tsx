@@ -292,7 +292,7 @@ function Composer({ people, onSend, onCancel, placeholder, busy, autoFocus }: { 
         className="w-full resize-none rounded-[10px] border border-border bg-bg p-2 text-[13px] outline-none focus:border-fg/30"
       />
       {options.length > 0 && (
-        <div className="absolute inset-x-0 bottom-full z-10 mb-1 rounded-[12px] border border-border bg-[var(--surface-solid)] p-1 shadow-lg">
+        <div data-popover className="absolute inset-x-0 bottom-full z-10 mb-1 rounded-[12px] border border-border bg-[var(--surface-solid)] p-1 shadow-lg">
           {options.map((p) => (
             <button
               key={p.id}

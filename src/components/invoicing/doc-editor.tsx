@@ -483,7 +483,7 @@ function LineRow({ line: l, index, count, currency, gst, showTax, amount, sugges
         <div className="relative">
           <Input value={l.name} onChange={(e) => onChange({ name: e.target.value, itemId: null })} onFocus={() => setFocus(true)} onBlur={() => setTimeout(() => setFocus(false), 150)} placeholder={`Item ${index + 1} — type to search saved items`} aria-label={`Item ${index + 1} name`} aria-invalid={showErrors && !l.name.trim()} />
           {matches.length > 0 && (
-            <ul className="glass-strong absolute right-0 left-0 z-20 mt-1 rounded-[12px] p-1 shadow-lg">
+            <ul data-popover className="glass-strong absolute right-0 left-0 z-20 mt-1 rounded-[12px] p-1 shadow-lg">
               {matches.map((s) => (
                 <li key={s.key}>
                   <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => { onChange({ name: s.name, description: s.description, hsn: s.hsn, unit: s.unit, rate: s.rate, taxBps: s.taxBps, itemId: s.itemId }); setDesc(!!s.description); setFocus(false); }} className="flex w-full items-center justify-between gap-3 rounded-[9px] px-3 py-1.5 text-left text-[13px] hover:bg-surface-2">

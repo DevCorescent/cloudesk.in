@@ -58,7 +58,7 @@ export function Pop({ anchor, onClose, children, className }: { anchor: HTMLElem
     };
   }, [anchor, onClose]);
   return createPortal(
-    <div ref={box} className={clsx("doc-pop fixed z-[70] rounded-[14px] border border-border bg-[var(--surface-solid)] p-1.5 shadow-[0_18px_50px_-14px_rgb(0_0_0/0.35)]", className)} style={pos ?? { top: -9999, left: -9999 }}>
+    <div ref={box} data-popover className={clsx("doc-pop fixed z-[70] rounded-[14px] border border-border bg-[var(--surface-solid)] p-1.5 shadow-[0_18px_50px_-14px_rgb(0_0_0/0.35)]", className)} style={pos ?? { top: -9999, left: -9999 }}>
       {children}
     </div>,
     document.body,

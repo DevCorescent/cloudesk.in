@@ -35,7 +35,7 @@ export function RecordPicker({ kind, value, onChange, placeholder }: { kind: "co
     <div className="relative">
       <Input value={q} onChange={(e) => (setQ(e.target.value), setOpen(true))} onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} placeholder={placeholder ?? "Search…"} aria-label={placeholder ?? `Find a ${kind.slice(0, -1)}`} />
       {open && q.trim() && (
-        <ul className="absolute inset-x-0 top-10 z-50 max-h-56 overflow-y-auto rounded-[14px] border border-border bg-surface-solid p-1 shadow-lg">
+        <ul data-popover className="absolute inset-x-0 top-10 z-50 max-h-56 overflow-y-auto rounded-[14px] border border-border bg-surface-solid p-1 shadow-lg">
           {!list.length ? (
             <li className="px-3 py-2 text-[12.5px] text-muted">{hits.isFetching ? "Searching…" : "No match"}</li>
           ) : (

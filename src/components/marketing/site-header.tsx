@@ -379,7 +379,7 @@ function SiteSearch({ onClose }: { onClose: () => void }) {
           />
           <button type="button" onClick={onClose} className="rounded-[7px] px-2 py-1 text-[11.5px] font-medium text-fg/50 ring-1 ring-fg/10">Esc</button>
         </div>
-        <div className="max-h-[60vh] overflow-y-auto p-2" role="listbox" aria-label="Results">
+        <div className="max-h-[60vh] overflow-y-auto p-2" role="listbox" aria-label="Results" data-popover="static">
           {answer && (
             <button type="button" onClick={() => go(answer)} className="mb-1 grid w-full gap-1.5 rounded-[16px] bg-[linear-gradient(135deg,var(--p-lavender),color-mix(in_srgb,var(--p-lavender)_25%,white))] p-4 text-left ring-1 ring-fg/[0.05]">
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.12em] text-[var(--p-lavender-ink)] uppercase"><Sparkles className="size-3.5" /> Quick answer · {answer.group}</span>

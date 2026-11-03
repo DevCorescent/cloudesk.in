@@ -196,7 +196,7 @@ export function ShareDialog({ target, onClose }: { target: { fileId?: string; fo
               </Select>
             </div>
             {candidates.length > 0 && (
-              <div className="absolute inset-x-0 top-full z-10 mt-1 rounded-[12px] border border-border bg-[var(--surface-solid)] p-1 shadow-lg">
+              <div data-popover className="absolute inset-x-0 top-full z-10 mt-1 rounded-[12px] border border-border bg-[var(--surface-solid)] p-1 shadow-lg">
                 {candidates.map((p) => (
                   <button
                     key={p.id}

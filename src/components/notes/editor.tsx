@@ -528,7 +528,7 @@ function TextInput({ b, focus, onFocus, onBlur, onText, keys, onNoteLink, rewrit
         className={className}
       />
       {options.length > 0 && (
-        <div className="absolute top-full left-0 z-30 mt-1 max-h-[340px] w-[300px] overflow-y-auto rounded-[14px] bg-surface-solid p-1.5 shadow-2xl ring-1 ring-border" onMouseDown={(e) => e.preventDefault()}>
+        <div data-popover className="absolute top-full left-0 z-30 mt-1 max-h-[340px] w-[300px] overflow-y-auto rounded-[14px] bg-surface-solid p-1.5 shadow-2xl ring-1 ring-border" onMouseDown={(e) => e.preventDefault()}>
           {SLASH_GROUPS.map((g) => {
             const items = options.filter((o) => o.group === g);
             if (!items.length) return null;

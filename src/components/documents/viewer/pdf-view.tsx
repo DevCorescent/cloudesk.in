@@ -152,7 +152,7 @@ export const PdfView = forwardRef<PdfHandle, { src: string | Uint8Array; classNa
         </button>
       </div>
       {find.open && (
-        <div className="absolute top-12 right-3 z-20 w-[min(340px,calc(100%-24px))] rounded-[14px] border border-border bg-[var(--surface-solid)] p-2 text-fg shadow-xl">
+        <div data-popover className="absolute top-12 right-3 z-20 w-[min(340px,calc(100%-24px))] rounded-[14px] border border-border bg-[var(--surface-solid)] p-2 text-fg shadow-xl">
           <div className="flex items-center gap-1">
             <input autoFocus value={find.q} onChange={(e) => setFind((f) => ({ ...f, q: e.target.value }))} onKeyDown={(e) => {
                 if (e.key === "Enter") {
