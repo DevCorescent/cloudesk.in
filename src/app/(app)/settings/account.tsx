@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { setTheme, useSession, useThemePref, type ThemePref } from "@/components/shell/session-context";
 import { Segmented, useToast } from "@/components/ui/overlays";
-import { Badge, Button, Card, Field, Input, Skeleton } from "@/components/ui/primitives";
+import { Badge, Button, Card, Field, Input, Skeleton, Switch } from "@/components/ui/primitives";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
 import { timeAgo } from "@/lib/client/format";
 import { SecurityCard, SignInsCard, useMfaStatus } from "./security";
@@ -52,17 +52,7 @@ export function AccountView() {
 
   return (
     <div className="grid gap-6">
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold">Profile</h2>
-        <dl className="mt-3 grid grid-cols-[120px_1fr] gap-y-2 text-[13px]">
-          <dt className="text-muted">Name</dt>
-          <dd>{user.name}</dd>
-          <dt className="text-muted">Email</dt>
-          <dd className="flex items-center gap-2">
-            {user.email} {user.emailVerified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Unverified</Badge>}
-          </dd>
-        </dl>
-      </Card>
+      <ProfileCard email={user.email} verified={user.emailVerified} />
 
       <Card className="p-5">
         <h2 className="text-sm font-semibold">Appearance</h2>
@@ -127,5 +117,76 @@ export function AccountView() {
         )}
       </Card>
     </div>
+  );
+}
+
+type Profile = { name: string; email: string; username: string; phone: string; discoverable: boolean };
+
+/** Name, username, a phone number people can find you by, and whether they can find you at all. */
+function ProfileCard({ email, verified }: { email: string; verified: boolean }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["profile"], queryFn: () => api<{ profile: Profile }>("/api/v1/auth/profile") });
+  const [v, setV] = useState<Profile | null>(null);
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [checked, setChecked] = useState<{ name: string; ok: boolean; reason?: string } | null>(null);
+  const p = v ?? q.data?.profile ?? null;
+  const changedName = p && q.data && p.username !== q.data.profile.username ? p.username : "";
+  // Whether the new username is free, checked a moment after typing stops.
+  useEffect(() => {
+    if (!changedName) return;
+    const t = setTimeout(() => void api<{ ok: boolean; reason?: string }>(`/api/v1/auth/profile?username=${encodeURIComponent(changedName)}`).then((r) => setChecked({ name: changedName, ...r }), () => undefined), 300);
+    return () => clearTimeout(t);
+  }, [changedName]);
+  const check = checked && checked.name === changedName ? checked : null;
+  const save = useMutation({
+    mutationFn: () => api<{ profile: Profile }>("/api/v1/auth/profile", { method: "PATCH", body: { name: p!.name, username: p!.username, phone: p!.phone, discoverable: p!.discoverable } }),
+    onSuccess: (r) => {
+      setV(null);
+      setErrors({});
+      qc.setQueryData(["profile"], r);
+      toast({ tone: "success", title: "Profile saved" });
+    },
+    onError: (e) => {
+      if (e instanceof ApiClientError) setErrors(e.fieldErrors());
+      else toast({ tone: "error", title: errorMessage(e) });
+    },
+  });
+  if (!p) return <Skeleton className="h-48" />;
+  const dirty = !!v && JSON.stringify(v) !== JSON.stringify(q.data?.profile);
+  return (
+    <Card className="p-5">
+      <h2 className="text-sm font-semibold">Profile</h2>
+      <p className="mt-0.5 text-[12.5px] text-muted">People invite you to workspaces and chats by your username — your email and phone are never shown to them.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Field label="Name" error={errors.name?.[0]}>{(f) => <Input {...f} value={p.name} onChange={(e) => setV({ ...p, name: e.target.value })} maxLength={120} />}</Field>
+        <Field label="Username" error={errors.username?.[0] ?? (check && !check.ok ? check.reason : undefined)} hint={check?.ok ? "Available" : "Letters, digits, dots and underscores"}>
+          {(f) => (
+            <div className="relative">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[13px] text-muted">@</span>
+              <Input {...f} className="pl-7" value={p.username} maxLength={30} onChange={(e) => setV({ ...p, username: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, "") })} />
+            </div>
+          )}
+        </Field>
+        <div className="grid gap-1.5 text-[13px]">
+          <span className="font-medium">Email</span>
+          <span className="flex h-9 items-center gap-2">{email} {verified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Unverified</Badge>}</span>
+        </div>
+        <Field label="Phone" error={errors.phone?.[0]} hint="Optional — so people who have your number can find you">{(f) => <Input {...f} type="tel" value={p.phone} onChange={(e) => setV({ ...p, phone: e.target.value })} maxLength={30} />}</Field>
+      </div>
+      <label className="mt-4 flex items-start gap-2 text-[13px]">
+        <Switch label="Let people find me" checked={p.discoverable} onChange={(x) => setV({ ...p, discoverable: x })} />
+        <span>
+          Let people outside my workspaces find me by username, email or phone
+          <span className="block text-[12px] text-muted">People in your workspaces can always find you.</span>
+        </span>
+      </label>
+      {dirty && (
+        <div className="mt-4 flex justify-end gap-2">
+          <Button onClick={() => (setV(null), setErrors({}))}>Cancel</Button>
+          <Button variant="primary" loading={save.isPending} disabled={!!check && !check.ok} onClick={() => save.mutate()}>Save</Button>
+        </div>
+      )}
+    </Card>
   );
 }

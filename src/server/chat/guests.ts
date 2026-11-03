@@ -7,6 +7,7 @@
 // they do for members. They never get a session: their browser holds a
 // random secret in a cookie scoped to that one conversation's guest API.
 import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { z } from "zod";
 import { and, desc, eq, inArray, max, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ChannelOut, GuestOut, GuestStateOut, InviteOut, PersonOut } from "@/lib/chat/api";
@@ -19,7 +20,7 @@ import { notify } from "../notify/notify";
 import { appUrl, sendMail } from "../services/mail";
 import { channelFor, check, type Channel, type ChatScope } from "./access";
 import { publish } from "./bus";
-import { leave, removeMember } from "./core";
+import { addMembers, leave, removeMember } from "./core";
 
 const C = schema.teamChannels;
 const M = schema.teamMembers;
@@ -114,6 +115,45 @@ export async function emailInvite(s: ChatScope, id: string, raw: unknown) {
   const at = new Date().toISOString();
   await db.update(I).set({ sent: sql`${I.sent} || ${JSON.stringify(to.map((t) => ({ via: "email", to: t, at })))}::jsonb` }).where(eq(I.id, i.id));
   return { sent: to.length };
+}
+
+/**
+ * Invite one person found by search into this conversation. A member of the
+ * workspace is added straight away; anyone else — a Cloudesk account found
+ * by username (its email stays on the server), a contact or a typed email —
+ * gets an email with a guest link to this conversation, which lets them in
+ * without waiting for approval.
+ */
+export async function invitePerson(s: ChatScope, channelId: string, raw: unknown) {
+  if (s.guest) throw new ApiError("forbidden", "Guests can't invite people");
+  const v = check(z.object({ userId: z.uuid().optional(), email: z.email("An email address").max(200).optional(), message: z.string().trim().max(1000).default("") }), raw);
+  if (!v.userId && !v.email) throw new ApiError("validation_failed", "Who should we invite?");
+  if (v.userId) {
+    const [member] = await db.select({ u: schema.memberships.userId }).from(schema.memberships).where(and(eq(schema.memberships.orgId, s.orgId), eq(schema.memberships.userId, v.userId)));
+    if (member) {
+      const r = await addMembers(s, channelId, { users: [v.userId] });
+      return { added: r.added, sent: 0, label: "" };
+    }
+  }
+  const c = await adminOf(s, channelId);
+  if (c.archived) throw new ApiError("conflict", "This channel is archived");
+  let to = v.email ?? "";
+  let label = to;
+  if (v.userId) {
+    const [u] = await db.select({ email: schema.users.email, name: schema.users.name, username: schema.users.username }).from(schema.users).where(and(eq(schema.users.id, v.userId), sql`${schema.users.email} not like ${`%@${GUEST_DOMAIN}`}`, sql`${schema.users.disabledAt} is null`));
+    if (!u) throw notFound("Person");
+    to = u.email;
+    label = u.username ? `@${u.username}` : u.name;
+  }
+  // One link per conversation for people invited by name; it lets them straight in.
+  let [link] = await db.select().from(I).where(and(eq(I.channelId, c.id), eq(I.label, "Invited by name"), sql`${I.revokedAt} is null`, sql`(${I.expiresAt} is null or ${I.expiresAt} > now())`)).limit(1);
+  link ??= (await db.insert(I).values({ orgId: s.orgId, channelId: c.id, code: randomBytes(12).toString("base64url"), label: "Invited by name", approval: false, history: false, files: true, createdBy: s.userId }).returning())[0];
+  const [org] = await db.select({ name: schema.organizations.name }).from(schema.organizations).where(eq(schema.organizations.id, s.orgId));
+  const text = inviteText({ inviter: s.userName, where: where(c), workspace: org?.name ?? "their workspace", url: inviteUrl(link!.code), approval: false });
+  await sendMail({ to, subject: `${s.userName} invited you to chat in ${where(c)}`, body: [v.message, text].filter(Boolean).join("\n\n"), fromName: `${s.userName} via Cloudesk`, replyTo: s.userEmail });
+  const at = new Date().toISOString();
+  await db.update(I).set({ sent: sql`${I.sent} || ${JSON.stringify([{ via: "email", to: label, at }])}::jsonb` }).where(eq(I.id, link!.id));
+  return { added: 0, sent: 1, label };
 }
 
 export async function listGuests(s: ChatScope, channelId: string) {

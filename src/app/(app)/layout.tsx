@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { AppShell } from "@/components/shell/app-shell";
 import { SessionProvider } from "@/components/shell/session-context";
+import { PendingInvites } from "@/components/shell/pending-invites";
 import { redirect } from "next/navigation";
 import { requirePageSession } from "@/server/auth/page-session";
 import { partnerOf } from "@/server/partners/core";
@@ -11,7 +12,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!activeOrg) {
     // Partners without a workspace of their own have their dashboard.
     if (await partnerOf(user.id)) redirect("/partner");
-    return <p className="p-8 text-sm text-muted">Your account is not a member of any organization. Ask an owner to invite you.</p>;
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <PendingInvites standalone />
+      </div>
+    );
   }
   return (
     <SessionProvider value={{ user, orgs, org: activeOrg }}>

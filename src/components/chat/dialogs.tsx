@@ -12,6 +12,7 @@ import { errorMessage } from "@/lib/client/api";
 import type { ChannelOut, MessageOut, MetaOut, PersonOut } from "@/lib/chat/api";
 import { CHANNEL_COLORS, parseWhen, STATUS_LABEL, STATUSES, type PostIn, type Status } from "@/lib/chat/model";
 import { plain } from "@/lib/chat/text";
+import { FindPeople } from "@/components/people/find-people";
 import { Avatar, channelTitle, chatKey, presenceOf, useChatApi } from "./shared";
 
 const rid = () => Math.random().toString(36).slice(2, 10);
@@ -209,6 +210,22 @@ export function ChannelSettings({ c, meta, onClose, onChanged, onLeft }: { c: Ch
               <p className="text-[13px] font-medium">Add people</p>
               <PeoplePicker people={meta.people} value={adding} onChange={setAdding} exclude={(mem.data?.members ?? []).map((m) => m.userId)} />
               <div><Button variant="primary" disabled={!adding.length} onClick={() => void run(async () => { await call(`channels/${c.id}/members`, "POST", { users: adding }); setAdding([]); }, "Added")}>Add {adding.length || ""}</Button></div>
+            </div>
+          )}
+          {c.member && c.kind !== "dm" && (
+            <div className="grid gap-2 border-t border-border pt-4">
+              <p className="text-[13px] font-medium">Invite anyone</p>
+              <p className="text-[12px] text-muted">Search a Cloudesk username, an email, a phone number or one of your contacts. People in this workspace join straight away; anyone else gets an email with a guest link to this conversation.</p>
+              <FindPeople
+                orgId={orgId}
+                exclude={(mem.data?.members ?? []).map((m) => m.userId)}
+                onPick={(h) =>
+                  void run(async () => {
+                    const r = await call<{ added: number; sent: number; label: string }>(`channels/${c.id}/invite-person`, "POST", h.kind === "account" ? { userId: h.id } : { email: h.email });
+                    toast({ tone: "success", title: r.added ? `${h.kind === "account" ? h.name : "They"} joined` : `Invite sent${r.label ? ` to ${r.label}` : ""}`, description: r.added ? undefined : "They'll get an email with a link to join as a guest." });
+                  })
+                }
+              />
             </div>
           )}
         </div>
