@@ -8,7 +8,6 @@ import "./ai-screen.css";
 import clsx from "clsx";
 import { ArrowUp, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
-import { Inter } from "next/font/google";
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
@@ -56,16 +55,13 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-// AI mode's typeface: Inter, self-hosted by Next, with its tidier alternates turned on in the CSS.
-const inter = Inter({ subsets: ["latin"], variable: "--font-ai", display: "swap" });
-
 // The photo editor (crop, scan, PDF) loads when the camera is first used.
 const PhotoEditor = dynamic(() => import("./photo-editor").then((m) => m.PhotoEditor), { ssr: false });
 
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; moreLabel?: string; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const pick = useRef<HTMLInputElement>(null);
@@ -88,6 +84,8 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   const [quickOpen, setQuickOpen] = useState(false);
   // Shortcuts: one group at a time, picked from a tab strip, so the first screen fits without scrolling.
   const [tab, setTab] = useState(0);
+  // With moreLabel the shortcuts wait behind a toggle, so the opening screen stays clean.
+  const [more, setMore] = useState(false);
   const end = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   // The bars turn to frosted glass once something scrolls beneath them.
@@ -141,7 +139,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   };
 
   return (
-    <div className={clsx("ai", inter.variable, p.className)}>
+    <div className={clsx("ai", p.className)}>
       <header className={clsx("ai-top", under.top && "is-glass")}>
         <div className="ai-top-in">
         <button type="button" className="ai-round" onClick={p.onClose} aria-label={p.closeLabel ?? "Close"}>
@@ -159,7 +157,13 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
           <div className="ai-home">
             {p.greeting && <p className="ai-greet">{p.greeting}</p>}
             {p.lead}
-            {p.sections.length > 0 && (
+            {p.moreLabel && p.sections.length > 0 && (
+              <button type="button" className={clsx("ai-more", more && "is-open")} aria-expanded={more} onClick={() => setMore(!more)}>
+                {p.moreLabel}
+                <ChevronLeft className="size-4 -rotate-90" aria-hidden />
+              </button>
+            )}
+            {p.sections.length > 0 && (!p.moreLabel || more) && (
               <section className="ai-sec">
                 {p.sections.length > 1 ? (
                   <div className="ai-tabs" role="tablist" aria-label="Shortcuts">

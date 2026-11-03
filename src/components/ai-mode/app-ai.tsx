@@ -15,6 +15,7 @@ import { ADVISORS, advisorById, DOC_KIND_INFO, type AdvisorId, type DocKind } fr
 import { industryById, visibleTo } from "@/lib/workspace/modules";
 import { ActionCard, confirmAll, type CopilotAction } from "./action-card";
 import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
+import { AiHome, type Pulse } from "./ai-home";
 import { InboxCard } from "./inbox-card";
 import { KnowledgeSheet } from "./knowledge-sheet";
 
@@ -333,17 +334,44 @@ export function AppAiMode() {
     ],
   };
 
+  // The opening screen: a few live figures, what needs them in one line (opening the briefing and inbox), and common questions.
+  const c = brief.data?.counts;
+  const pulse: Pulse[] = dash.data?.kpis.length
+    ? dash.data.kpis.slice(0, 3).map((k) => ({ label: k.label, value: k.value, format: k.format, sub: k.sub }))
+    : c
+      ? [
+          { label: "Meetings ahead", value: c.meetings, format: "number" },
+          { label: "Emails to answer", value: c.replies, format: "number" },
+          { label: "Overdue invoices", value: c.overdueInvoices, format: "number" },
+        ]
+      : [];
+  const bits = c ? [c.replies && `${c.replies} email${c.replies === 1 ? "" : "s"} to answer`, c.meetings && `${c.meetings} meeting${c.meetings === 1 ? "" : "s"} coming up`, c.overdueInvoices && `${c.overdueInvoices} overdue invoice${c.overdueInvoices === 1 ? "" : "s"}`, c.overdueTasks && `${c.overdueTasks} overdue task${c.overdueTasks === 1 ? "" : "s"}`].filter(Boolean) as string[] : [];
+  const home = (
+    <AiHome
+      name={hello(user.name)}
+      headline={copilotOn ? "Your business, understood. Ask anything about sales, money, stock or your team." : "Switch on the AI copilot to ask questions about your business."}
+      pulse={pulse}
+      onAsk={(q) => void ask(q)}
+      attention={
+        copilotOn && (bits.length || brief.data?.suggestions.length)
+          ? {
+              text: bits.length ? bits.join(" · ") : "A few suggestions for today",
+              children: (
+                <>
+                  <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} mailShown={has("mail") && !!c?.replies} />
+                  {has("mail") && <InboxCard orgId={org.id} me={user.name} onAsk={(q) => void ask(q)} />}
+                </>
+              ),
+            }
+          : null
+      }
+    />
+  );
+
   return (
     <AiScreen
-      greeting={hello(user.name)}
-      lead={
-        copilotOn ? (
-          <>
-            <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} mailShown={has("mail") && !!brief.data?.counts.replies} />
-            {has("mail") && <InboxCard orgId={org.id} me={user.name} onAsk={(q) => void ask(q)} />}
-          </>
-        ) : undefined
-      }
+      lead={home}
+      moreLabel="More ways to use AI"
       sections={copilotOn ? (fresh ? [finish, teach, doIt, savers, files, advisors, launch, ahead] : [ahead, savers, advisors, files, doIt, teach, launch, finish]) : fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
       overlay={knowing ? <KnowledgeSheet orgId={org.id} start={knowing} onClose={() => setKnowing("")} /> : undefined}
       onSaveDoc={has("documents") ? (f) => saveDoc(org.id, f) : undefined}
