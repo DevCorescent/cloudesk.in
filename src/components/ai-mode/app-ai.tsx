@@ -5,7 +5,7 @@
 // the copilot, which answers from the workspace's data within the person's
 // role. Setup shortcuts lead the screen while the workspace is still new.
 import { useQuery } from "@tanstack/react-query";
-import { Boxes, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, Compass, Contact, FileSearch, Inbox, Landmark, Mail, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
+import { BadgeIndianRupee, BookOpen, Boxes, Brain, Briefcase, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, ClipboardList, Compass, Contact, FileSearch, FileSignature, Inbox, Landmark, Mail, MessageSquareWarning, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -13,8 +13,10 @@ import { useSession } from "@/components/shell/session-context";
 import { api, errorMessage } from "@/lib/client/api";
 import { ADVISORS, advisorById, DOC_KIND_INFO, type AdvisorId, type DocKind } from "@/lib/copilot/advisors";
 import { industryById, visibleTo } from "@/lib/workspace/modules";
-import { ActionCard, type CopilotAction } from "./action-card";
+import { ActionCard, confirmAll, type CopilotAction } from "./action-card";
 import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
+import { InboxCard } from "./inbox-card";
+import { KnowledgeSheet } from "./knowledge-sheet";
 
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
 type Insight = { id: string; tone: "danger" | "warning" | "info" | "success"; title: string; detail: string; href: string };
@@ -55,6 +57,17 @@ async function postForm<T>(path: string, text: string, files: File[], advisor: s
   return json as T;
 }
 
+/** A scan from the camera, filed in Documents. */
+async function saveDoc(orgId: string, f: File) {
+  const form = new FormData();
+  form.set("file", f, f.name);
+  form.set("meta", "{}");
+  const res = await fetch(`/api/v1/orgs/${orgId}/documents/files`, { method: "POST", body: form, credentials: "same-origin" });
+  const json = (await res.json().catch(() => ({}))) as { file?: { id: string }; error?: { message?: string } };
+  if (!res.ok) throw new Error(json.error?.message ?? "Couldn't save it to Documents");
+  return `/documents/file/${json.file?.id}`;
+}
+
 const money = (p: number) => {
   const r = p / 100;
   const a = Math.abs(r);
@@ -90,6 +103,7 @@ export function AppAiMode() {
   const shown = useRef(new Set<string>());
   const [advisor, setAdvisor] = useState<AdvisorId>("general");
   const [picking, setPicking] = useState(false);
+  const [knowing, setKnowing] = useState<"" | "business" | "memory">("");
   const adv = advisorById(advisor);
   const has = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
   const copilotOn = has("copilot");
@@ -212,6 +226,11 @@ export function AppAiMode() {
               {proposed.map((a) => (
                 <ActionCard key={a.id} orgId={org.id} action={a} />
               ))}
+              {proposed.filter((a) => a.kind === "send_email" && a.status === "proposed").length > 1 && (
+                <button type="button" className="ai-btn ai-send-all" onClick={() => confirmAll(proposed.filter((a) => a.kind === "send_email").map((a) => a.id))}>
+                  <Mail className="size-4" /> Send all {proposed.filter((a) => a.kind === "send_email").length} emails
+                </button>
+              )}
             </>
           ) : undefined,
       });
@@ -270,6 +289,25 @@ export function AppAiMode() {
     title: "Talk to an advisor.",
     cards: ADVISORS.filter((a) => a.id !== "general").map((a) => ({ id: a.id, title: a.name, sub: a.role, icon: ADVISOR_ICON[a.icon]!, tone: a.tone, onPick: () => meet(a.id) })),
   };
+  // Ready-made work: each a prompt that gets a finished piece, from the workspace's own data.
+  const savers: AiSection = {
+    title: "Save an hour today.",
+    cards: [
+      { id: "quote", title: "Write a quotation", sub: "Client, items and terms — a ready-to-send quote.", icon: FileSignature, tone: "#4f5ef7", onPick: () => void ask("Prepare a professional quotation. Ask me for the client, items, quantities and prices if you can't find them, then write it in full with GST, validity and payment terms.") },
+      { id: "chase", title: "Chase payments", sub: "Polite reminders for every overdue invoice.", icon: BadgeIndianRupee, tone: "#3ccf91", onPick: () => void ask("Show my overdue invoices and draft a professional payment reminder email to each client — courteous for recent ones, firmer for the oldest.") },
+      { id: "week-review", title: "Review my week", sub: "Sales, cash, wins and what slipped, in one page.", icon: ClipboardList, tone: "#8b7bff", onPick: () => void ask("Give me a one-page review of this week: sales and collections against last week, cash position, deals won and lost, overdue work, and the three things I should focus on next week.") },
+      { id: "complaint", title: "Handle a complaint", sub: "A calm, professional reply that keeps the customer.", icon: MessageSquareWarning, tone: "#ff7a59", onPick: () => void ask("Help me respond to a customer complaint. Ask me what happened (or find the email), then draft a professional reply that acknowledges the issue, explains the resolution and keeps the relationship.") },
+      { id: "hire", title: "Write a job post", sub: "Role, skills, pay and a clean job description.", icon: Briefcase, tone: "#4fb3ff", onPick: () => void ask("Write a job description for a role I'm hiring. Ask me the role, location, experience and salary range, then write a clear, professional post with responsibilities, requirements and benefits.") },
+      { id: "gst", title: "Get ready for GST filing", sub: "Sales, purchases and ITC for the month, checked.", icon: Landmark, tone: "#f5a35c", onPick: () => void ask("Help me prepare for this month's GST filing: summarise outward supplies and tax, purchases and eligible input tax credit, and flag anything missing or inconsistent before I file GSTR-1 and 3B.") },
+    ],
+  };
+  const teach: AiSection = {
+    title: "Make it yours.",
+    cards: [
+      { id: "kb", title: "Knowledge base", sub: "Prices, policies and FAQs the AI should know.", icon: BookOpen, tone: "#2ec4b6", onPick: () => setKnowing("business") },
+      { id: "memory", title: "What I remember", sub: "Facts and preferences learned from your chats.", icon: Brain, tone: "#ff7aa2", onPick: () => setKnowing("memory") },
+    ],
+  };
   const launch: AiSection = {
     title: "Set up in a few taps.",
     tiles: [
@@ -290,8 +328,17 @@ export function AppAiMode() {
   return (
     <AiScreen
       greeting={hello(user.name)}
-      lead={copilotOn ? <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} /> : undefined}
-      sections={fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
+      lead={
+        copilotOn ? (
+          <>
+            <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} />
+            {has("mail") && <InboxCard orgId={org.id} me={user.name} onAsk={(q) => void ask(q)} />}
+          </>
+        ) : undefined
+      }
+      sections={copilotOn ? (fresh ? [finish, teach, doIt, savers, files, advisors, launch, ahead] : [ahead, savers, advisors, files, doIt, teach, launch, finish]) : fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
+      overlay={knowing ? <KnowledgeSheet orgId={org.id} start={knowing} onClose={() => setKnowing("")} /> : undefined}
+      onSaveDoc={has("documents") ? (f) => saveDoc(org.id, f) : undefined}
       messages={msgs}
       busy={busy}
       attach
@@ -330,7 +377,7 @@ export function AppAiMode() {
         setMsgs([]);
       }}
       placeholder={adv.id === "general" ? "Ask, or add a file" : `Ask your ${adv.name.toLowerCase()}`}
-      quick={["Reply to my latest email", "Who are my top customers?", "How much am I owed?", "Schedule a call tomorrow at 4pm"]}
+      quick={["Reply to my latest email", "Who are my top customers?", "How much am I owed?", "Schedule a call tomorrow at 4pm", "Remember: our payment terms are 30 days"]}
     />
   );
 }

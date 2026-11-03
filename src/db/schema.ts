@@ -5573,6 +5573,31 @@ export const copilotActions = pgTable(
   (t) => [index("copilot_actions_thread_idx").on(t.threadId)],
 );
 
+/**
+ * What the copilot knows beyond the records: the business's own notes and
+ * documents (kind note | file, written by owners and admins, for everyone),
+ * and facts it learned from one person's conversations (kind learned, theirs).
+ */
+export const copilotKnowledge = pgTable(
+  "copilot_knowledge",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    /** note | file | learned */
+    kind: text("kind").notNull(),
+    /** Set for learned facts: only this person's conversations use them. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default(""),
+    body: text("body").notNull(),
+    /** For files: the original file name. */
+    source: text("source").notNull().default(""),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("copilot_knowledge_org_idx").on(t.orgId, t.kind)],
+);
+
 // ─── Approvals & notifications (platform) ────────────────────────────────────
 
 /** Who has to approve what: a document kind, conditions (amount, department) and ordered steps. */

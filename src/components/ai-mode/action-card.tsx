@@ -5,8 +5,12 @@
 import clsx from "clsx";
 import { ArrowUpRight, Boxes, CalendarDays, Check, Contact, FolderInput, Handshake, Loader2, Mail, Receipt, ReceiptText, Building2, UserPlus, ListTodo, StickyNote, X, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
+
+/** "Send all": confirms each of these suggestions, as its own card's button would (with the edits made in it). */
+export const CONFIRM_ALL = "cc-copilot-confirm-all";
+export const confirmAll = (ids: string[]) => window.dispatchEvent(new CustomEvent(CONFIRM_ALL, { detail: ids }));
 
 export type CopilotAction = { id: string; kind: string; summary: string; label: string; status: string; error?: string | null; result?: { id: string; link: string } | null; input: Record<string, unknown> };
 
@@ -100,6 +104,19 @@ export function ActionCard({ orgId, action }: { orgId: string; action: CopilotAc
       setBusy(null);
     }
   };
+  const latest = useRef(confirm);
+  const live = useRef(open);
+  useEffect(() => {
+    latest.current = confirm;
+    live.current = open && !busy;
+  });
+  useEffect(() => {
+    const on = (e: Event) => {
+      if ((e as CustomEvent<string[]>).detail.includes(action.id) && live.current) void latest.current();
+    };
+    window.addEventListener(CONFIRM_ALL, on);
+    return () => window.removeEventListener(CONFIRM_ALL, on);
+  }, [action.id]);
   const dismiss = async () => {
     setBusy("dismiss");
     try {

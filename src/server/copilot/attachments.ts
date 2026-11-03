@@ -46,6 +46,20 @@ function sheetText(bytes: Buffer): string {
     .join("\n\n");
 }
 
+/** The text of an Office, spreadsheet or text file (for the knowledge base). */
+export function fileText(f: Upload): string {
+  const kind = sniffFile(f.bytes, f.name);
+  const ext = (kind?.ext ?? f.name.split(".").pop() ?? "").toLowerCase();
+  const mime = kind?.mime ?? "";
+  let text: string;
+  if (["xlsx", "xls", "csv", "ods"].includes(ext)) text = sheetText(f.bytes);
+  else if (ext === "docx" || ext === "pptx") text = officeText(f.bytes, ext);
+  else if (["txt", "md", "json", "xml", "html", "htm"].includes(ext) || mime.startsWith("text/")) text = f.bytes.toString("utf8");
+  else throw new ApiError("validation_failed", `“${f.name}” can't be read here. Add a PDF, Word, Excel, PowerPoint, CSV or text file.`);
+  if (!text.trim()) throw new ApiError("validation_failed", `“${f.name}” has no text to read`);
+  return text.slice(0, 200_000);
+}
+
 /** Turns uploads into model content blocks, numbered after the ones already in the conversation. */
 export function toBlocks(files: Upload[], already: number): { blocks: Block[]; attached: Attached[] } {
   if (files.length > MAX_ATTACH_FILES) throw new ApiError("validation_failed", `Add up to ${MAX_ATTACH_FILES} files at a time`);

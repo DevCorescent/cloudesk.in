@@ -146,5 +146,15 @@ export const WORKSPACE_TOOLS = [
     description: "What this workspace has set up and what's missing: business details (legal name, GSTIN, address), invoice details, mailboxes, team, customers, products. Call this when the person is new or asks to get set up.",
     input_schema: { type: "object", properties: {}, additionalProperties: false },
   },
+  {
+    name: "knowledge_search",
+    description: "Search the business's knowledge base (its own policies, price lists, FAQs, processes, product details) for passages matching a question. Use it before answering anything about how this business works that the records don't hold.",
+    input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+  },
+  {
+    name: "remember",
+    description: "Keep one lasting fact or preference this person told you, for future conversations: about their business (key clients, pricing rules, payment terms, suppliers), their role, or how they like things done (tone, sign-off, report format). One short self-contained sentence. Not for one-off details, things already in the records, or anything secret (passwords, codes, card or bank numbers). Saved straight away; say briefly that you'll remember it.",
+    input_schema: { type: "object", properties: { fact: { type: "string" } }, required: ["fact"], additionalProperties: false },
+  },
 ] as const;
 

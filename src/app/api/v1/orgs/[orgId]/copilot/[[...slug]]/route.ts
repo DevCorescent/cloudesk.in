@@ -26,6 +26,20 @@ async function question(req: Request): Promise<{ text: string; advisor: string |
   return { text: String(form.get("text") ?? "").slice(0, 10_000), advisor: String(form.get("advisor") ?? "") || null, files };
 }
 
+/** A knowledge note as JSON, or a file whose text is read here (Office, CSV, text; the browser sends a PDF's text as a note). */
+async function knowledgeBody(req: Request): Promise<Record<string, unknown>> {
+  if (!(req.headers.get("content-type") ?? "").startsWith("multipart/form-data")) return readJson(req, z.record(z.string(), z.unknown()));
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_ATTACH_BYTES + 256 * 1024) throw new ApiError("payload_too_large", "Files for the knowledge base are limited to 4 MB");
+  const form = await req.formData().catch(() => {
+    throw new ApiError("bad_request", "Couldn't read the upload");
+  });
+  const f = form.get("file");
+  if (!f || typeof f === "string") throw new ApiError("validation_failed", "Choose a file", { file: ["Required"] });
+  const name = f.name || "file";
+  const { fileText } = await import("@/server/copilot/attachments");
+  return { title: String(form.get("title") ?? "") || name.replace(/\.[^.]+$/, ""), body: fileText({ name, bytes: Buffer.from(await f.arrayBuffer()) }), source: name };
+}
+
 export const maxDuration = 300;
 
 async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
@@ -68,6 +82,31 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
       return checks(s);
     case "GET activity":
       return activity(s);
+    // Email waiting for a reply, answered from AI mode.
+    case "GET inbox":
+      return (await import("@/server/copilot/inbox")).inbox(s);
+    case "POST inbox :id draft":
+      await rateLimit(`copilot:${s.userId}`, 60, 3_600_000);
+      return (await import("@/server/copilot/inbox")).draft(s, id!, await readJson(ctx.req, z.record(z.string(), z.unknown())).catch(() => ({})));
+    case "POST inbox :id reply":
+      return (await import("@/server/copilot/inbox")).reply(s, id!, await readJson(ctx.req, z.record(z.string(), z.unknown())));
+    case "POST inbox :id settle":
+      return (await import("@/server/copilot/inbox")).settle(s, id!, await readJson(ctx.req, z.record(z.string(), z.unknown())));
+    case "POST sent :id undo":
+      return (await import("@/server/copilot/inbox")).undo(s, id!);
+    // What the AI knows: the business's notes and files, and what it learned from this person.
+    case "GET knowledge":
+      return (await import("@/server/copilot/knowledge")).list(s);
+    case "POST knowledge": {
+      const k = await import("@/server/copilot/knowledge");
+      return k.add(s, await knowledgeBody(ctx.req), (ctx.req.headers.get("content-type") ?? "").startsWith("multipart/form-data") ? "file" : "note");
+    }
+    case "PATCH knowledge :id":
+      return (await import("@/server/copilot/knowledge")).edit(s, id!, await readJson(ctx.req, z.record(z.string(), z.unknown())));
+    case "DELETE knowledge :id":
+      return (await import("@/server/copilot/knowledge")).remove(s, id!);
+    case "POST memories":
+      return { id: await (await import("@/server/copilot/knowledge")).remember(s, await readJson(ctx.req, z.record(z.string(), z.unknown()))) };
     case "GET search":
       return { results: await search(s, new URL(ctx.req.url).searchParams.get("q")?.slice(0, 100) ?? "") };
   }
@@ -76,4 +115,5 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
 
 export const GET = route<P>(handle);
 export const POST = route<P>(handle);
+export const PATCH = route<P>(handle);
 export const DELETE = route<P>(handle);

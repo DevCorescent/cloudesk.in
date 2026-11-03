@@ -6,7 +6,8 @@
 // draws; whoever uses it decides what the suggestions do and how to answer.
 import "./ai-screen.css";
 import clsx from "clsx";
-import { ArrowUp, AudioLines, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Mic, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
+import { ArrowUp, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
@@ -54,23 +55,25 @@ function Rich({ text }: { text: string }) {
   );
 }
 
-type SpeechLike = { lang: string; interimResults: boolean; continuous: boolean; onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null; onend: (() => void) | null; start: () => void; stop: () => void };
-
-/** Dictation where the browser offers it (Chrome, Safari); null elsewhere. */
-function speech(): (new () => SpeechLike) | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as { SpeechRecognition?: new () => SpeechLike; webkitSpeechRecognition?: new () => SpeechLike };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
+// The photo editor (crop, scan, PDF) loads when the camera is first used.
+const PhotoEditor = dynamic(() => import("./photo-editor").then((m) => m.PhotoEditor), { ssr: false });
 
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const pick = useRef<HTMLInputElement>(null);
   const shoot = useRef<HTMLInputElement>(null);
+  // A photo just taken opens in the editor first.
+  const [photo, setPhoto] = useState<File | null>(null);
+  const takePhoto = (input: HTMLInputElement) => {
+    const f = input.files?.[0];
+    input.value = "";
+    setQuickOpen(false);
+    if (f) setPhoto(f);
+  };
   const addFiles = (input: HTMLInputElement) => {
     // Copy the list now: clearing the input (so the same file can be picked again) empties it.
     const picked = Array.from(input.files ?? []);
@@ -78,10 +81,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
     if (picked.length) setFiles((f) => [...f, ...picked].slice(0, 4));
     setQuickOpen(false);
   };
-  const [listening, setListening] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [canSpeak, setCanSpeak] = useState(false);
-  const rec = useRef<SpeechLike | null>(null);
   const end = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   // The bars turn to frosted glass once something scrolls beneath them.
@@ -107,10 +107,6 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
   }, [kind, chatting, single]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the browser's speech support is only known after mount
-    setCanSpeak(!!speech());
-  }, []);
-  useEffect(() => {
     if (chatting) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     measure();
   }, [p.messages.length, p.busy, chatting]);
@@ -122,34 +118,15 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
     if (el.firstElementChild) ro.observe(el.firstElementChild);
     return () => (ro.disconnect(), cancelAnimationFrame(frame.current));
   }, [chatting]);
-  useEffect(() => () => rec.current?.stop(), []);
 
   const send = (q = text) => {
     const v = q.trim();
     if ((!v && !files.length) || p.busy) return;
-    rec.current?.stop();
     p.onSend(v, files);
     setFiles([]);
     setText("");
     setQuickOpen(false);
     if (box.current) box.current.style.height = "";
-  };
-
-  const dictate = () => {
-    const S = speech();
-    if (!S) return;
-    if (listening) return rec.current?.stop();
-    const r = new S();
-    r.lang = "en-IN";
-    r.interimResults = true;
-    // Keeps listening through pauses until they tap again or send.
-    r.continuous = true;
-    const before = text ? `${text.trimEnd()} ` : "";
-    r.onresult = (e) => setText(before + Array.from(e.results, (x) => x[0]!.transcript).join(""));
-    r.onend = () => setListening(false);
-    rec.current = r;
-    setListening(true);
-    r.start();
   };
 
   const grow = (el: HTMLTextAreaElement) => {
@@ -253,7 +230,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
         {p.attach && (
           <>
             <input ref={pick} type="file" multiple accept={ACCEPT} hidden onChange={(e) => addFiles(e.target)} />
-            <input ref={shoot} type="file" accept="image/*" capture="environment" hidden onChange={(e) => addFiles(e.target)} />
+            <input ref={shoot} type="file" accept="image/*" capture="environment" hidden onChange={(e) => takePhoto(e.target)} />
           </>
         )}
         {quickOpen && p.attach && (
@@ -268,8 +245,8 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             <button type="button" onClick={() => shoot.current?.click()}>
               <Camera className="size-[18px]" aria-hidden />
               <span>
-                <b>Take a photo</b>
-                <small>A receipt, a business card, a document</small>
+                <b>Take a photo or scan</b>
+                <small>Crop, clean up, make a PDF — or let AI analyse it</small>
               </span>
             </button>
           </div>
@@ -297,7 +274,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
           </div>
         )}
         <form
-          className={clsx("ai-composer", listening && "is-listening")}
+          className="ai-composer"
           onSubmit={(e) => {
             e.preventDefault();
             send();
@@ -326,7 +303,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             rows={1}
             value={text}
             maxLength={1500}
-            placeholder={listening ? "Listening…" : (p.placeholder ?? "Ask Cloudesk")}
+            placeholder={p.placeholder ?? "Ask Cloudesk"}
             aria-label="Message"
             onChange={(e) => {
               setText(e.target.value);
@@ -340,22 +317,32 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
             }}
           />
           )}
-          {canSpeak && !single && (text.trim() || files.length > 0) && (
-            <button type="button" className="ai-mic" onClick={dictate} aria-label={listening ? "Stop dictation" : "Dictate"}>
-              <Mic className="size-[21px]" strokeWidth={1.8} />
+          {p.attach && !single && (
+            <button type="button" className="ai-mic" onClick={() => shoot.current?.click()} aria-label="Take a photo">
+              <Camera className="size-[21px]" strokeWidth={1.8} />
             </button>
           )}
-          {text.trim() || files.length || !canSpeak || single ? (
-            <button type="submit" className="ai-go" disabled={(!text.trim() && !files.length) || p.busy} aria-label="Send">
-              <ArrowUp className="size-5" strokeWidth={2.2} />
-            </button>
-          ) : (
-            <button type="button" className={clsx("ai-go", listening && "is-on")} onClick={dictate} aria-label={listening ? "Stop dictation" : "Dictate"}>
-              <AudioLines className="size-5" strokeWidth={2} />
-            </button>
-          )}
+          <button type="submit" className="ai-go" disabled={(!text.trim() && !files.length) || p.busy} aria-label="Send">
+            <ArrowUp className="size-5" strokeWidth={2.2} />
+          </button>
         </form>
       </div>
+      {p.overlay}
+      {photo && (
+        <PhotoEditor
+          file={photo}
+          onClose={() => setPhoto(null)}
+          onAttach={(fs) => (setFiles((f) => [...f, ...fs].slice(0, 4)), setPhoto(null))}
+          onAsk={(fs, prompt) => {
+            setPhoto(null);
+            const typed = text.trim();
+            p.onSend(typed ? `${prompt}\n\n${typed}` : prompt, [...files, ...fs].slice(0, 4));
+            setFiles([]);
+            setText("");
+          }}
+          onSaveDoc={p.onSaveDoc}
+        />
+      )}
     </div>
   );
 }

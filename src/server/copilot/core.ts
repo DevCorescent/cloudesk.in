@@ -83,6 +83,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
     messages = [...messages.slice(0, -1), { role: "user", content: [...content.slice(0, qi), ...blocks, content[qi]] }];
   }
   const advisor = advisorById(opts.advisor);
+  const known = await (await import("./knowledge")).context(s, q);
   const save = () => db.update(schema.copilotThreads).set({ messages, updatedAt: new Date() }).where(eq(schema.copilotThreads.id, t.id));
   const note = (msg: string) => {
     messages = [...messages, { role: "assistant", content: [{ type: "text", text: msg }] }];
@@ -97,6 +98,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
           system: [
             { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
             { type: "text", text: `Today is ${todayIst()} (India). You're helping ${s.name}.` },
+            ...(known ? [{ type: "text", text: known }] : []),
             ...(advisor.brief ? [{ type: "text", text: `Advisor mode — ${advisor.name}.\n${advisor.brief}` }] : []),
           ],
           tools: TOOLS.map((x) => ({ ...x, eager_input_streaming: true })) as unknown as Anthropic.Beta.BetaToolUnion[],
@@ -190,6 +192,21 @@ async function runTool(s: Scope, threadId: string, id: string, name: string, inp
       const summary = `${kind === "expense" ? "Expense" : "Bill"} from ${d.supplierName || "an unnamed supplier"}${d.billNo ? ` (${d.billNo})` : ""} — ₹${((sub + tax) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
       const [a] = await db.insert(schema.copilotActions).values({ orgId: s.orgId, threadId, userId: s.userId, kind: "record_bill", payload: { attachmentId: i.attachmentId, kind, draft: r.draft, warnings: r.warnings, fileName: f.name, toolUseId: id }, summary }).returning();
       return ok(id, `Read the file and prepared it (proposal ${a.id}), waiting for the person to confirm: ${summary}. Lines: ${(d.lines ?? []).length}, GST ₹${(tax / 100).toFixed(2)}, dated ${d.date ?? "?"}.${r.warnings.length ? ` Warnings to tell them: ${r.warnings.join(" ")}` : " No warnings."}`);
+    }
+    if (name === "knowledge_search") {
+      const { search: searchKnowledge } = await import("./knowledge");
+      const hits = await searchKnowledge(s, String((input as { query?: unknown } | null)?.query ?? "").slice(0, 300)).catch(() => []);
+      return ok(id, hits.length ? hits.map((h) => `[${h.title}]\n${h.text}`).join("\n\n") : "Nothing in the knowledge base matches. Say so, and offer to note the answer once they tell you.");
+    }
+    if (name === "remember") {
+      const { remember } = await import("./knowledge");
+      try {
+        await remember(s, input);
+      } catch (err) {
+        if (err instanceof ApiError) throw err;
+        return fail(id, "Memory isn't available right now; carry on without saving it.");
+      }
+      return ok(id, "Remembered for future conversations.");
     }
     const read = await readTool(s, name, (input ?? {}) as Record<string, unknown>);
     if (read !== null) return ok(id, read);
