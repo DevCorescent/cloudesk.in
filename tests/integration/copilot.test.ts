@@ -203,6 +203,6 @@ describe("the copilot", () => {
     await db.insert(schema.aiTasks).values({ orgId, kind: "copilot", status: "succeeded", input: {}, provider: "anthropic", model: "claude-opus-5-5", inputTokens: 0, outputTokens: 0, costMicroUsd: 1_000_000_000 });
     const r = await A("POST", "threads", { text: "Anything" });
     expect(r.status).toBe(409);
-    expect(r.json.error.message).toMatch(/budget is used up/);
+    expect(r.json.error.message).toMatch(/AI allowance is used up/);
   });
 });

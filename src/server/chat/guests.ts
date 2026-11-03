@@ -15,6 +15,7 @@ import { decideSchema, expiryFrom, GUEST_DOMAIN, inviteEmailSchema, invitePatchS
 import { ONLINE_MS } from "@/lib/chat/model";
 import { isOn } from "@/lib/workspace/modules";
 import { ApiError, notFound } from "../http/errors";
+import { assertQuota } from "../billing/subscriptions";
 import type { AuthedContext } from "../http/handler";
 import { notify } from "../notify/notify";
 import { appUrl, sendMail } from "../services/mail";
@@ -174,6 +175,9 @@ async function guestFor(s: ChatScope, id: string) {
 async function admit(g: Guest, c: Channel, by: { id: string; name: string } | null) {
   const [top] = await db.select({ n: max(X.seq) }).from(X).where(eq(X.channelId, c.id));
   const since = Number(top?.n ?? 0);
+  // A new guest for the workspace counts against the plan's chat guests (someone already a guest elsewhere doesn't).
+  const [already] = await db.select({ id: M.userId }).from(M).where(and(eq(M.orgId, c.orgId), eq(M.userId, g.userId), eq(M.role, "guest"))).limit(1);
+  if (!already) await assertQuota(c.orgId, "chatGuests");
   const [ok] = await db.update(G).set({ status: "approved", sinceSeq: since, decidedBy: by?.id ?? null, decidedAt: new Date(), reason: "" }).where(and(eq(G.id, g.id), eq(G.status, "pending"))).returning({ id: G.id });
   if (!ok) throw new ApiError("conflict", "Someone already answered this request");
   await db.insert(M).values({ channelId: c.id, userId: g.userId, orgId: c.orgId, role: "guest", readSeq: since }).onConflictDoUpdate({ target: [M.channelId, M.userId], set: { role: "guest" } });

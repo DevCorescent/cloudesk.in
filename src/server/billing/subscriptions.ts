@@ -28,7 +28,9 @@ import {
   type QuotaKey,
   QUOTA_KEYS,
   QUOTA_LABEL,
+  type Quotas,
 } from "@/lib/billing/catalog";
+import type { Overrides } from "@/lib/billing/schema";
 import type { Limits } from "@/lib/platform/plans";
 import { moduleById, MODULE_IDS, type ModuleId } from "@/lib/workspace/modules";
 import { ApiError } from "../http/errors";
@@ -141,12 +143,29 @@ export async function subscriptionOf(orgId: string, exec: Exec = db): Promise<Su
   return s ?? null;
 }
 
+/**
+ * The platform team's overrides on top of whatever the workspace is on (trial,
+ * plan, Free or grace): extra features, raised or lowered limits, and
+ * allowances (null = unlimited). A read-only (expired) workspace stays read-only.
+ */
+export function withOverrides<E extends Entitlement>(e: E, o: Sub["overrides"] | null | undefined): E {
+  if (!o || e.state === "unrestricted" || e.state === "expired") return e;
+  const modules = e.modules === null ? null : [...new Set([...e.modules, ...(o.modules ?? [])])];
+  const limits = { ...e.limits, ...(o.limits ?? {}) } as Limits;
+  const quotas = { ...e.quotas };
+  for (const [k, v] of Object.entries(o.quotas ?? {})) {
+    if (v === null) delete quotas[k as QuotaKey];
+    else if (typeof v === "number") quotas[k as QuotaKey] = v;
+  }
+  return { ...e, modules, limits, quotas };
+}
+
 /** What the workspace may use right now. Cached for a few seconds per server. */
 export async function entitlementFor(orgId: string): Promise<Entitlement & { planName: string }> {
   const hit = ents().get(orgId);
   if (hit && Date.now() - hit.at < 5_000) return hit.v;
   const [sub, p] = await Promise.all([subscriptionOf(orgId), pricing()]);
-  const v = { ...entitlement(sub, await trialLimits(), new Date(), p.enforce, { free: await freeTier(), trialQuotas: p.trialQuotas }), planName: sub?.planName ?? "" };
+  const v = { ...withOverrides(entitlement(sub, await trialLimits(), new Date(), p.enforce, { free: await freeTier(), trialQuotas: p.trialQuotas }), sub?.overrides), planName: sub?.planName ?? "" };
   if (v.state === "free") v.planName = "Free";
   ents().set(orgId, { at: Date.now(), v });
   return v;
@@ -159,7 +178,7 @@ export async function entitlementsFor(orgIds: string[]) {
   const by = new Map(rows.map((r) => [r.orgId, r]));
   const free = await freeTier();
   return new Map(orgIds.map((id) => {
-    const e = entitlement(by.get(id) ?? null, tl, new Date(), p.enforce, { free, trialQuotas: p.trialQuotas });
+    const e = withOverrides(entitlement(by.get(id) ?? null, tl, new Date(), p.enforce, { free, trialQuotas: p.trialQuotas }), by.get(id)?.overrides);
     return [id, { ...e, planName: e.state === "free" ? "Free" : (by.get(id)?.planName ?? ""), had: (by.get(id)?.modules as string[] | null | undefined) ?? null }];
   }));
 }
@@ -265,6 +284,31 @@ function previewFor(sub: Sub, q: Quote, p: Pricing, now: Date, disc: Discount = 
   return { ...base, mode: "start", ...bill(q.amount, 0), periodStart: now.toISOString(), periodEnd: addInterval(now, q.interval).toISOString(), effectiveAt: now.toISOString(), note: "Your plan starts the moment it's paid, for a full period from that day." };
 }
 
+/**
+ * A smaller plan is only taken while the workspace fits in it — otherwise it
+ * would keep more seats, sites or storage than it pays for. Says exactly what
+ * to remove first.
+ */
+async function assertFits(orgId: string, q: Quote, o: Sub["overrides"] | null) {
+  const { usageFor } = await import("./billing");
+  const lim = { ...q.limits, ...(o?.limits ?? {}) } as Limits;
+  const quotas: Quotas = { ...q.quotas };
+  for (const [k, v] of Object.entries(o?.quotas ?? {})) if (v === null) delete quotas[k as QuotaKey];
+  else if (typeof v === "number") quotas[k as QuotaKey] = v;
+  const [u, totals] = await Promise.all([usageFor(orgId), quotaUsage(orgId)]);
+  const over: string[] = [];
+  if (u.seats > lim.seats) over.push(`${u.seats} team members (the plan has ${lim.seats})`);
+  if (u.projects > lim.projects) over.push(`${u.projects} sites (the plan has ${lim.projects})`);
+  if (u.customDomains > lim.customDomains) over.push(`${u.customDomains} custom domains (the plan has ${lim.customDomains})`);
+  for (const k of ["contacts", "storageMb", "chatGuests"] as const) {
+    const cap = quotas[k];
+    if (cap !== undefined && totals[k] > cap) over.push(`${fmtQuota(k, totals[k])} ${QUOTA_LABEL[k].unit} (the plan has ${fmtQuota(k, cap)})`);
+  }
+  if (over.length) throw new ApiError("conflict", `${q.name} is smaller than what this workspace uses: ${over.join(", ")}. Remove the extra first, or choose a bigger plan.`, { fits: over });
+}
+
+const fmtQuota = (k: QuotaKey, n: number) => (k === "aiBudgetUsd" ? `$${n.toFixed(2)}` : Math.round(n).toLocaleString("en-IN"));
+
 async function lockOrg(tx: Exec, orgId: string) {
   await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`subscription:${orgId}`}))`);
 }
@@ -295,6 +339,7 @@ export async function changePlan(orgId: string, actorId: string, choice: Choice,
     if (sub.complimentary && (!sub.compUntil || sub.compUntil > now)) throw new ApiError("conflict", "Your plan is provided by the Cloudesk team. Contact support to change it.");
     const disc = await discountFor(orgId, tx);
     const pv = previewFor(sub, q, p, now, disc);
+    if (pv.mode !== "same") await assertFits(orgId, q, sub.overrides);
     const snap = snapshot(q);
     const discounted = pv.discount && disc ? { discount: { referralId: disc.referralId, amount: pv.discount } } : {};
     const lines = q.lines.map((l) => ({ label: lineLabel(l), amount: l.amount }));
@@ -761,7 +806,8 @@ export type AdminAction =
   | { action: "credit"; amount: number; note: string }
   | { action: "record_payment"; invoiceId: string; reference: string }
   | { action: "void_invoice"; invoiceId: string }
-  | { action: "end_complimentary" };
+  | { action: "end_complimentary" }
+  | { action: "set_overrides"; overrides: Overrides };
 
 /** What the platform team can do to a workspace's subscription; all of it is on the timeline and in the audit log. */
 export async function adminAct(adminId: string, orgId: string, a: AdminAction, now = new Date()) {
@@ -835,6 +881,13 @@ export async function adminAct(adminId: string, orgId: string, a: AdminAction, n
           await event(tx, orgId, "invoice_voided", { invoice: inv.seq }, adminId, true);
           break;
         }
+        case "set_overrides": {
+          const o = a.overrides;
+          const clean = { modules: o.modules, limits: o.limits, quotas: o.quotas, note: o.note };
+          await set({ overrides: clean });
+          await event(tx, orgId, "overrides_set", { modules: o.modules, limits: o.limits, quotas: o.quotas, note: o.note }, adminId, true);
+          break;
+        }
         case "end_complimentary":
           if (!sub.complimentary) throw new ApiError("conflict", "This workspace isn't on a complimentary plan");
           await set({ complimentary: false, compUntil: null, status: sub.currentPeriodEnd && sub.currentPeriodEnd > now ? "active" : "expired" });
@@ -866,6 +919,83 @@ export async function savePlan(adminId: string, plan: CatalogPlan) {
   return allPlans();
 }
 
+/**
+ * Admin → Plans → a plan → "Give subscribers the latest": existing subscribers
+ * keep a copy of what they bought, so features and allowances added to a plan
+ * later don't reach them. This brings their features, limits and allowances up
+ * to the plan as it is now; what they pay stays the same until they change plan.
+ * Seats bought on top are kept.
+ */
+export async function syncSubscribers(adminId: string, planId: string) {
+  const plan = (await allPlans()).find((p) => p.id === planId);
+  if (!plan || plan.kind === "free") throw new ApiError("not_found", "Plan not found");
+  const rows = await db.select({ id: schema.orgSubscriptions.id, orgId: schema.orgSubscriptions.orgId, seats: schema.orgSubscriptions.seats, limits: schema.orgSubscriptions.limits }).from(schema.orgSubscriptions).where(eq(schema.orgSubscriptions.planId, planId));
+  for (const r of rows) {
+    const limits = { ...plan.limits, seats: Math.max(plan.limits.seats, r.limits?.seats ?? 0) };
+    await db.update(schema.orgSubscriptions).set({ modules: plan.modules, limits, quotas: (plan.quotas ?? {}) as Record<string, number>, planName: plan.name, updatedAt: new Date() }).where(eq(schema.orgSubscriptions.id, r.id));
+    await event(db, r.orgId, "plan_refreshed", { plan: plan.name }, adminId, true);
+    clearEntitlement(r.orgId);
+  }
+  await audit({ actorId: adminId, action: "platform.plan_synced", targetType: "plan", targetId: planId, metadata: { subscribers: rows.length } });
+  return { updated: rows.length };
+}
+
+/**
+ * Admin → Plans → "Apply recommended plans": the built-in plans' features,
+ * limits and allowances (and any built-in plan that's missing, like Business).
+ * Prices, names and what's on sale are left exactly as the platform set them.
+ */
+export async function applyRecommendedPlans(adminId: string) {
+  const have = new Map((await allPlans()).map((p) => [p.id, p]));
+  for (const d of DEFAULT_PLANS) {
+    const cur = have.get(d.id);
+    const values = cur
+      ? { ...cur, tagline: d.tagline, modules: d.modules, limits: d.limits, quotas: (d.quotas ?? {}) as Record<string, number>, sort: d.sort, updatedAt: new Date() }
+      : { ...d, quotas: (d.quotas ?? {}) as Record<string, number>, updatedAt: new Date() };
+    await db.insert(schema.planCatalog).values(values).onConflictDoUpdate({ target: schema.planCatalog.id, set: values });
+  }
+  clearCatalogCache();
+  await audit({ actorId: adminId, action: "platform.plans_recommended", targetType: "plan", targetId: "catalogue", metadata: { plans: DEFAULT_PLANS.map((p) => p.id) } });
+  return allPlans();
+}
+
+/** Rough provider prices, for the margins view (US dollars). */
+const COST = { emailUsd: 0.0004, storageGbUsd: 0.023 };
+
+/**
+ * Admin → Margins: what each workspace pays against what it costs to run this
+ * month (AI, campaign email, storage), worst first — so a plan or a customer
+ * that loses money shows up before the invoice does.
+ */
+export async function margins(limit = 200) {
+  const p = await pricing();
+  const since = monthStart();
+  const rate = p.usdInr;
+  const rows = await db.execute(sql`
+    select s.org_id, o.name, o.slug, s.plan_name, s.status, s.complimentary, s.monthly, s.currency,
+      coalesce((select sum(cost_micro_usd) from ai_tasks t where t.org_id = s.org_id and t.created_at >= ${since}),0)::bigint as ai_micro,
+      coalesce((select count(*) from mkt_sends m where m.org_id = s.org_id and m.sent_at >= ${since}),0)::int as emails,
+      (coalesce((select sum(size) from doc_versions v where v.org_id = s.org_id),0) + coalesce((select sum(size) from doc_assets x where x.org_id = s.org_id),0) + coalesce((select sum(a.size) from assets a join projects pr on pr.id = a.project_id where pr.org_id = s.org_id),0))::bigint as bytes
+    from org_subscriptions s join organizations o on o.id = s.org_id
+    order by ai_micro desc limit ${Math.min(1000, limit)}`);
+  const list = (rows.rows as { org_id: string; name: string; slug: string; plan_name: string; status: string; complimentary: boolean; monthly: number; currency: string; ai_micro: string; emails: number; bytes: string }[]).map((r) => {
+    const revenue = r.complimentary || !["active", "past_due"].includes(r.status) ? 0 : Number(r.monthly);
+    const aiUsd = Number(r.ai_micro) / 1_000_000;
+    const costUsd = aiUsd + r.emails * COST.emailUsd + (Number(r.bytes) / 1_073_741_824) * COST.storageGbUsd;
+    const cost = Math.round(costUsd * rate * 100);
+    return { orgId: r.org_id, name: r.name, slug: r.slug, plan: r.plan_name, status: r.status, complimentary: r.complimentary, revenue, aiUsd: Math.round(aiUsd * 100) / 100, emails: r.emails, storageMb: Math.round(Number(r.bytes) / 1_048_576), cost, margin: revenue - cost, losing: cost > revenue && cost > 0 };
+  });
+  list.sort((a, b) => a.margin - b.margin);
+  const totals = list.reduce((t, r) => ({ revenue: t.revenue + r.revenue, cost: t.cost + r.cost, losing: t.losing + (r.losing ? 1 : 0) }), { revenue: 0, cost: 0, losing: 0 });
+  return { currency: p.currency, usdInr: rate, since: since.toISOString(), totals: { ...totals, margin: totals.revenue - totals.cost }, workspaces: list };
+}
+
+/** One workspace's allowances: used, its limit, and the plan's limit before any override. */
+export async function allowancesOf(orgId: string) {
+  const [e, used, sub] = await Promise.all([entitlementFor(orgId), quotaUsage(orgId), subscriptionOf(orgId)]);
+  return { state: e.state, plan: e.planName, modules: e.modules, limits: e.limits, overrides: sub?.overrides ?? {}, quotas: QUOTA_KEYS.map((k) => ({ key: k, name: QUOTA_LABEL[k].name, unit: QUOTA_LABEL[k].unit, used: Math.round(used[k] * 100) / 100, limit: e.quotas[k] ?? null })) };
+}
+
 /** Subscribers per plan, for the catalogue editor. */
 export async function planUsage() {
   // Workspaces on the plan now: paying (or in their grace period) or given it by the platform.
@@ -877,21 +1007,35 @@ export async function planUsage() {
 
 const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-/** How much of each allowance the workspace has used (this calendar month; contacts in total). */
+/** How much of each allowance the workspace has used (this calendar month; contacts, storage and guests in total). */
 export async function quotaUsage(orgId: string, only?: QuotaKey): Promise<Record<QuotaKey, number>> {
   const since = monthStart();
   const want = (k: QuotaKey) => !only || only === k;
-  const [inv, contacts, ai] = await Promise.all([
+  const one = async (q: Promise<{ n: number | string | null }[]> | null) => (q ? Number((await q)[0]?.n ?? 0) : 0);
+  const [inv, contacts, ai, aiCost, campaign, sign, storage, guests] = await Promise.all([
     want("invoicesPerMonth")
-      ? db.execute(sql`select count(*)::int as n from invoice_documents d join invoice_owners o on o.id = d.project_id left join projects p on p.id = o.project_id left join finance_books b on b.id = o.book_id where coalesce(p.org_id, b.org_id) = ${orgId} and d.type = 'invoice' and d.created_at >= ${since}`)
-      : null,
-    want("contacts") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.crmContacts).where(eq(schema.crmContacts.orgId, orgId)) : null,
-    want("aiPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.aiTasks).where(and(eq(schema.aiTasks.orgId, orgId), gt(schema.aiTasks.createdAt, since))) : null,
+      ? db.execute(sql`select count(*)::int as n from invoice_documents d join invoice_owners o on o.id = d.project_id left join projects p on p.id = o.project_id left join finance_books b on b.id = o.book_id where coalesce(p.org_id, b.org_id) = ${orgId} and d.type = 'invoice' and d.created_at >= ${since}`).then((r) => Number((r.rows[0] as { n?: number } | undefined)?.n ?? 0))
+      : 0,
+    one(want("contacts") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.crmContacts).where(eq(schema.crmContacts.orgId, orgId)) : null),
+    one(want("aiPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.aiTasks).where(and(eq(schema.aiTasks.orgId, orgId), gt(schema.aiTasks.createdAt, since))) : null),
+    one(want("aiBudgetUsd") ? db.select({ n: sql<string>`coalesce(sum(${schema.aiTasks.costMicroUsd}),0)::bigint` }).from(schema.aiTasks).where(and(eq(schema.aiTasks.orgId, orgId), gt(schema.aiTasks.createdAt, since))) : null),
+    // Queued sends count as soon as they're queued, so a campaign can't overshoot while it's going out.
+    one(want("campaignEmailsPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.mktSends).where(and(eq(schema.mktSends.orgId, orgId), sql`(${schema.mktSends.status} = 'queued' or ${schema.mktSends.sentAt} >= ${since})`)) : null),
+    one(want("signaturesPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.docSignRequests).where(and(eq(schema.docSignRequests.orgId, orgId), gt(schema.docSignRequests.createdAt, since))) : null),
+    want("storageMb")
+      ? db.execute(sql`select (coalesce((select sum(size) from doc_versions where org_id = ${orgId}),0) + coalesce((select sum(size) from doc_assets where org_id = ${orgId}),0) + coalesce((select sum(a.size) from assets a join projects p on p.id = a.project_id where p.org_id = ${orgId}),0))::bigint as n`).then((r) => Number((r.rows[0] as { n?: string | number } | undefined)?.n ?? 0))
+      : 0,
+    one(want("chatGuests") ? db.select({ n: sql<number>`count(distinct ${schema.teamMembers.userId})::int` }).from(schema.teamMembers).where(and(eq(schema.teamMembers.orgId, orgId), eq(schema.teamMembers.role, "guest"))) : null),
   ]);
   return {
-    invoicesPerMonth: Number((inv?.rows[0] as { n?: number } | undefined)?.n ?? 0),
-    contacts: contacts?.[0]?.n ?? 0,
-    aiPerMonth: ai?.[0]?.n ?? 0,
+    invoicesPerMonth: inv,
+    contacts,
+    aiPerMonth: ai,
+    aiBudgetUsd: aiCost / 1_000_000,
+    campaignEmailsPerMonth: campaign,
+    signaturesPerMonth: sign,
+    storageMb: storage / 1_048_576,
+    chatGuests: guests,
   };
 }
 
@@ -926,7 +1070,7 @@ export async function assertQuota(orgId: string, key: QuotaKey, adding = 1) {
   if (used + adding > limit) {
     const rec = await recommendPlan({ modules: meta.module ? [meta.module] : [], quota: key, atLeast: limit });
     const plan = e.state === "trial" ? "Your free trial" : `The ${e.planName || "current"} plan`;
-    throw new ApiError("conflict", `${plan} includes ${limit.toLocaleString("en-IN")} ${meta.unit} and you've used ${used.toLocaleString("en-IN")}.${rec ? ` ${rec.name} has more — upgrade in Settings → Billing.` : " Upgrade in Settings → Billing for more."}`, { quota: [key], limit: [String(limit)], used: [String(used)], ...(rec ? { upgrade: [rec.planId] } : {}) });
+    throw new ApiError("conflict", `${plan} includes ${fmtQuota(key, limit)} ${meta.unit} and you've used ${fmtQuota(key, used)}.${rec ? ` ${rec.name} has more — upgrade in Settings → Billing.` : " Upgrade in Settings → Billing for more."}`, { quota: [key], limit: [String(limit)], used: [String(Math.round(used * 100) / 100)], ...(rec ? { upgrade: [rec.planId] } : {}) });
   }
   if ((used + adding) / limit >= 0.8) void warnOnce(orgId, key, used + adding, limit).catch(() => {});
 }
@@ -937,7 +1081,7 @@ async function warnOnce(orgId: string, key: QuotaKey, used: number, limit: numbe
   if (seen) return;
   await event(db, orgId, "quota_warning", { key, month, used, limit });
   const meta = QUOTA_LABEL[key];
-  await notifyOwners(orgId, { kind: "billing.invoice", title: `You've used ${used} of ${limit} ${meta.unit}`, body: meta.monthly ? "It resets on the 1st. Upgrade for more before you run out." : "Upgrade for more before you run out.", link: "/settings/billing" });
+  await notifyOwners(orgId, { kind: "billing.invoice", title: `You've used ${fmtQuota(key, used)} of ${fmtQuota(key, limit)} ${meta.unit}`, body: meta.monthly ? "It resets on the 1st. Upgrade for more before you run out." : "Upgrade for more before you run out.", link: "/settings/billing" });
 }
 
 /** The records a workspace has in each feature — to show what a plan keeps (and what Free would lock away). */

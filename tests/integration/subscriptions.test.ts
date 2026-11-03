@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb, db, schema } from "@/db";
+import { DEFAULT_PLANS } from "@/lib/billing/catalog";
 import * as me from "@/app/api/v1/auth/me/route";
 import * as signup from "@/app/api/v1/auth/signup/route";
 import * as signupStart from "@/app/api/v1/auth/signup/start/route";
@@ -88,7 +89,7 @@ describe("the free trial", () => {
     expect(Math.round((s.trialEndsAt!.getTime() - s.trialStartedAt!.getTime()) / DAY)).toBe(30);
     const o = (await S("GET", "")).json;
     expect(o).toMatchObject({ state: "trial", entitled: null, stats: { trialDaysLeft: 30, trialDays: 30 } });
-    expect(o.plans.map((p: { id: string }) => p.id)).toEqual(["workday", "starter", "growth", "enterprise"]);
+    expect(o.plans.map((p: { id: string }) => p.id)).toEqual(["workday", "starter", "growth", "business", "enterprise"]);
     // The session tells the app what the plan includes.
     const m = (await call(me.GET, { cookie: C.owner })).json;
     expect(m.organizations[0].plan).toMatchObject({ state: "trial", name: "Free trial" });
@@ -96,7 +97,7 @@ describe("the free trial", () => {
 
   it("shows the catalogue publicly, and billing only to owners and the billing role", async () => {
     const pub = await call(plansApi.GET, { path: "/api/v1/plans" });
-    expect(pub.json.plans).toHaveLength(4);
+    expect(pub.json.plans).toHaveLength(5);
     expect(pub.json.pricing).toMatchObject({ trialDays: 30, taxBps: 1800 });
     expect((await S("GET", "", undefined, "member")).status).toBe(403);
   });
@@ -206,7 +207,7 @@ describe("missed renewals", () => {
     // On Free: the Free plan's features only, nothing read-only.
     const free = await entitlementFor(org);
     expect(free).toMatchObject({ state: "free", planName: "Free", modules: ["mail", "calendar", "chat", "invoicing", "crm"] });
-    expect(free.quotas).toEqual({ invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25 });
+    expect(free.quotas).toEqual(DEFAULT_PLANS.find((p) => p.id === "free")!.quotas);
     await expect(assertEntitled(org, new Request(`http://localhost/api/v1/orgs/${org}/hr/people`, { method: "POST" }), "hr")).rejects.toThrow(/isn't in your Free plan/);
     await expect(assertEntitled(org, new Request(`http://localhost/api/v1/orgs/${org}/crm/contacts`, { method: "POST" }), "crm")).resolves.toBeUndefined();
     // With the Free plan switched off it's read-only instead: reading works; changing anything doesn't — except paying.
@@ -277,7 +278,7 @@ describe("the platform team", () => {
   it("edits the catalogue without changing what subscribers already pay", async () => {
     const plans = (await A("GET", "billing-plans")).json;
     // The four on sale and the Free plan.
-    expect(plans.plans).toHaveLength(5);
+    expect(plans.plans).toHaveLength(6);
     const { savePlan } = await import("@/server/billing/subscriptions");
     const starter = plans.plans.find((p: { id: string }) => p.id === "starter");
     await savePlan(U.staff!, { ...starter, monthly: 129900 });

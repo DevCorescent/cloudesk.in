@@ -177,7 +177,17 @@ export function PricingPlans({ plans, pricing, free, interval, onCompare }: { pl
   );
 }
 
-const QUOTA_TEXT: Record<string, (n: number) => string> = { invoicesPerMonth: (n) => `${n} invoices a month`, contacts: (n) => `${n.toLocaleString("en-IN")} CRM contacts`, aiPerMonth: (n) => `${n} AI requests a month` };
+const n0 = (n: number) => n.toLocaleString("en-IN");
+// The AI spend cap is a fair-use guard behind "AI requests", so it isn't listed on its own.
+const QUOTA_TEXT: Record<string, (n: number) => string> = {
+  invoicesPerMonth: (n) => `${n0(n)} invoices a month`,
+  contacts: (n) => `${n0(n)} CRM contacts`,
+  aiPerMonth: (n) => `${n0(n)} AI requests a month`,
+  campaignEmailsPerMonth: (n) => (n ? `${n0(n)} campaign emails a month` : "No email campaigns"),
+  signaturesPerMonth: (n) => `${n0(n)} e-sign requests a month`,
+  storageMb: (n) => `${n >= 1024 ? `${Math.round(n / 1024)} GB` : `${n} MB`} of storage`,
+  chatGuests: (n) => `${n0(n)} chat guests`,
+};
 
 function FreeCard({ p, trialDays }: { p: CatalogPlan; trialDays: number }) {
   return (
@@ -190,7 +200,7 @@ function FreeCard({ p, trialDays }: { p: CatalogPlan; trialDays: number }) {
       <Link href="/start" className="mt-5 inline-flex h-11 items-center justify-center gap-1.5 rounded-full text-[14.5px] font-medium ring-1 ring-fg/[0.12] hover:bg-fg/[0.04]">Start free <ArrowRight className="size-4" /></Link>
       <ul className="mt-6 space-y-2 border-t border-fg/[0.06] pt-5 text-[13.5px] text-fg/75">
         {(p.modules ?? []).map((m) => <li key={m} className="flex gap-2"><Check className="mt-0.5 size-4 shrink-0 text-emerald-600" /> {nameOf(m)}</li>)}
-        {Object.entries(p.quotas ?? {}).map(([k, n]) => <li key={k} className="flex gap-2 text-fg/60"><Minus className="mt-0.5 size-4 shrink-0 text-fg/30" /> {QUOTA_TEXT[k]?.(n) ?? `${k}: ${n}`}</li>)}
+        {Object.entries(p.quotas ?? {}).filter(([k]) => k !== "aiBudgetUsd").map(([k, n]) => <li key={k} className="flex gap-2 text-fg/60"><Minus className="mt-0.5 size-4 shrink-0 text-fg/30" /> {QUOTA_TEXT[k]?.(n) ?? `${k}: ${n}`}</li>)}
         <li className="flex gap-2 text-fg/60"><Minus className="mt-0.5 size-4 shrink-0 text-fg/30" /> {p.limits.seats} team seats · {p.limits.projects} web app · Cloudesk address</li>
         <li className="flex gap-2 text-fg/60"><Minus className="mt-0.5 size-4 shrink-0 text-fg/30" /> “Made with Cloudesk” on your site</li>
       </ul>

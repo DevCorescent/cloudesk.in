@@ -5,7 +5,7 @@
 // maintenance, subscriptions, plans and pricing, integrations, settings and infrastructure. Sections show
 // only what the admin's role allows; the server checks every action again.
 import clsx from "clsx";
-import { Lightbulb, Activity, BarChart3, Blocks, BrickWall, Building2, Cable, Cloud, Flag, Gauge, Banknote, CreditCard, Handshake, Megaphone, Rocket, ScrollText, Server, Settings, ShieldCheck, ShieldHalf, Tags, TrendingUp, Users } from "lucide-react";
+import { Lightbulb, Activity, BarChart3, Blocks, BrickWall, Building2, Cable, Cloud, Flag, Gauge, Banknote, CreditCard, Handshake, Megaphone, Rocket, ScrollText, Server, Settings, ShieldCheck, ShieldHalf, Tags, TrendingUp, Users, Scale } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { AuditPanel } from "@/components/admin/audit";
 import { CloudflarePanel } from "@/components/admin/cloudflare";
@@ -28,6 +28,7 @@ import { NoticesPanel, SettingsPanel } from "@/components/admin/settings";
 import { SubscriptionsPanel } from "@/components/admin/subscriptions";
 import { AdminsPanel, UsersPanel } from "@/components/admin/users";
 import { WorkspacesPanel } from "@/components/admin/workspaces";
+import { MarginsPanel } from "@/components/admin/margins";
 import { ErrorState, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/client/api";
 import type { PlatformPerm } from "@/lib/platform/admin-roles";
@@ -38,6 +39,7 @@ type Tab = { id: string; hash?: string; label: string; icon: ReactNode; perm: Pl
 const TABS: Tab[] = [
   { id: "overview", label: "Overview", icon: <BarChart3 />, perm: "analytics:read", group: "Insights", sub: "Growth, activity, plans and revenue across the platform.", render: () => <OverviewPanel /> },
   { id: "revenue", label: "Revenue", icon: <Banknote />, perm: "analytics:read", group: "Insights", sub: "What clients earn through the platform, and what the platform earns from them.", render: () => <RevenuePanel /> },
+  { id: "margins", label: "Margins", icon: <Scale />, perm: "tenants:read", group: "Insights", sub: "What each workspace pays against what it costs to run this month — so no plan or customer loses money unnoticed.", render: () => <MarginsPanel /> },
   { id: "modules", label: "Modules", icon: <Blocks />, perm: "analytics:read", group: "Insights", sub: "Adoption, activity and results of every feature across all workspaces.", render: () => <ModulesPanel /> },
   { id: "scalability", label: "Scalability", icon: <TrendingUp />, perm: "health:read", group: "Insights", sub: "Traffic, latency, servers, database growth and capacity recommendations.", render: () => <ScalabilityPanel /> },
   { id: "health", label: "Health", icon: <Activity />, perm: "health:read", group: "Insights", sub: "Database, servers, jobs and what's failing — refreshes every 20 seconds.", render: () => <HealthPanel /> },

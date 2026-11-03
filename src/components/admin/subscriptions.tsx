@@ -14,6 +14,7 @@ import { errorMessage } from "@/lib/client/api";
 import { dateTime } from "@/lib/client/format";
 import { money, quote, QuoteError, taxOf, type CatalogPlan, type Choice, type Interval, type Pricing } from "@/lib/billing/catalog";
 import { MODULE_GROUPS, MODULE_IDS, MODULES, moduleById, withRequirements, type ModuleId } from "@/lib/workspace/modules";
+import { AllowancesSection } from "./allowances";
 import { num, Section, Stat, useAdmin, useCan, useRun } from "./common";
 
 // ── Shapes the API returns ──────────────────────────────────────────────────
@@ -298,6 +299,9 @@ const EVENT: Record<string, string> = {
   renewal_invoiced: "Renewal invoiced",
   paid: "Payment received",
   activated: "Plan started",
+  overrides_set: "Overrides changed by the platform",
+  plan_refreshed: "Plan updated to its latest features",
+  quota_warning: "Allowance nearly used",
 };
 const detailText = (d: Record<string, unknown>, currency: string) =>
   Object.entries(d ?? {})
@@ -362,6 +366,7 @@ export function SubscriptionDrawer({ orgId, name: known, onClose }: { orgId: str
                   )}
                 </Card>
               </div>
+              <AllowancesSection orgId={orgId} write={can("tenants:write")} />
               <Invoices orgId={orgId} invoices={d.invoices} write={can("tenants:write")} />
               {can("tenants:write") && <Actions orgId={orgId} name={name ?? "this workspace"} d={d} />}
               <Section title="Timeline" sub="Everything that happened to this subscription, newest first.">

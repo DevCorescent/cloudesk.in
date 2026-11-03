@@ -11,6 +11,7 @@ import { db, schema } from "@/db";
 import { signRequestSchema, turn } from "@/lib/documents/model";
 import { textPdf } from "@/lib/documents/pdf";
 import { ApiError, notFound } from "../http/errors";
+import { assertQuota } from "../billing/subscriptions";
 import { notify } from "../notify/notify";
 import { sha256 } from "../security/tokens";
 import { audit } from "../services/audit";
@@ -45,6 +46,7 @@ async function names(orgId: string, userId: string) {
 export async function createRequest(s: Scope, raw: unknown) {
   requireWrite(s);
   const v = check(signRequestSchema, raw);
+  await assertQuota(s.orgId, "signaturesPerMonth");
   const f = await getFile(s, v.fileId);
   if (f.status === "archived") throw new ApiError("conflict", "This file is archived");
   const emails = v.signers.map((x) => x.email.toLowerCase());

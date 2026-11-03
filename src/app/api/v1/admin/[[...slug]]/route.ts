@@ -6,6 +6,7 @@ import { readJson, route, type AuthedContext } from "@/server/http/handler";
 import { notFound } from "@/server/http/errors";
 import { platformPerms, ROLE_LABEL, type PlatformPerm } from "@/lib/platform/admin-roles";
 import { PLANS, PLAN_IDS } from "@/lib/platform/plans";
+import { overridesSchema, quotasSchema } from "@/lib/billing/schema";
 import { deleteFlag, flags, reauthenticate, requirePlatform, saveFlag, setComp, setNote, setTrial, suspend, tenant, tenants, unsuspend } from "@/server/platform/admin";
 import { clientDetail, revenueOverview } from "@/server/platform/clients";
 import { configView, saveConfig } from "@/server/platform/config";
@@ -24,7 +25,7 @@ import * as cloudflare from "@/server/security/cloudflare";
 import { securityPosture } from "@/server/security/posture";
 import { choiceSchema } from "@/lib/billing/schema";
 import { MODULE_IDS, type ModuleId } from "@/lib/workspace/modules";
-import { adminAct, adminList, adminStats, allPlans, clearEntitlement, overview as subscriptionOverview, paymentProviders, planUsage, savePlan, type AdminAction } from "@/server/billing/subscriptions";
+import { adminAct, adminList, adminStats, allowancesOf, allPlans, applyRecommendedPlans, clearEntitlement, margins, overview as subscriptionOverview, paymentProviders, planUsage, savePlan, syncSubscribers, type AdminAction } from "@/server/billing/subscriptions";
 import * as partners from "@/server/partners/core";
 import { adminComment, adminDetail, adminList as requestList, adminUpdate, release, rollback, workspacesFor } from "@/server/requests/core";
 
@@ -37,7 +38,7 @@ const planSchema = z.object({
   name: z.string().trim().min(1).max(40),
   tagline: z.string().trim().max(120).default(""),
   kind: z.enum(["preset", "basic", "free"]).default("preset"),
-  quotas: z.object({ invoicesPerMonth: z.number().int().min(0).max(10_000_000).optional(), contacts: z.number().int().min(0).max(10_000_000).optional(), aiPerMonth: z.number().int().min(0).max(10_000_000).optional() }).default({}),
+  quotas: quotasSchema.default({}),
   modules: z.array(z.enum(MODULE_IDS as unknown as [ModuleId, ...ModuleId[]])).min(1).max(MODULE_IDS.length).nullable(),
   limits: limitsSchema,
   monthly: amount,
@@ -58,6 +59,7 @@ const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("record_payment"), invoiceId: z.uuid(), reference: z.string().trim().min(2, "Enter the payment reference").max(120) }),
   z.object({ action: z.literal("void_invoice"), invoiceId: z.uuid() }),
   z.object({ action: z.literal("end_complimentary") }),
+  z.object({ action: z.literal("set_overrides"), overrides: overridesSchema }),
 ]);
 
 const csv = (name: string, head: string[], rows: unknown[][]) => {
@@ -328,12 +330,30 @@ async function handle(ctx: AuthedContext, { slug = [] }: P) {
     case "POST subscriptions :id": {
       const raw = (await readJson(ctx.req, actionSchema)) as AdminAction;
       // Money moves need a fresh sign-in.
-      const adminId = await need("tenants:write", ["record_payment", "credit", "assign"].includes(raw.action));
+      const adminId = await need("tenants:write", ["record_payment", "credit", "assign", "set_overrides"].includes(raw.action));
       return adminAct(adminId, id!, raw);
     }
+    // A workspace's allowances: used, limits, and the overrides on top of its plan.
+    case "GET subscriptions :id allowances":
+      await need("tenants:read");
+      return allowancesOf(id!);
+    // What each workspace pays against what it costs to run this month, worst first.
+    case "GET margins":
+      await need("tenants:read");
+      return margins(Number(qs.limit) || 200);
     case "GET billing-plans":
       await need("settings:read");
       return { plans: await allPlans(), usage: await planUsage(), pricing: (await settings()).pricing, providers: paymentProviders() };
+    // The built-in plans' features, limits and allowances (prices are kept).
+    case "POST billing-plans recommended": {
+      const adminId = await need("settings:write", true);
+      return { plans: await applyRecommendedPlans(adminId) };
+    }
+    // Brings a plan's existing subscribers up to its features and allowances as they are now.
+    case `POST billing-plans ${id} sync`: {
+      const adminId = await need("settings:write", true);
+      return syncSubscribers(adminId, id ?? "");
+    }
     case `PUT billing-plans ${id}`: {
       const adminId = await need("settings:write", true);
       const p = await readJson(ctx.req, planSchema);

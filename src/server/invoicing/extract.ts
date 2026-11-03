@@ -5,7 +5,9 @@
 import { z } from "zod";
 import { defaultTemplateConfig, FONTS, LAYOUTS, type TemplateConfig } from "@/lib/invoicing/model";
 import { completeJson } from "../ai/json";
+import { db, schema } from "@/db";
 import { hasLlm } from "../ai/gateway";
+import { assertAiAllowed } from "../ai/tasks";
 import { ApiError } from "../http/errors";
 
 export const REFERENCE_TYPES: Record<string, "image" | "pdf"> = { "image/png": "image", "image/jpeg": "image", "image/webp": "image", "image/gif": "image", "application/pdf": "pdf" };
@@ -61,6 +63,7 @@ export async function readInvoiceFormat(orgId: string, file: { mime: string; dat
   const kind = REFERENCE_TYPES[file.mime];
   if (!kind) throw new ApiError("validation_failed", "Upload a PNG, JPEG, WebP or PDF of your invoice");
   if (!(await hasLlm(orgId))) return { ai: false as const };
+  await assertAiAllowed(orgId);
   const b64 = file.data.toString("base64");
   const media =
     kind === "pdf"
@@ -69,11 +72,14 @@ export async function readInvoiceFormat(orgId: string, file: { mime: string; dat
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 150_000);
   try {
-    const { value } = await completeJson(
+    const started = new Date();
+    const { value, usage } = await completeJson(
       { orgId, task: "planning", system: SYSTEM, maxTokens: 16_000, signal: ac.signal, messages: [{ role: "user", content: [media, { type: "text", text: "Describe this document's design and the issuer's details as JSON." }] }] },
       extractedSchema,
       { maxRepairs: 1 },
     );
+    // Counted against the month's AI allowance, like every other AI call.
+    await db.insert(schema.aiTasks).values({ orgId, kind: "invoice_design", status: "succeeded", input: { mime: file.mime }, startedAt: started, finishedAt: new Date(), ...usage });
     return { ai: true as const, extracted: value, ...applyExtracted(value) };
   } finally {
     clearTimeout(timer);

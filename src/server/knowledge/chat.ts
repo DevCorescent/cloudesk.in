@@ -5,7 +5,7 @@
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { complete, hasLlm } from "../ai/gateway";
-import { monthlySpend } from "../ai/tasks";
+import { aiRoom } from "../ai/tasks";
 import { ApiError, notFound } from "../http/errors";
 import { log } from "../log";
 import { randomToken, sha256 } from "../security/tokens";
@@ -78,8 +78,8 @@ type Answer = { text: string; mode: "ai" | "search" | "none"; sources: { title: 
 async function answer(project: { id: string; orgId: string; name: string }, bot: Chatbot, history: { role: string; text: string }[], question: string): Promise<Answer> {
   const passages: Passage[] = await search(project.id, question, 6);
   const sources = passages.map((p) => ({ title: p.title, url: p.url }));
-  const spend = (await hasLlm(project.orgId)) ? await monthlySpend(project.orgId) : null;
-  const useAi = !!spend && spend.costMicroUsd < spend.budgetMicroUsd;
+  // Visitors are never refused: past the plan's AI allowance the bot answers from search instead.
+  const useAi = (await hasLlm(project.orgId)) && (await aiRoom(project.orgId));
   if (useAi) {
     const context = passages.length ? passages.map((p, i) => `[${i + 1}] ${p.title}${p.url ? ` (${p.url})` : ""}\n${p.text}`).join("\n\n") : "(nothing relevant was found)";
     const started = new Date();

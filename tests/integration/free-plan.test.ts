@@ -48,8 +48,8 @@ afterAll(closeDb);
 describe("the Free plan", () => {
   it("is in the catalogue as ₹0, separate from the plans on sale", async () => {
     const pub = (await call(plansApi.GET, { path: "/api/v1/plans" })).json;
-    expect(pub.plans.map((p: { id: string }) => p.id)).toEqual(["workday", "starter", "growth", "enterprise"]);
-    expect(pub.free).toMatchObject({ id: "free", monthly: 0, quotas: { invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25 } });
+    expect(pub.plans.map((p: { id: string }) => p.id)).toEqual(["workday", "starter", "growth", "business", "enterprise"]);
+    expect(pub.free).toMatchObject({ id: "free", monthly: 0, quotas: { invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25, aiBudgetUsd: 0.25, storageMb: 500 } });
     expect((await S("POST", "quote", { kind: "plan", planId: "free", interval: "month" })).status).toBe(422);
   });
 
@@ -111,7 +111,9 @@ describe("the Free plan", () => {
   it("recommends the cheapest plan that covers what's needed", async () => {
     expect(await recommendPlan({ modules: ["invoicing"] })).toMatchObject({ planId: "starter" });
     expect(await recommendPlan({ modules: ["hr", "inventory"] })).toMatchObject({ planId: "growth" });
-    expect(await recommendPlan({ modules: ["clinic"] })).toMatchObject({ planId: "enterprise" });
+    // Industry suites come with Business; the AI code editor only with Enterprise.
+    expect(await recommendPlan({ modules: ["clinic"] })).toMatchObject({ planId: "business" });
+    expect(await recommendPlan({ modules: ["ai-ide"] })).toMatchObject({ planId: "enterprise" });
     expect(await recommendPlan({ modules: ["mail", "chat"] })).toMatchObject({ planId: "workday" });
   });
 });

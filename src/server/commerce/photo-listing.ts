@@ -8,7 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import { hasLlm } from "../ai/gateway";
 import { completeJson } from "../ai/json";
-import { monthlyBudgetMicroUsd, monthlySpend } from "../ai/tasks";
+import { assertAiAllowed } from "../ai/tasks";
 import { ApiError } from "../http/errors";
 import { uploadAsset } from "../media/assets";
 import { sniffImage } from "../media/images";
@@ -44,7 +44,7 @@ export async function listingFromPhoto(project: { id: string; orgId: string; nam
   const img = sniffImage(file.bytes);
   if (!img) throw new ApiError("validation_failed", "Upload a JPEG, PNG, WebP or GIF photo");
   if (!(await hasLlm(project.orgId))) throw new ApiError("provider_not_configured", "Connect an AI provider under Settings → AI providers to write listings from photos.");
-  if ((await monthlySpend(project.orgId)).costMicroUsd >= monthlyBudgetMicroUsd()) throw new ApiError("rate_limited", "This organization has reached its monthly AI budget.");
+  await assertAiAllowed(project.orgId);
 
   const [store] = await db.select({ country: schema.stores.country, name: schema.stores.name }).from(schema.stores).where(eq(schema.stores.projectId, project.id));
   if (!store) throw new ApiError("conflict", "Set up the store first");

@@ -153,6 +153,10 @@ async function checkFolder(s: Scope, folderId: string | null) {
 
 /** Room left in the workspace for another file. */
 async function assertRoom(orgId: string, bytes: number) {
+  const { assertQuota, entitlementFor } = await import("../billing/subscriptions");
+  // The plan's storage (files, versions and site media together); the old flat 1 GB only when plans aren't enforced.
+  await assertQuota(orgId, "storageMb", bytes / 1_048_576);
+  if ((await entitlementFor(orgId)).state !== "unrestricted") return;
   const [{ used }] = await db.select({ used: sql<number>`coalesce(sum(${schema.docVersions.size}), 0)::bigint` }).from(schema.docVersions).where(eq(schema.docVersions.orgId, orgId));
   if (Number(used) + bytes > MAX_ORG_BYTES) throw new ApiError("conflict", "Your workspace has used its 1 GB of document storage. Delete old files or versions first.");
 }

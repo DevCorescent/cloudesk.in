@@ -4,7 +4,7 @@ import { ApiError } from "../http/errors";
 import { bannedIn, voicePrompt } from "@/lib/site/brand-rules";
 import { completeJson } from "../ai/json";
 import { getBrandRules } from "../services/brand";
-import { monthlyBudgetMicroUsd, monthlySpend } from "../ai/tasks";
+import { assertAiAllowed } from "../ai/tasks";
 import { loadDoc, METRIC_LABEL, type Opportunity } from "./opportunities";
 
 const headlineSchema = z.object({
@@ -20,7 +20,7 @@ const headlineSchema = z.object({
  */
 export async function writeHeadline(project: { id: string; orgId: string; name: string }, userId: string | null, o: Opportunity) {
   if (!o.test) throw new ApiError("conflict", "Not a test suggestion");
-  if ((await monthlySpend(project.orgId)).costMicroUsd >= monthlyBudgetMicroUsd()) throw new ApiError("rate_limited", "This organization has reached its monthly AI budget.");
+  await assertAiAllowed(project.orgId);
   const loaded = await loadDoc(project.id);
   const page = loaded?.doc.pages.find((p) => p.path === o.test!.path);
   const section = page?.sections.find((s) => s.id === o.test!.sectionId);

@@ -153,11 +153,8 @@ export function setAnthropicClientFactory(f: ((apiKey: string) => MessagesLike) 
 export async function anthropicFor(orgId: string) {
   const llm = await llmFor(orgId);
   if (!llm) throw new ApiError("provider_not_configured", "No AI provider is connected. Add an Anthropic or a free Google Gemini key under Settings → AI providers.");
-  const { monthlySpend } = await import("./tasks");
-  const spend = await monthlySpend(orgId);
-  if (spend.costMicroUsd >= spend.budgetMicroUsd) throw new ApiError("conflict", "This month's AI budget is used up. It resets on the 1st, or raise AI_MONTHLY_BUDGET_USD.");
-  // The plan's monthly AI allowance (Free: 25 requests).
-  await (await import("../billing/subscriptions")).assertQuota(orgId, "aiPerMonth");
+  // The plan's monthly AI spend and requests (Free: $0.25 and 25 requests).
+  await (await import("./tasks")).assertAiAllowed(orgId);
   return llm.provider === "gemini" ? geminiClient(llm.apiKey) : makeClient(llm.apiKey);
 }
 

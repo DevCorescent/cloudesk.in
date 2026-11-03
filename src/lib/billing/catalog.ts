@@ -8,14 +8,19 @@ import type { Limits } from "@/lib/platform/plans";
 export type Interval = "month" | "year";
 export const INTERVALS: Interval[] = ["month", "year"];
 
-/** Usage allowances that reset each month (or, for contacts, a total). Missing = unlimited. */
-export type QuotaKey = "invoicesPerMonth" | "contacts" | "aiPerMonth";
+/** Usage allowances: most reset each month; contacts, storage and chat guests are totals. Missing = unlimited. */
+export type QuotaKey = "invoicesPerMonth" | "contacts" | "aiPerMonth" | "aiBudgetUsd" | "campaignEmailsPerMonth" | "signaturesPerMonth" | "storageMb" | "chatGuests";
 export type Quotas = Partial<Record<QuotaKey, number>>;
-export const QUOTA_KEYS: QuotaKey[] = ["invoicesPerMonth", "contacts", "aiPerMonth"];
+export const QUOTA_KEYS: QuotaKey[] = ["invoicesPerMonth", "contacts", "aiPerMonth", "aiBudgetUsd", "campaignEmailsPerMonth", "signaturesPerMonth", "storageMb", "chatGuests"];
 export const QUOTA_LABEL: Record<QuotaKey, { name: string; unit: string; module: ModuleId | null; monthly: boolean }> = {
   invoicesPerMonth: { name: "Invoices", unit: "invoices this month", module: "invoicing", monthly: true },
   contacts: { name: "CRM contacts", unit: "contacts", module: "crm", monthly: false },
   aiPerMonth: { name: "AI requests", unit: "AI requests this month", module: null, monthly: true },
+  aiBudgetUsd: { name: "AI spend", unit: "US$ of AI this month", module: null, monthly: true },
+  campaignEmailsPerMonth: { name: "Campaign emails", unit: "campaign emails this month", module: "marketing", monthly: true },
+  signaturesPerMonth: { name: "E-sign requests", unit: "signature requests this month", module: "documents", monthly: true },
+  storageMb: { name: "Storage", unit: "MB of files", module: null, monthly: false },
+  chatGuests: { name: "Chat guests", unit: "guests in chats", module: "chat", monthly: false },
 };
 
 /** A plan in the catalogue (Admin → Plans). modules null = every feature. */
@@ -63,6 +68,12 @@ export type Pricing = {
   seatPrice: number;
   customLimits: Omit<Limits, "seats">;
   modulePrices: Partial<Record<ModuleId, number>>;
+  /** Build your own: allowances for every built plan; its AI budget comes from aiCostShareBps instead. */
+  customQuotas: Quotas;
+  /** The most of a plan's price (in basis points) its AI may cost — what keeps every plan in profit. */
+  aiCostShareBps: number;
+  /** Rupees per US dollar, for comparing AI spend (billed in dollars) with what a plan earns. */
+  usdInr: number;
 };
 
 export const WORKDAY_MODULES: ModuleId[] = ["mail", "calendar", "chat"];
@@ -72,6 +83,14 @@ const rupees = (n: number) => Math.round(n * 100);
 /** The catalogue a new platform starts with; every value is editable in the console. */
 export const FREE_MODULES: ModuleId[] = ["mail", "calendar", "chat", "invoicing", "crm"];
 
+// Each plan's allowances keep its running costs (AI, email, storage) well under
+// its price: AI spend within DEFAULT_PRICING.aiCostShareBps (20%) of the price,
+// campaign email and storage a few percent more — so no plan, used to its
+// limits, costs more than it earns (tests/unit/subscription-pricing.test.ts).
+const STARTER: ModuleId[] = ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", "helpdesk", "portal", ...WORKDAY_MODULES];
+const GROWTH: ModuleId[] = [...STARTER, "sales", "accounting", "hr", "inventory", "work", "marketing", "documents", "automations", "bi", "copilot", "growth", "data", "objects", "logistics"];
+const BUSINESS: ModuleId[] = [...GROWTH, "horeca", "clinic", "education", "construction", "manufacturing", "quality", "maintenance", "grc"];
+
 export const DEFAULT_PLANS: CatalogPlan[] = [
   {
     id: "free",
@@ -80,7 +99,7 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     kind: "free",
     modules: FREE_MODULES,
     limits: { projects: 1, seats: 2, customDomains: 0, automationsPerProject: 0 },
-    quotas: { invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25 },
+    quotas: { invoicesPerMonth: 10, contacts: 100, aiPerMonth: 25, aiBudgetUsd: 0.25, campaignEmailsPerMonth: 0, signaturesPerMonth: 3, storageMb: 500, chatGuests: 5 },
     monthly: 0,
     yearly: 0,
     currency: "INR",
@@ -95,6 +114,7 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     kind: "basic",
     modules: WORKDAY_MODULES,
     limits: { projects: 0, seats: 10, customDomains: 0, automationsPerProject: 0 },
+    quotas: { aiPerMonth: 100, aiBudgetUsd: 0.45, storageMb: 2048, chatGuests: 25 },
     monthly: rupees(199),
     yearly: rupees(1990),
     currency: "INR",
@@ -105,10 +125,11 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
   {
     id: "starter",
     name: "Starter",
-    tagline: "Your website, store and counter, with customers and invoices",
+    tagline: "Your website, store and counter, with customers, invoices and support",
     kind: "preset",
-    modules: ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", ...WORKDAY_MODULES],
+    modules: STARTER,
     limits: { projects: 3, seats: 5, customDomains: 1, automationsPerProject: 10 },
+    quotas: { invoicesPerMonth: 500, contacts: 2_000, aiPerMonth: 300, aiBudgetUsd: 2.25, campaignEmailsPerMonth: 1_000, signaturesPerMonth: 10, storageMb: 10_240, chatGuests: 50 },
     monthly: rupees(999),
     yearly: rupees(9990),
     currency: "INR",
@@ -121,8 +142,9 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     name: "Growth",
     tagline: "Run sales, money, people and stock in one place",
     kind: "preset",
-    modules: ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", ...WORKDAY_MODULES, "sales", "accounting", "hr", "inventory", "work", "helpdesk", "marketing", "documents", "automations", "bi", "copilot", "growth", "data"],
+    modules: GROWTH,
     limits: { projects: 10, seats: 25, customDomains: 5, automationsPerProject: 25 },
+    quotas: { invoicesPerMonth: 3_000, contacts: 20_000, aiPerMonth: 1_500, aiBudgetUsd: 7, campaignEmailsPerMonth: 10_000, signaturesPerMonth: 100, storageMb: 51_200, chatGuests: 250 },
     monthly: rupees(2999),
     yearly: rupees(29990),
     currency: "INR",
@@ -131,18 +153,34 @@ export const DEFAULT_PLANS: CatalogPlan[] = [
     sort: 2,
   },
   {
+    id: "business",
+    name: "Business",
+    tagline: "Growth plus your industry suite, production and compliance",
+    kind: "preset",
+    modules: BUSINESS,
+    limits: { projects: 25, seats: 50, customDomains: 10, automationsPerProject: 50 },
+    quotas: { invoicesPerMonth: 10_000, contacts: 100_000, aiPerMonth: 4_000, aiBudgetUsd: 11.5, campaignEmailsPerMonth: 30_000, signaturesPerMonth: 500, storageMb: 153_600, chatGuests: 1_000 },
+    monthly: rupees(4999),
+    yearly: rupees(49990),
+    currency: "INR",
+    highlight: false,
+    active: true,
+    sort: 3,
+  },
+  {
     id: "enterprise",
     name: "Enterprise",
     tagline: "Every feature, for larger teams and many sites",
     kind: "preset",
     modules: null,
     limits: { projects: 50, seats: 100, customDomains: 25, automationsPerProject: 100 },
+    quotas: { aiPerMonth: 8_000, aiBudgetUsd: 18.5, campaignEmailsPerMonth: 75_000, signaturesPerMonth: 2_000, storageMb: 512_000 },
     monthly: rupees(7999),
     yearly: rupees(79990),
     currency: "INR",
     highlight: false,
     active: true,
-    sort: 3,
+    sort: 4,
   },
 ];
 
@@ -152,7 +190,7 @@ const LIGHT: ModuleId[] = ["bookings", "promotions", "chatbot", "growth", "data"
 export const DEFAULT_PRICING: Pricing = {
   enforce: true,
   freePlan: true,
-  trialQuotas: { invoicesPerMonth: 100, contacts: 1000, aiPerMonth: 200 },
+  trialQuotas: { invoicesPerMonth: 100, contacts: 1000, aiPerMonth: 200, aiBudgetUsd: 2, campaignEmailsPerMonth: 500, signaturesPerMonth: 10, storageMb: 5_120, chatGuests: 25 },
   currency: "INR",
   trialDays: 30,
   taxBps: 1800,
@@ -168,7 +206,13 @@ export const DEFAULT_PRICING: Pricing = {
   modulePrices: Object.fromEntries(
     MODULE_IDS.filter((m) => !WORKDAY_MODULES.includes(m)).map((m) => [m, rupees(HEAVY.includes(m) ? 499 : LIGHT.includes(m) ? 149 : 299)]),
   ) as Partial<Record<ModuleId, number>>,
+  customQuotas: { invoicesPerMonth: 1_000, contacts: 5_000, aiPerMonth: 500, campaignEmailsPerMonth: 2_000, signaturesPerMonth: 25, storageMb: 20_480, chatGuests: 100 },
+  aiCostShareBps: 2000,
+  usdInr: 85,
 };
+
+/** The most a plan earning `monthly` (minor units, before tax) may spend on AI each month, in US dollars. */
+export const aiBudgetFor = (monthly: number, p: Pick<Pricing, "aiCostShareBps" | "usdInr">) => Math.floor(((monthly / 100) * p.aiCostShareBps) / 10000 / Math.max(1, p.usdInr) * 100) / 100;
 
 /** What someone chooses: a plan from the catalogue, or features of their own. */
 export type Choice = { kind: "plan"; planId: string; interval: Interval } | { kind: "custom"; modules: ModuleId[]; seats: number; interval: Interval };
@@ -238,7 +282,8 @@ export function quote(choice: Choice, plans: CatalogPlan[], pricing: Pricing): Q
     name: "Your plan",
     modules: picked,
     limits: { ...pricing.customLimits, seats },
-    quotas: {},
+    // A built plan's AI budget grows with what it costs, so it never spends more on AI than it earns.
+    quotas: { ...(pricing.customQuotas ?? {}), aiBudgetUsd: aiBudgetFor(monthly, pricing) },
     seats,
     interval: choice.interval,
     currency: pricing.currency,

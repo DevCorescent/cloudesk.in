@@ -7752,6 +7752,8 @@ export const orgSubscriptions = pgTable("org_subscriptions", {
   /** Given by the platform at no charge (until compUntil, or for good). */
   complimentary: boolean("complimentary").notNull().default(false),
   compUntil: timestamp("comp_until", { withTimezone: true }),
+  /** Set by the platform team on top of the plan: extra features, limits and allowances (Admin → a workspace). */
+  overrides: jsonb("overrides").$type<{ modules?: string[]; limits?: Record<string, number>; quotas?: Record<string, number | null>; note?: string }>().notNull().default({}),
   /** Which trial reminders went out (days before the end). */
   reminded: jsonb("reminded").$type<number[]>().notNull().default([]),
   createdAt: createdAt(),

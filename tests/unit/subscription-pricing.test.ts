@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { addInterval, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
+import { addInterval, aiBudgetFor, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, QUOTA_KEYS, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
+import { MODULE_IDS } from "@/lib/workspace/modules";
 
 const P = DEFAULT_PRICING;
 
@@ -100,5 +101,46 @@ describe("what a workspace may use", () => {
   it("complimentary plans and switched-off enforcement", () => {
     expect(entitlement({ ...base, status: "active", complimentary: true }, TL, now).state).toBe("active");
     expect(entitlement({ ...base, status: "expired" }, TL, now, false).state).toBe("unrestricted");
+  });
+});
+
+describe("plans that never lose money", () => {
+  const paid = DEFAULT_PLANS.filter((p) => p.kind !== "free");
+
+  it("caps every paid plan's AI spend within the target share of its price", () => {
+    for (const p of paid) {
+      const usd = p.quotas?.aiBudgetUsd;
+      expect(usd, p.id).toBeDefined();
+      expect(usd!, p.id).toBeLessThanOrEqual(aiBudgetFor(p.monthly, P));
+      // At the rupee rate, AI at its cap costs at most the target share of what the plan earns.
+      expect(usd! * P.usdInr, p.id).toBeLessThanOrEqual(((p.monthly / 100) * P.aiCostShareBps) / 10000);
+    }
+  });
+
+  it("gives every feature a plan below Enterprise, except the AI code editor", () => {
+    const covered = new Set(paid.filter((p) => p.id !== "enterprise").flatMap((p) => p.modules ?? []));
+    expect(MODULE_IDS.filter((m) => !covered.has(m))).toEqual(["ai-ide"]);
+  });
+
+  it("builds bigger plans on smaller ones", () => {
+    const [, starter, growth, business] = paid;
+    for (const [small, big] of [[starter, growth], [growth, business]] as const) {
+      expect(small!.modules!.every((m) => big!.modules!.includes(m)), `${small!.id} ⊂ ${big!.id}`).toBe(true);
+      expect(big!.monthly).toBeGreaterThan(small!.monthly);
+    }
+  });
+
+  it("gives a built plan an AI budget that grows with its price, and its allowances", () => {
+    const small = quote({ kind: "custom", modules: ["crm"], seats: 3, interval: "month" }, DEFAULT_PLANS, P);
+    const big = quote({ kind: "custom", modules: ["crm", "accounting", "hr", "inventory"], seats: 10, interval: "month" }, DEFAULT_PLANS, P);
+    expect(small.quotas.aiBudgetUsd).toBe(aiBudgetFor(small.monthly, P));
+    expect(big.quotas.aiBudgetUsd!).toBeGreaterThan(small.quotas.aiBudgetUsd!);
+    expect(small.quotas).toMatchObject({ contacts: P.customQuotas.contacts, storageMb: P.customQuotas.storageMb });
+    // ₹1,000 a month at 20% and ₹85/$ is $2.35 of AI.
+    expect(aiBudgetFor(100000, P)).toBe(2.35);
+  });
+
+  it("knows every allowance", () => {
+    expect(QUOTA_KEYS).toEqual(["invoicesPerMonth", "contacts", "aiPerMonth", "aiBudgetUsd", "campaignEmailsPerMonth", "signaturesPerMonth", "storageMb", "chatGuests"]);
   });
 });

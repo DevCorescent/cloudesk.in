@@ -172,6 +172,10 @@ export async function answerInvitation(id: string, user: { id: string; email: st
 }
 
 async function join(inv: { id: string; orgId: string; role: Role }, user: { id: string; email: string }) {
+  // Seats are checked again on accepting: an invitation sent during a bigger plan (or the trial) can't overshoot today's.
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.memberships).where(eq(schema.memberships.orgId, inv.orgId));
+  const [member] = await db.select({ id: schema.memberships.userId }).from(schema.memberships).where(and(eq(schema.memberships.orgId, inv.orgId), eq(schema.memberships.userId, user.id)));
+  if (!member) await assertWithinLimit(inv.orgId, "seats", n);
   await db.transaction(async (tx) => {
     const used = await tx
       .update(schema.invitations)

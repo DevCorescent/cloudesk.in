@@ -1,6 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { ApiError, notFound } from "../http/errors";
+import { assertQuota } from "../billing/subscriptions";
 
 import { audit } from "../services/audit";
 import { sniffImage } from "./images";
@@ -27,6 +28,7 @@ export async function uploadAsset(project: { id: string; orgId: string }, userId
     .from(schema.assets)
     .where(eq(schema.assets.projectId, project.id));
   if (Number(total) + file.bytes.length > MAX_PROJECT_ASSET_BYTES) throw new ApiError("conflict", "This project has reached its 200 MB media limit");
+  await assertQuota(project.orgId, "storageMb", file.bytes.length / 1_048_576);
 
   const hash = createHash("sha256").update(file.bytes).digest("hex");
   const [existing] = await db

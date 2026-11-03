@@ -37,9 +37,37 @@ export type TaskResult =
 // interrupts the provider request instead of waiting for it to finish.
 const running = new Map<string, AbortController>();
 
-/** Monthly AI spend ceiling per organization, enforced server-side. */
+/** The platform-wide AI spend ceiling (AI_MONTHLY_BUDGET_USD), for workspaces whose plan sets none. */
 export function monthlyBudgetMicroUsd() {
   return Math.round(Number(cfg("AI_MONTHLY_BUDGET_USD") ?? 20) * 1_000_000);
+}
+
+/** A workspace's monthly AI budget: its plan's (or override's) AI spend allowance, else the platform-wide ceiling. */
+async function budgetFor(orgId: string) {
+  const e = await (await import("../billing/subscriptions")).entitlementFor(orgId);
+  const usd = e.state === "unrestricted" ? undefined : e.quotas.aiBudgetUsd;
+  return usd === undefined ? monthlyBudgetMicroUsd() : Math.round(usd * 1_000_000);
+}
+
+/**
+ * Before any AI call: refuses once the month's AI budget or the plan's AI
+ * requests are used up. Every AI feature goes through this (or aiRoom), so no
+ * plan can spend more on AI than it was priced for.
+ */
+export async function assertAiAllowed(orgId: string) {
+  const spend = await monthlySpend(orgId);
+  if (spend.costMicroUsd >= spend.budgetMicroUsd) throw new ApiError("conflict", "This month's AI allowance is used up. It resets on the 1st — or upgrade in Settings → Billing for more.", { quota: ["aiBudgetUsd"] });
+  await (await import("../billing/subscriptions")).assertQuota(orgId, "aiPerMonth");
+}
+
+/** The same check without the error, for things visitors use (the website chatbot falls back to search). */
+export async function aiRoom(orgId: string) {
+  try {
+    await assertAiAllowed(orgId);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function monthlySpend(orgId: string) {
@@ -54,7 +82,7 @@ export async function monthlySpend(orgId: string) {
     })
     .from(schema.aiTasks)
     .where(and(eq(schema.aiTasks.orgId, orgId), gte(schema.aiTasks.createdAt, since)));
-  return { costMicroUsd: Number(cost), tasks, tokens: Number(tokens), budgetMicroUsd: monthlyBudgetMicroUsd(), since };
+  return { costMicroUsd: Number(cost), tasks, tokens: Number(tokens), budgetMicroUsd: await budgetFor(orgId), since };
 }
 
 async function step(taskId: string, label: string, status: "running" | "done" | "error" | "info" = "done", detail?: string) {
@@ -67,11 +95,7 @@ export async function createTask(input: { orgId: string; projectId: string | nul
     .from(schema.aiTasks)
     .where(and(eq(schema.aiTasks.createdBy, input.userId), inArray(schema.aiTasks.status, ["queued", "running"])));
   if (active[0].n >= 3) throw new ApiError("rate_limited", "You already have 3 AI tasks running. Wait for one to finish.");
-  const spend = await monthlySpend(input.orgId);
-  if (spend.costMicroUsd >= spend.budgetMicroUsd) {
-    throw new ApiError("forbidden", "This organization has reached its monthly AI budget.");
-  }
-  await (await import("../billing/subscriptions")).assertQuota(input.orgId, "aiPerMonth");
+  await assertAiAllowed(input.orgId);
   const [task] = await db
     .insert(schema.aiTasks)
     .values({

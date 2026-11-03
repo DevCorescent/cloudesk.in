@@ -13,6 +13,7 @@ import { isOn, isPartOn, type PartsOff } from "@/lib/workspace/modules";
 import { capture } from "../crm/capture";
 import { addEvent } from "../crm/timeline";
 import { ApiError, notFound } from "../http/errors";
+import { assertQuota } from "../billing/subscriptions";
 import { defineJob, enqueue } from "../jobs/queue";
 import { log } from "../log";
 import { safeEqual } from "../security/tokens";
@@ -189,6 +190,8 @@ async function start(campaignId: string) {
   const [seg] = await db.select().from(schema.mktSegments).where(eq(schema.mktSegments.id, c.segmentId));
   if (!seg) return 0;
   const { mailable } = await members(c.orgId, rulesSchema.parse(seg.rules));
+  // The plan's campaign emails this month, counted before anything is queued (the campaign stays a draft if it's over).
+  await assertQuota(c.orgId, "campaignEmailsPerMonth", mailable.length);
   const [claimed] = await db.update(schema.mktCampaigns).set({ status: "sending", links: linksIn(c.body), sentAt: new Date() }).where(and(eq(schema.mktCampaigns.id, c.id), inArray(schema.mktCampaigns.status, ["draft", "scheduled"]))).returning({ id: schema.mktCampaigns.id });
   if (!claimed) return 0;
   const hasB = !!c.subjectB.trim();

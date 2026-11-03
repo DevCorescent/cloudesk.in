@@ -15,12 +15,15 @@ import { api } from "@/lib/client/api";
 import { moduleById, type ModuleId } from "@/lib/workspace/modules";
 import { canManageBilling, subKey, subPath, type Overview } from "./types";
 
+/** An allowance as people read it: dollars for AI spend, MB or GB for storage, whole numbers otherwise. */
+const amount = (k: string, n: number) => (k === "aiBudgetUsd" ? `$${n.toFixed(2)}` : k === "storageMb" ? (n >= 1024 ? `${(n / 1024).toFixed(1)} GB` : `${Math.round(n)} MB`) : Math.round(n).toLocaleString("en-IN"));
+
 /** Bars for each allowance: amber from 80%, red when it's used up. */
 export function QuotaMeters({ o, compact, stacked }: { o: Pick<Overview, "quotas" | "state">; compact?: boolean; stacked?: boolean }) {
   const rows = Object.entries(o.quotas ?? {});
   if (!rows.length) return null;
   return (
-    <div className={cx("grid", compact ? "gap-2.5" : "gap-3", !stacked && "sm:grid-cols-3")}>
+    <div className={cx("grid", compact ? "gap-2.5" : "gap-3", !stacked && "sm:grid-cols-2 lg:grid-cols-4")}>
       {rows.map(([k, q]) => {
         const share = q!.limit ? Math.min(1, q!.used / q!.limit) : 1;
         const tone = share >= 1 ? "bg-danger" : share >= 0.8 ? "bg-warning" : "bg-accent";
@@ -28,7 +31,7 @@ export function QuotaMeters({ o, compact, stacked }: { o: Pick<Overview, "quotas
           <div key={k} className={cx(!compact && "rounded-[16px] bg-surface p-4 ring-1 ring-border")}>
             <div className="flex items-baseline justify-between gap-2 text-[13px]">
               <span className="truncate font-medium">{q!.label}</span>
-              <span className={cx("shrink-0 tabular-nums", share >= 1 ? "font-semibold text-danger" : share >= 0.8 ? "text-warning" : "text-muted")}>{q!.used.toLocaleString("en-IN")} / {q!.limit.toLocaleString("en-IN")}</span>
+              <span className={cx("shrink-0 tabular-nums", share >= 1 ? "font-semibold text-danger" : share >= 0.8 ? "text-warning" : "text-muted")}>{amount(k, q!.used)} / {amount(k, q!.limit)}</span>
             </div>
             <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-3"><div className={cx("h-full rounded-full transition-[width] duration-500", tone)} style={{ width: `${Math.max(2, share * 100)}%` }} /></div>
             {!compact && <p className="mt-1.5 text-[12px] text-muted">{share >= 1 ? "Used up — upgrade to keep going" : q!.monthly ? "Resets on the 1st" : "In total"}</p>}

@@ -7,6 +7,7 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { DEFAULT_PRICING } from "@/lib/billing/catalog";
+import { quotasSchema } from "@/lib/billing/schema";
 import { DEFAULT_PROGRAM, PARTNER_TYPES } from "@/lib/partners/program";
 import { PLAN_IDS } from "@/lib/platform/plans";
 import { MODULE_IDS } from "@/lib/workspace/modules";
@@ -64,7 +65,7 @@ export const SECTIONS = {
   pricing: z.object({
     enforce: z.boolean().default(DEFAULT_PRICING.enforce),
     freePlan: z.boolean().default(DEFAULT_PRICING.freePlan),
-    trialQuotas: z.object({ invoicesPerMonth: z.number().int().min(0).max(1_000_000).optional(), contacts: z.number().int().min(0).max(10_000_000).optional(), aiPerMonth: z.number().int().min(0).max(1_000_000).optional() }).default(DEFAULT_PRICING.trialQuotas),
+    trialQuotas: quotasSchema.default(DEFAULT_PRICING.trialQuotas),
     currency: z.string().regex(/^[A-Z]{3}$/).default(DEFAULT_PRICING.currency),
     trialDays: z.number().int().min(0).max(365).default(DEFAULT_PRICING.trialDays),
     taxBps: z.number().int().min(0).max(5000).default(DEFAULT_PRICING.taxBps),
@@ -78,6 +79,10 @@ export const SECTIONS = {
     seatPrice: money.default(DEFAULT_PRICING.seatPrice),
     customLimits: z.object({ projects: z.number().int().min(0).max(100000), customDomains: z.number().int().min(0).max(100000), automationsPerProject: z.number().int().min(0).max(100000) }).default(DEFAULT_PRICING.customLimits),
     modulePrices: z.partialRecord(z.enum(MODULE_IDS as unknown as [string, ...string[]]), money).default(DEFAULT_PRICING.modulePrices as Record<string, number>),
+    customQuotas: quotasSchema.default(DEFAULT_PRICING.customQuotas),
+    /** The most of a plan's price its AI may cost (basis points; 2000 = 20%). */
+    aiCostShareBps: z.number().int().min(100).max(9000).default(DEFAULT_PRICING.aiCostShareBps),
+    usdInr: z.number().min(1).max(1000).default(DEFAULT_PRICING.usdInr),
   }),
   /** The company behind the service, shown on the legal pages (Terms, Privacy, Grievance…). Empty fields are left out, never invented. */
   legal: z.object({
