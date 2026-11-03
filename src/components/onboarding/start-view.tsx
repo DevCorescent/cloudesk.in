@@ -24,6 +24,7 @@ import { usePhone } from "@/lib/client/use-phone";
 import { profileFor, QUESTION_IDS, recommend, type Profile } from "@/lib/onboarding/recommend";
 import { goalsFor, industryById, moduleById, neededBy, withRequirements, type IndustryId, type ModuleId, type PartsOff } from "@/lib/workspace/modules";
 import { ChoosePlan, customFrom, featureName, priceOf, toChoice, type Catalog, type PlanPick } from "./choose-plan";
+import { ShotCycle, shotsFor } from "./showcase";
 import { Plan, PlanSummary, Questions } from "./steps";
 import { Business, Confetti, DashPreview, Heading, PlanAside, StepProgress, suggestIndustry, Welcome } from "./welcome-view";
 
@@ -389,6 +390,7 @@ export function StartView({ industry: initialIndustry, preselect, next, termsUrl
 function Summary({ name, industryLabel, modules, planNote, trialDays }: { name: string; industryLabel?: string; modules: ModuleId[]; planNote: string; trialDays: number }) {
   return (
     <div className="p-glass grid gap-4 rounded-[24px] p-5">
+      {modules.length > 0 && <ShotCycle items={shotsFor(modules)} compact url={`${(name || "your-business").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.cloudesk.in`} className="-mx-1 -mt-1 !rounded-[18px]" />}
       <div>
         <p className="text-[11px] font-semibold tracking-[0.14em] text-fg/45 uppercase">Your workspace</p>
         <p className="mt-1 text-[20px] font-semibold tracking-[-0.02em]">{name || "Your business"}</p>
@@ -567,7 +569,7 @@ function Verify({ email, ticket, sentAt, devCode, onResent, onChangeEmail, onDon
         </span>
         <div className="grid gap-2">
           <p className="text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Step 6 of 6 · Confirm your email</p>
-          <h1 className="text-[clamp(1.8rem,4vw,2.4rem)] leading-[1.05] font-semibold tracking-[-0.04em]">Check your email</h1>
+          <h1 className="text-[clamp(1.8rem,4vw,2.4rem)] leading-[1.05] font-[380] tracking-[-0.045em]">Check your email</h1>
           <p className="text-[15px] leading-relaxed text-fg/60">
             We sent a 6-digit code to <b className="font-semibold break-all text-fg">{email}</b>. Enter it below — it works for 10 minutes.
           </p>
@@ -631,7 +633,7 @@ function Done({ result, industryId, modules, planNote, trialDays, next }: { resu
       <Confetti />
       <div className="grid gap-6 text-center lg:text-left">
         <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Your workspace is ready</p>
-        <h1 className="p-in text-[clamp(2.2rem,5vw,3.8rem)] leading-[1] font-semibold tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
+        <h1 className="p-in text-[clamp(2.2rem,5vw,3.8rem)] leading-[1.02] font-[380] tracking-[-0.05em] text-balance" style={{ animationDelay: "80ms" }}>
           You&apos;re all set.
         </h1>
         <div className="p-in grid gap-2 text-[16px] leading-relaxed text-fg/65" style={{ animationDelay: "160ms" }}>

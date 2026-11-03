@@ -13,6 +13,7 @@ import { useMemo, useState } from "react";
 import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { QUESTION_IDS, QUESTIONS, type Profile, type QuestionId, type Recommendation } from "@/lib/onboarding/recommend";
 import { MODULE_GROUPS, moduleById, MODULES, type ModuleId, type PartsOff } from "@/lib/workspace/modules";
+import { ShotCycle, shotsFor } from "./showcase";
 
 const ICON: Record<string, React.ReactNode> = {
   online: <Globe />, counter: <Store />, tables: <UtensilsCrossed />, rooms: <BedDouble />, bookings: <CalendarCheck />, invoices: <ReceiptText />, contracts: <Briefcase />,
@@ -108,10 +109,15 @@ export function PlanSummary({ rec, title = "Your plan so far" }: { rec: Recommen
           <Sparkles className="size-5" />
         </span>
       </div>
+      {rec.modules.length > 0 && (
+        <div className="p-3 pb-1">
+          <ShotCycle items={shotsFor(rec.modules)} compact className="!rounded-[16px] !shadow-none" />
+        </div>
+      )}
       {!rec.modules.length ? (
         <p className="px-5 py-10 text-center text-[13px] text-fg/50">Answer a question and your plan appears here.</p>
       ) : (
-        <ul className="max-h-[calc(100dvh-260px)] divide-y divide-fg/[0.05] overflow-y-auto">
+        <ul className="max-h-[max(220px,calc(100dvh-520px))] divide-y divide-fg/[0.05] overflow-y-auto">
           {rec.modules.map((id) => {
             const m = moduleById(id)!;
             return (

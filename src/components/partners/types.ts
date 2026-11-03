@@ -51,7 +51,10 @@ export const inr = (paise: number, opts: { exact?: boolean } = {}) => {
   return `${paise < 0 ? "−" : ""}₹${(Math.abs(paise) / 100).toLocaleString("en-IN", whole ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 export const date = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—");
-export const monthLabel = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", timeZone: "UTC" });
+// Spelled out rather than formatted: browsers disagree on short months ("Sep" vs "Sept"),
+// and the chart renders on the server too.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+export const monthLabel = (k: string) => MONTHS[Number(k.slice(5, 7)) - 1] ?? k;
 
 export const STATE_LABEL: Record<Customer["state"], { label: string; tone: "success" | "accent" | "neutral" | "warning" | "danger" }> = {
   paying: { label: "Paying", tone: "success" },

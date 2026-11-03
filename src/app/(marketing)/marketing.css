@@ -201,3 +201,44 @@
   .mk-dsx-float { animation: none; }
   .mk-dsx-bg { transition: none; }
 }
+
+/* Homepage business-intelligence highlight (components/marketing/intelligence.tsx).
+   A soft pastel panel with slowly drifting colour, glassy cards over real
+   screens. The loops sit paused until the section is on screen (data-live),
+   and their resting state is the finished picture, so reduced motion shows
+   it still. */
+.bi-panel { background: linear-gradient(160deg, color-mix(in srgb, var(--p-lavender) 55%, #fff) 0%, color-mix(in srgb, var(--p-sky) 45%, #fff) 45%, color-mix(in srgb, var(--p-peach) 45%, #fff) 100%); }
+.bi-blob { filter: blur(60px); opacity: 0.75; animation: bi-drift 18s ease-in-out infinite alternate; }
+.bi-blob-a { background: var(--p-lavender); }
+.bi-blob-b { background: var(--p-mint); animation-delay: -6s; }
+.bi-blob-c { background: var(--p-rose); animation-delay: -12s; }
+@keyframes bi-drift { from { translate: 0 0; scale: 1; } to { translate: 60px 40px; scale: 1.15; } }
+.bi-card { background: rgb(255 255 255 / 0.62); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.7), 0 1px 0 rgb(0 0 0 / 0.02), 0 24px 50px -34px rgb(30 25 60 / 0.35); transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.5s; }
+.bi-card:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.9), 0 34px 60px -30px rgb(30 25 60 / 0.4); }
+.bi-anim { animation-duration: 6s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); animation-fill-mode: both; animation-play-state: paused; }
+.bi-root[data-live] .bi-anim { animation-play-state: running; }
+.bi-pan { animation-name: bi-pan; animation-duration: 14s; animation-timing-function: ease-in-out; animation-direction: alternate; }
+@keyframes bi-pan { from { transform: scale(1.02); } to { transform: scale(1.1) translate(-2%, -1.5%); } }
+.bi-bar { transform-origin: bottom; animation-name: bi-bar; }
+@keyframes bi-bar { 0% { transform: scaleY(0.06); } 22%, 86% { transform: scaleY(1); } 100% { transform: scaleY(0.06); } }
+.bi-row { animation-name: bi-row; }
+@keyframes bi-row { 0% { opacity: 0; transform: translateY(8px); } 12%, 86% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; transform: translateY(-4px); } }
+.bi-flag { animation-name: bi-flag; }
+@keyframes bi-flag { 0%, 12% { opacity: 0; transform: translateY(10px) scale(0.96); } 20% { opacity: 1; transform: none; box-shadow: 0 0 0 0 rgb(249 115 22 / 0.35), 0 18px 40px -18px rgb(30 25 60 / 0.45); } 40% { box-shadow: 0 0 0 8px rgb(249 115 22 / 0), 0 18px 40px -18px rgb(30 25 60 / 0.45); } 88% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-4px); } }
+.bi-badge { animation-name: bi-badge; }
+@keyframes bi-badge { 0%, 15% { opacity: 0; transform: translateY(10px) scale(0.9); } 24% { opacity: 1; transform: scale(1.04); } 30%, 88% { opacity: 1; transform: none; } 97%, 100% { opacity: 0; } }
+.bi-typing { opacity: 0; animation-name: bi-typing; }
+@keyframes bi-typing { 0%, 8% { opacity: 0; } 12%, 30% { opacity: 1; } 34%, 100% { opacity: 0; } }
+.bi-typing i { animation: bi-dot 0.9s ease-in-out infinite; }
+.bi-typing i:nth-child(2) { animation-delay: 0.15s; }
+.bi-typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes bi-dot { 0%, 100% { transform: none; opacity: 0.4; } 50% { transform: translateY(-3px); opacity: 1; } }
+.bi-answer { animation-name: bi-answer; }
+@keyframes bi-answer { 0%, 32% { opacity: 0; transform: translateY(6px); } 40%, 88% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+.bi-draw { stroke-dasharray: 1; animation-name: bi-draw; }
+@keyframes bi-draw { 0% { stroke-dashoffset: 1; } 40%, 88% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .bi-anim, .bi-typing i, .bi-blob { animation: none; }
+  .bi-typing { display: none; }
+  .bi-card, .bi-card:hover { transform: none; }
+}

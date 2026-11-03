@@ -3,16 +3,19 @@
 // Phones don't get the long marketing page: they open on a short, swipeable
 // story — too many apps, then one: the store, every inbox and chat, the
 // calendar and getting paid, all on Cloudesk — ending on the right sign-up
-// for what they came to do. One ribbon runs through every screen, after a
-// short logo splash on every load. "Explore the website" lets them through to
-// the full page for the rest of the visit.
+// for what they came to do. Each screen shows the real app (a browser window
+// with a phone in front) in the homepage's light pastel look, after a short
+// logo splash on every load. "Explore the website" lets them through to the
+// full page for the rest of the visit.
 import "./mobile-intro.css";
 import clsx from "clsx";
-import { ArrowRight, BadgeCheck, ChevronRight, X, Bell, BellRing, CalendarCheck, CalendarDays, CheckCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, Lock, Mail, MessageCircle, NotebookPen, Package, ReceiptIndianRupee, RefreshCw, ScanBarcode, ShoppingBag, Sparkles, Store, TrendingUp, Users, Video, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChevronRight, X, BellRing, CalendarCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, RefreshCw, ScanBarcode, Sparkles, Store, TrendingUp, Video, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Fragment, useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
+import { IPhone17, type IPhoneColor } from "@/components/marketing/iphone";
 import { ModuleGlyph } from "@/components/shell/module-glyph";
 import { MODULE_GROUPS, MODULES, type Tint } from "@/lib/workspace/modules";
 
@@ -33,7 +36,7 @@ const SKIP_SCRIPT = `try{if(sessionStorage.getItem('${SKIP_KEY}')==='skip')docum
 // Sign-up carries where to go once the account exists: /start → emailed code → log in → next.
 const withNext = (next: string, extra = "") => `/start?${extra}${extra ? "&" : ""}next=${encodeURIComponent(next)}`;
 
-type Slide = { id: string; tone: string; title: ReactNode; art: ReactNode; badges: Badge[] };
+type Slide = { id: string; tone: string; title: ReactNode; sub: string; screen: string; phones: string[]; badges: Badge[] };
 
 /** A key feature floating over a screen: where it sits (CSS insets, %) and which side it flies in from. */
 type Badge = { icon: LucideIcon; text: string; at: Partial<Record<"top" | "bottom" | "left" | "right", string>>; from: "l" | "r" };
@@ -58,64 +61,75 @@ function Badges({ items }: { items: Badge[] }) {
   );
 }
 
+// Screens are paths under public/marketing: wide ones are 2880×1800, phones 1206×2622.
 const SLIDES: Slide[] = [
   {
     id: "one",
     tone: "#ff7a59",
     title: <>Too many apps? Meet <em>one</em>.</>,
-    art: <OneArt />,
+    sub: "35+ tools, one login, set up in minutes.",
+    screen: "home/dashboard",
+    phones: ["phones/crm", "phones/hrms", "phones/inventory"],
     badges: [
-      { icon: LayoutGrid, text: "35+ apps, one login", at: { top: "3%", left: "0" }, from: "l" },
-      { icon: Zap, text: "Set up in minutes", at: { top: "22%", right: "0" }, from: "r" },
-      { icon: Gift, text: "Free for 30 days", at: { bottom: "4%", left: "4%" }, from: "l" },
+      { icon: LayoutGrid, text: "35+ apps, one login", at: { top: "0", left: "0" }, from: "l" },
+      { icon: Zap, text: "Set up in minutes", at: { top: "52%", left: "-2%" }, from: "l" },
+      { icon: Gift, text: "Free for 30 days", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {
     id: "store",
-    tone: "#ff6b6b",
-    title: <>One link. Your <em>store</em> is live.</>,
-    art: <StoreArt />,
+    tone: "#ef5da8",
+    title: <>Your store, <em>live today</em>.</>,
+    sub: "UPI, cards and COD — and no commission.",
+    screen: "store/products",
+    phones: ["store/sf-phone"],
     badges: [
-      { icon: CreditCard, text: "UPI, cards & COD", at: { top: "3%", right: "0" }, from: "r" },
-      { icon: Globe, text: "Your own domain", at: { top: "3%", left: "0" }, from: "l" },
-      { icon: ScanBarcode, text: "Shop & online, one stock", at: { bottom: "3%", left: "4%" }, from: "l" },
+      { icon: CreditCard, text: "UPI, cards & COD", at: { top: "0", left: "0" }, from: "l" },
+      { icon: Globe, text: "Your own domain", at: { top: "52%", left: "-2%" }, from: "l" },
+      { icon: ScanBarcode, text: "Shop & online, one stock", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {
     id: "talk",
-    tone: "#2ec4b6",
-    title: <>One inbox for <em>every chat</em>.</>,
-    art: <TalkArt />,
+    tone: "#14a89b",
+    title: <>Every chat, <em>one inbox</em>.</>,
+    sub: "Mail, chat and WhatsApp, sorted by AI.",
+    screen: "chat/channel",
+    phones: ["workspace/m-mail", "workspace/m-chat"],
     badges: [
-      { icon: Sparkles, text: "Sorts itself, AI replies", at: { top: "3%", left: "18%" }, from: "l" },
-      { icon: LinkIcon, text: "Guests join by link", at: { bottom: "3%", right: "0" }, from: "r" },
+      { icon: Sparkles, text: "Sorts itself, AI replies", at: { top: "0", left: "0" }, from: "l" },
+      { icon: LinkIcon, text: "Guests join by link", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {
     id: "plan",
-    tone: "#8b7bff",
-    title: <>One calendar, <em>zero chaos</em>.</>,
-    art: <PlanArt />,
+    tone: "#7a6af0",
+    title: <>Your day, <em>sorted</em>.</>,
+    sub: "Meetings, bookings and reminders together.",
+    screen: "calendar/week",
+    phones: ["workspace/m-calendar", "phones/bookings"],
     badges: [
-      { icon: Video, text: "Meeting links built in", at: { top: "3%", left: "0" }, from: "l" },
-      { icon: RefreshCw, text: "Syncs Google & Outlook", at: { top: "20%", right: "0" }, from: "r" },
-      { icon: CalendarCheck, text: "Online bookings", at: { bottom: "3%", left: "4%" }, from: "l" },
+      { icon: Video, text: "Meeting links built in", at: { top: "0", left: "0" }, from: "l" },
+      { icon: RefreshCw, text: "Syncs Google & Outlook", at: { top: "52%", left: "-2%" }, from: "l" },
+      { icon: CalendarCheck, text: "Online bookings", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {
     id: "paid",
-    tone: "#3ccf91",
-    title: <>One tap, and <em>you&apos;re paid</em>.</>,
-    art: <PaidArt />,
+    tone: "#22a06b",
+    title: <>One tap, <em>you&apos;re paid</em>.</>,
+    sub: "GST invoices that chase themselves.",
+    screen: "finance/overview",
+    phones: ["phones/invoicing", "phones/point-of-sale"],
     badges: [
-      { icon: FileCheck, text: "GST e-invoices", at: { top: "3%", right: "0" }, from: "r" },
-      { icon: TrendingUp, text: "Live profit & loss", at: { top: "3%", left: "0" }, from: "l" },
-      { icon: BellRing, text: "Reminders send themselves", at: { bottom: "3%", left: "4%" }, from: "l" },
+      { icon: FileCheck, text: "GST e-invoices", at: { top: "0", left: "0" }, from: "l" },
+      { icon: TrendingUp, text: "Live profit & loss", at: { top: "52%", left: "-2%" }, from: "l" },
+      { icon: BellRing, text: "Reminders send themselves", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
 ];
 const LAST = SLIDES.length; // the final "start" screen comes after the story
-const FINAL_TONE = "#f5a35c";
+const FINAL_TONE = "#f08a4b";
 const toneAt = (i: number) => SLIDES[i]?.tone ?? FINAL_TONE;
 
 export function MobileIntro({ signedIn }: { signedIn: boolean }) {
@@ -184,7 +198,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
     const mq = window.matchMedia(PHONE);
     const apply = () => {
       const on = mq.matches && !document.documentElement.classList.contains("intro-off");
-      metas.forEach((m, i) => (m.content = on ? "#09090b" : before[i]!));
+      metas.forEach((m, i) => (m.content = on ? "#f7f4fb" : before[i]!));
     };
     apply();
     mq.addEventListener("change", apply);
@@ -267,7 +281,6 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="mi" data-at={at} style={{ "--tone": toneAt(at) } as CSSProperties} role="region" aria-roledescription="carousel" aria-label="Welcome to Cloudesk">
       <script dangerouslySetInnerHTML={{ __html: SKIP_SCRIPT }} />
-      <Materials />
       {splash !== "off" && <Splash leaving={splash === "leaving"} />}
       {/* Colour light behind each screen, crossfading as they change. */}
       <div className="mi-bg" aria-hidden>
@@ -302,14 +315,15 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
       <div ref={stage} className="mi-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div className={clsx("mi-track", dragging && "is-drag")} style={{ transform: `translate3d(calc(${-at * 100}% + ${drag}px),0,0)` }}>
-          <Ribbon screens={LAST + 1} />
           {SLIDES.map((s, i) => (
             <section key={s.id} className="mi-slide" style={{ "--tone": s.tone } as CSSProperties} data-on={(ready && i === at) || undefined} aria-hidden={i !== at} aria-roledescription="slide" aria-label={`${i + 1} of ${LAST + 1}`}>
               <div className="mi-art-wrap">
-                {s.art}
-                <Badges items={s.badges} />
+                <ShotArt screen={s.screen} phones={s.phones} first={i === 0} label={s.id}>
+                  <Badges items={s.badges} />
+                </ShotArt>
               </div>
               <h2 className="mi-title">{s.title}</h2>
+              <p className="mi-sub">{s.sub}</p>
             </section>
           ))}
 
@@ -318,8 +332,9 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
               <FinalArt />
             </div>
             <h2 className="mi-title">
-              One workspace. <em>Every business.</em>
+              One app. <em>Every business.</em>
             </h2>
+            <p className="mi-sub">Start with what you need, add the rest later.</p>
             <div className="mi-ctas">
               {ctas.map((c, i) => {
                 const Icon = c.icon;
@@ -366,8 +381,8 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
 // ─── Every feature, in a sheet from below ──────────────────────────────────
 
-/** Each tint as a colour that reads on the dark sheet. */
-const TINT: Record<Tint, string> = { peach: "#ff9b7a", lavender: "#a99bff", mint: "#4fd6a0", sky: "#6cc0ff", butter: "#f5c35c", rose: "#ff7aa2" };
+/** Each tint as a colour that reads on the light sheet. */
+const TINT: Record<Tint, string> = { peach: "#c2562c", lavender: "#5b48b0", mint: "#1f7a55", sky: "#2d6db5", butter: "#9a6b00", rose: "#b03a6b" };
 const GROUPS = MODULE_GROUPS.map((g) => ({ ...g, items: MODULES.filter((m) => m.group === g.id) })).filter((g) => g.items.length);
 
 function FeatureSheet({ open, onClose, startHref, startLabel }: { open: boolean; onClose: () => void; startHref: string; startLabel: string }) {
@@ -490,7 +505,7 @@ function Splash({ leaving }: { leaving: boolean }) {
         <svg viewBox="14 9 292 459" className="mi-splash-mark" fill="none" strokeWidth="28">
           <path pathLength={1} d="M28 387V90A67 67 0 0 1 95 23" stroke="#FF5A5F" />
           <path pathLength={1} d="M95 23A67 67 0 0 1 161 102A100 100 0 0 1 238 282" stroke="#FDBA5A" />
-          <path pathLength={1} d="M238 282A72 72 0 0 1 162 398A67 67 0 0 1 28 387" stroke="#fff" strokeOpacity=".85" />
+          <path pathLength={1} d="M238 282A72 72 0 0 1 162 398A67 67 0 0 1 28 387" stroke="#16132a" strokeOpacity=".85" />
         </svg>
         <p className="mi-splash-name">
           {"cloudesk".split("").map((ch, i) => (
@@ -504,503 +519,47 @@ function Splash({ leaving }: { leaving: boolean }) {
   );
 }
 
-// ─── The ribbon that runs through every screen ──────────────────────────────
+// ─── Real screens ────────────────────────────────────────────────────────────
 
-/** A twisting band: wide behind each screen's art, turning over between screens. */
-function Ribbon({ screens }: { screens: number }) {
-  const W = screens * 100;
-  const top: string[] = [];
-  const bot: string[] = [];
-  // It runs out where the last screen begins, so it never crosses the buttons.
-  const end = W - 104;
-  for (let x = -20; x <= end; x += 2.5) {
-    const mid = 80 + 40 * Math.sin((Math.PI * x) / 100 - Math.PI / 2);
-    const half = 15 * Math.sin((Math.PI * x) / 100) * Math.min(1, (end - x) / 40);
-    top.push(`${x.toFixed(1)},${(mid - half).toFixed(1)}`);
-    bot.unshift(`${x.toFixed(1)},${(mid + half).toFixed(1)}`);
-  }
-  const edge = `M${top.join(" L")}`;
-  const tones = [...SLIDES.map((s) => s.tone), FINAL_TONE];
+/** A browser window with a real screen, and a phone in front cross-fading through its screens. */
+function ShotArt({ screen, phones, first, label, children }: { screen: string; phones: string[]; first?: boolean; label: string; children?: ReactNode }) {
   return (
-    <svg className="mi-ribbon" viewBox={`0 0 ${W} 200`} preserveAspectRatio="none" style={{ width: `${screens * 100}%` }} aria-hidden>
-      <defs>
-        <linearGradient id="mi-rib" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={W} y2="0">
-          {tones.map((t, i) => (
-            <Fragment key={i}>
-              <stop offset={(i * 100 + 20) / W} stopColor={t} />
-              <stop offset={(i * 100 + 80) / W} stopColor={t} stopOpacity={0.85} />
-            </Fragment>
-          ))}
-        </linearGradient>
-        <linearGradient id="mi-rib-shade" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.35" />
-          <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
-          <stop offset="1" stopColor="#000" stopOpacity="0.35" />
-        </linearGradient>
-      </defs>
-      <path d={`${edge} L${bot.join(" L")} Z`} fill="url(#mi-rib)" opacity="0.92" />
-      <path d={`${edge} L${bot.join(" L")} Z`} fill="url(#mi-rib-shade)" />
-      <path d={edge} fill="none" stroke="#fff" strokeOpacity="0.45" strokeWidth="0.6" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
-}
-
-// ─── Isometric drawing ──────────────────────────────────────────────────────
-// Scenes are drawn in isometric 3D: x runs down-right, y down-left, z up.
-// A Box is a lit block (top, front-left and front-right faces); anything can
-// be drawn flat onto a face through that face's transform.
-
-const C = 0.866;
-const S = 0.5;
-type V3 = [number, number, number];
-const pt = ([x, y, z]: V3) => `${((x - y) * C).toFixed(1)},${((x + y) * S - z).toFixed(1)}`;
-const pts = (a: V3[]) => a.map(pt).join(" ");
-const faceTop = (x: number, y: number, z: number) => `matrix(${C} ${S} ${-C} ${S} ${((x - y) * C).toFixed(2)} ${((x + y) * S - z).toFixed(2)})`;
-
-/** Glossy materials: [top, front-left, front-right] gradients. */
-const MATS: Record<string, [string, string][]> = {
-  coral: [["#ffc2ad", "#ff6a5f"], ["#ff6d55", "#c62a40"], ["#a3243c", "#561022"]],
-  amber: [["#ffe7a8", "#f7a845"], ["#f5a040", "#b45f17"], ["#9a4c13", "#552808"]],
-  teal: [["#b3fff6", "#2ec4b6"], ["#2bb5a8", "#0e6f68"], ["#0c5a55", "#052f2d"]],
-  violet: [["#ddd6ff", "#8b7bff"], ["#7d6bf2", "#4335ad"], ["#382a90", "#1c1452"]],
-  mint: [["#c6ffe3", "#3ccf91"], ["#33bb83", "#147c53"], ["#0f6645", "#073725"]],
-  sky: [["#c9ecff", "#4fb3ff"], ["#3fa2f0", "#1b5fae"], ["#174f91", "#0a2850"]],
-  ink: [["#34343d", "#1d1d23"], ["#202027", "#121216"], ["#17171c", "#0a0a0d"]],
-  paper: [["#ffffff", "#ecebe5"], ["#e2e0d8", "#bdbab0"], ["#b3b0a6", "#8a877d"]],
-  gold: [["#fff1b8", "#f6c34a"], ["#f0b53c", "#a66d0f"], ["#94600d", "#4f3305"]],
-};
-
-/** The gradients every scene paints with, defined once. */
-function Materials() {
-  return (
-    <svg className="mi-defs" aria-hidden>
-      <defs>
-        {Object.entries(MATS).map(([k, [t, l, r]]) => (
-          <Fragment key={k}>
-            <linearGradient id={`m-${k}-t`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor={t[0]} />
-              <stop offset="1" stopColor={t[1]} />
-            </linearGradient>
-            <linearGradient id={`m-${k}-l`} x1="0" y1="0" x2="0.3" y2="1">
-              <stop offset="0" stopColor={l[0]} />
-              <stop offset="1" stopColor={l[1]} />
-            </linearGradient>
-            <linearGradient id={`m-${k}-r`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor={r[0]} />
-              <stop offset="1" stopColor={r[1]} />
-            </linearGradient>
-          </Fragment>
-        ))}
-        <radialGradient id="m-shadow">
-          <stop offset="0" stopColor="#000" stopOpacity="1" />
-          <stop offset="0.55" stopColor="#000" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#000" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-    </svg>
-  );
-}
-
-type BoxProps = { x?: number; y?: number; z?: number; w: number; d: number; h: number; m: keyof typeof MATS; top?: ReactNode; left?: ReactNode; className?: string; style?: CSSProperties };
-
-function Box({ x = 0, y = 0, z = 0, w, d, h, m, top, left, className, style }: BoxProps) {
-  const T: V3[] = [[x, y, z + h], [x + w, y, z + h], [x + w, y + d, z + h], [x, y + d, z + h]];
-  const L: V3[] = [[x, y + d, z + h], [x + w, y + d, z + h], [x + w, y + d, z], [x, y + d, z]];
-  const R: V3[] = [[x + w, y, z + h], [x + w, y + d, z + h], [x + w, y + d, z], [x + w, y, z]];
-  return (
-    <g className={className} style={style}>
-      <polygon points={pts(L)} fill={`url(#m-${m}-l)`} />
-      <polygon points={pts(R)} fill={`url(#m-${m}-r)`} />
-      <polygon points={pts(T)} fill={`url(#m-${m}-t)`} />
-      {left && <g transform={`matrix(${C} ${S} 0 1 ${((x - y - d) * C).toFixed(2)} ${((x + y + d) * S - z - h).toFixed(2)})`}>{left}</g>}
-      {top && <g transform={faceTop(x, y, z + h)}>{top}</g>}
-      {/* Light catching the front edges. */}
-      <polyline points={pts([T[3]!, T[2]!, T[1]!])} fill="none" stroke="#fff" strokeOpacity="0.55" strokeWidth="0.7" strokeLinejoin="round" />
-      <polyline points={pts([T[2]!, [x + w, y + d, z]])} fill="none" stroke="#fff" strokeOpacity="0.25" strokeWidth="0.6" />
-    </g>
-  );
-}
-
-/** A soft shadow under a footprint: a gradient ellipse, so redraws stay cheap (no blur filter). */
-function Shadow({ x, y, w, d, o = 0.55 }: { x: number; y: number; w: number; d: number; o?: number }) {
-  const cx = (x + w / 2 - (y + d / 2)) * C;
-  const cy = (x + w / 2 + (y + d / 2)) * S;
-  return <ellipse cx={cx} cy={cy} rx={((w + d) / 2) * C * 1.15} ry={((w + d) / 2) * S * 1.15} fill="url(#m-shadow)" opacity={o} />;
-}
-
-/** A coin (or any disc) lying flat, radius r, height h. */
-function Disc({ x, y, z, r, h, m, children }: { x: number; y: number; z: number; r: number; h: number; m: keyof typeof MATS; children?: ReactNode }) {
-  const cx = (x - y) * C;
-  const cy = (x + y) * S - z;
-  const rx = r * 1.2247;
-  const ry = r * 0.7071;
-  return (
-    <g>
-      <path d={`M${cx - rx} ${cy} v${-h} A${rx} ${ry} 0 0 0 ${cx + rx} ${cy - h} v${h} A${rx} ${ry} 0 0 1 ${cx - rx} ${cy} Z`} fill={`url(#m-${m}-l)`} />
-      <ellipse cx={cx} cy={cy - h} rx={rx} ry={ry} fill={`url(#m-${m}-t)`} stroke="#fff" strokeOpacity="0.5" strokeWidth="0.6" />
-      {children && <g transform={faceTop(x, y, z + h)}>{children}</g>}
-    </g>
-  );
-}
-
-/** A lucide icon drawn flat on a face, centred at (u, v). */
-const Glyph = ({ icon: Icon, u, v, s, c = "#fff" }: { icon: LucideIcon; u: number; v: number; s: number; c?: string }) => <Icon x={u - s / 2} y={v - s / 2} width={s} height={s} color={c} strokeWidth={2.2} />;
-
-/** The Cloudesk mark (as in components/brand) at height s, centred on (u, v). */
-function CloudMark({ u, v, s }: { u: number; v: number; s: number }) {
-  const k = s / 459;
-  return (
-    <g transform={`translate(${u - 146 * k} ${v - s / 2}) scale(${k}) translate(-14 -9)`} fill="none" strokeWidth="30">
-      <path d="M28 387V90A67 67 0 0 1 95 23" stroke="#FF5A5F" />
-      <path d="M95 23A67 67 0 0 1 161 102A100 100 0 0 1 238 282" stroke="#FDBA5A" />
-      <path d="M238 282A72 72 0 0 1 162 398A67 67 0 0 1 28 387" stroke="#fff" strokeOpacity=".85" />
-    </g>
-  );
-}
-
-/** Small glowing shapes drifting around a scene, like dust in the light. */
-function Sparks({ items }: { items: [number, number, number, string][] }) {
-  return (
-    <g>
-      {items.map(([x, y, s, c], i) => (
-        <g key={i} className="mi-spark" style={{ "--i": i } as CSSProperties}>
-          <polygon points={`${x},${y - s} ${x + s * 0.7},${y} ${x},${y + s} ${x - s * 0.7},${y}`} fill={c} opacity="0.95" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
-const Scene = ({ children, extra }: { children: ReactNode; extra?: ReactNode }) => (
-  <div className="mi-art">
-    <svg viewBox="-128 -128 256 256" className="mi-svg" aria-hidden>
+    <div className="mi-art">
+      <div className="mi-win">
+        <div className="mi-win-bar" aria-hidden>
+          <i />
+          <i />
+          <i />
+          <span>app.cloudesk.in</span>
+        </div>
+        <div className="mi-win-shot">
+          <Image src={`/marketing/${screen}.jpg`} alt="" aria-hidden fill sizes="92vw" priority={first} className="mi-pan object-cover object-left-top" />
+        </div>
+      </div>
+      <PhoneShot shots={phones} first={first} className="mi-phone" key={label} />
       {children}
-    </svg>
-    {extra}
-  </div>
-);
-
-// ─── Brand marks (for "works with") ─────────────────────────────────────────
-
-const GmailMark = () => (
-  <svg viewBox="0 0 24 24" aria-label="Gmail">
-    <path fill="#4285F4" d="M2.5 19.5h3.6V10.6L1 6.9v11.1c0 .8.7 1.5 1.5 1.5z" />
-    <path fill="#34A853" d="M17.9 19.5h3.6c.8 0 1.5-.7 1.5-1.5V6.9l-5.1 3.7z" />
-    <path fill="#FBBC04" d="M17.9 4.4v6.2L23 6.9V5c0-1.9-2.1-2.9-3.6-1.8z" />
-    <path fill="#EA4335" d="M6.1 10.6V4.4L12 8.8l5.9-4.4v6.2L12 15z" />
-    <path fill="#C5221F" d="M1 5v1.9l5.1 3.7V4.4L4.6 3.2C3.1 2.1 1 3.1 1 5z" />
-  </svg>
-);
-const OutlookMark = () => (
-  <svg viewBox="0 0 24 24" aria-label="Outlook">
-    <rect x="9" y="4" width="13" height="16" rx="2" fill="#28a8ea" />
-    <path d="M9 9h13v9a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2z" fill="#0078d4" />
-    <rect x="2" y="6" width="12" height="12" rx="2" fill="#0a5cb8" />
-    <ellipse cx="8" cy="12" rx="3" ry="3.4" fill="none" stroke="#fff" strokeWidth="1.8" />
-  </svg>
-);
-const WhatsAppMark = () => (
-  <svg viewBox="0 0 24 24" aria-label="WhatsApp">
-    <path fill="#25D366" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2z" />
-    <path fill="#fff" d="M9.3 7.2c-.2-.5-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.2 5 4.4 2.5 1 3 .8 3.5.7.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4l-.6-.3-2-1c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.6.3-.5v-.5z" />
-  </svg>
-);
-const UpiMark = () => (
-  <svg viewBox="0 0 44 18" aria-label="UPI">
-    <text x="0" y="14.5" fontSize="15" fontWeight="800" fontStyle="italic" fill="#fff" letterSpacing="-0.5" fontFamily="Arial, sans-serif">
-      UPI
-    </text>
-    <path d="M33 2l6 7-6 7z" fill="#f37021" />
-    <path d="M37.5 2l6 7-6 7z" fill="#00a651" />
-  </svg>
-);
-
-/** A logo on a small glass tile floating over a scene. */
-function LogoTile({ children, x, y, i }: { children: ReactNode; x: number; y: number; i: number }) {
-  return (
-    <span className="mi-logo" style={{ left: `${x}%`, top: `${y}%`, "--i": i } as CSSProperties}>
-      {children}
-    </span>
+    </div>
   );
 }
 
-// ─── Scenes ─────────────────────────────────────────────────────────────────
-
-/** Nine scattered apps fly in and dock on one block: Cloudesk. */
-function OneArt() {
-  const apps: { icon: LucideIcon; m: keyof typeof MATS; fx: number; fy: number; fr: number }[] = [
-    { icon: Store, m: "coral", fx: -120, fy: -150, fr: -40 },
-    { icon: Mail, m: "teal", fx: -20, fy: -190, fr: 30 },
-    { icon: MessageCircle, m: "sky", fx: 110, fy: -160, fr: 50 },
-    { icon: CalendarDays, m: "violet", fx: -150, fy: -60, fr: -60 },
-    { icon: ReceiptIndianRupee, m: "mint", fx: 0, fy: -120, fr: 20 },
-    { icon: Users, m: "amber", fx: 150, fy: -70, fr: 40 },
-    { icon: NotebookPen, m: "gold", fx: -130, fy: 40, fr: -30 },
-    { icon: Package, m: "coral", fx: 40, fy: -210, fr: -20 },
-    { icon: ShoppingBag, m: "teal", fx: 140, fy: 30, fr: 60 },
-  ];
-  const tiles = apps.map((a, k) => ({ ...a, i: k % 3, j: Math.floor(k / 3) }));
-  // Back to front, so nearer tiles draw over farther ones.
-  const order = [...tiles].sort((p, q) => p.i + p.j - (q.i + q.j));
+/** An iPhone 17; with more than one screen they take turns (CSS only, so it pauses with its slide). */
+function PhoneShot({ shots, first, className, color }: { shots: string[]; first?: boolean; className?: string; color?: IPhoneColor }) {
   return (
-    <Scene>
-      <Shadow x={-46} y={-40} w={96} d={96} />
-      <Box className="mi-b-rise" x={-40} y={-40} z={-30} w={80} d={80} h={62} m="ink" left={<CloudMark u={40} v={31} s={36} />} />
-      {order.map((t) => (
-        <Box key={t.i + t.j * 3} className="mi-b-dock" style={{ "--fx": `${t.fx}px`, "--fy": `${t.fy}px`, "--fr": `${t.fr}deg`, "--k": t.i + t.j * 3 } as CSSProperties} x={-35 + t.i * 25} y={-35 + t.j * 25} z={32} w={20} d={20} h={5} m={t.m} top={<Glyph icon={t.icon} u={10} v={10} s={11} />} />
+    <IPhone17 className={clsx("mi-ph", className)} color={color} data-n={shots.length} style={{ "--n": shots.length } as CSSProperties}>
+      {shots.map((p, k) => (
+        <Image key={p} src={`/marketing/${p}.jpg`} alt="" fill sizes="40vw" priority={first && k === 0} className={clsx("object-cover object-top", shots.length > 1 && "mi-cyc")} style={{ "--k": k } as CSSProperties} />
       ))}
-      <Sparks items={[[-110, -70, 5, "#ff7a59"], [105, -95, 4, "#2ec4b6"], [112, 40, 3.5, "#8b7bff"], [-100, 60, 3, "#f6c34a"]]} />
-    </Scene>
+    </IPhone17>
   );
 }
 
-/** A little shop with its sign on, orders stacking up beside it. */
-function StoreArt() {
-  const stripes = Array.from({ length: 7 }, (_, k) => <rect key={k} x={k * 10} y={0} width={5} height={6} fill="#fff" opacity="0.85" />);
-  return (
-    <Scene
-      extra={
-        <>
-          <span className="mi-chip mi-chip-url" style={{ left: "4%", top: "10%" }}>
-            <i className="mi-dot-live" />
-            <Lock className="size-[1em] opacity-70" aria-hidden /> yourshop.in
-          </span>
-          <span className="mi-chip" style={{ right: "0%", bottom: "12%" }}>
-            <span className="mi-chip-ic">
-              <ShoppingBag className="size-[1.1em]" aria-hidden />
-            </span>
-            <span>
-              <b>New order</b>
-              <small>₹1,299 · just now</small>
-            </span>
-          </span>
-        </>
-      }
-    >
-      <Shadow x={-44} y={-30} w={110} d={70} />
-      <Box className="mi-b-rise" x={-40} y={-26} z={-25} w={70} d={46} h={52} m="coral" left={<ShopFront />} />
-      <Box className="mi-b-drop" style={{ "--k": 1 } as CSSProperties} x={-40} y={20} z={18} w={70} d={9} h={4} m="amber" left={<g>{stripes}</g>} />
-      <Box className="mi-b-drop" style={{ "--k": 2 } as CSSProperties} x={-26} y={-6} z={27} w={42} d={7} h={13} m="ink" left={<text x="21" y="9.5" textAnchor="middle" fontSize="7.5" fontWeight="700" letterSpacing="1.5" fill="#ffd28a">OPEN</text>} />
-      <Box className="mi-b-drop" style={{ "--k": 3 } as CSSProperties} x={40} y={-12} z={-25} w={24} d={24} h={18} m="amber" top={<rect x="10" y="0" width="4" height="24" fill="#fff" opacity="0.5" />} />
-      <Box className="mi-b-drop" style={{ "--k": 4 } as CSSProperties} x={43} y={-9} z={-7} w={18} d={18} h={13} m="gold" top={<rect x="7" y="0" width="4" height="18" fill="#fff" opacity="0.5" />} />
-      <Box className="mi-b-drop" style={{ "--k": 5 } as CSSProperties} x={46} y={22} z={-25} w={16} d={16} h={14} m="mint" top={<Glyph icon={ShoppingBag} u={8} v={8} s={10} />} />
-      <Sparks items={[[-112, -40, 4, "#ff6b6b"], [96, -96, 3.5, "#f6c34a"], [-90, 78, 3, "#ffb59e"]]} />
-    </Scene>
-  );
-}
-
-function ShopFront() {
-  return (
-    <g>
-      <rect x="6" y="16" width="18" height="16" rx="1.5" fill="#ffe9d6" opacity="0.92" />
-      <rect x="46" y="16" width="18" height="16" rx="1.5" fill="#ffe9d6" opacity="0.92" />
-      <rect x="29" y="20" width="12" height="32" rx="1.5" fill="#3a0d17" />
-      <circle cx="38" cy="37" r="0.9" fill="#ffd28a" />
-      <rect x="9" y="25" width="5" height="5" rx="1" fill="#ff8a7a" />
-      <rect x="16" y="22" width="5" height="8" rx="1" fill="#8b7bff" opacity="0.8" />
-      <rect x="49" y="24" width="12" height="6" rx="1" fill="#3ccf91" opacity="0.85" />
-    </g>
-  );
-}
-
-/** Messages from every app landing in one stack. */
-function TalkArt() {
-  const layers: { z: number; m: keyof typeof MATS }[] = [
-    { z: -30, m: "ink" },
-    { z: -14, m: "sky" },
-    { z: 2, m: "teal" },
-  ];
-  return (
-    <Scene
-      extra={
-        <>
-          <LogoTile x={10} y={18} i={0}>
-            <GmailMark />
-          </LogoTile>
-          <LogoTile x={84} y={14} i={1}>
-            <OutlookMark />
-          </LogoTile>
-          <LogoTile x={88} y={60} i={2}>
-            <WhatsAppMark />
-          </LogoTile>
-          <span className="mi-chip" style={{ left: "0%", bottom: "10%" }}>
-            <span className="mi-av">P</span>
-            <span>
-              <b>Priya</b>
-              <small>
-                New stock just arrived <CheckCheck className="inline size-[1.1em] text-[#4fb3ff]" aria-hidden />
-              </small>
-            </span>
-          </span>
-        </>
-      }
-    >
-      <Shadow x={-46} y={-34} w={92} d={72} />
-      {layers.map((l, k) => (
-        <Box key={k} className="mi-b-drop" style={{ "--k": k } as CSSProperties} x={-42 + k * 3} y={-32 - k * 3} z={l.z} w={80} d={62} h={6} m={l.m} />
-      ))}
-      <Box className="mi-b-drop" style={{ "--k": 3 } as CSSProperties} x={-33} y={-41} z={18} w={80} d={62} h={7} m="paper" top={<InboxFace />} />
-      <Sparks items={[[-115, -20, 4, "#2ec4b6"], [100, -105, 3.5, "#4fb3ff"], [110, 70, 3, "#3ccf91"]]} />
-    </Scene>
-  );
-}
-
-function InboxFace() {
-  return (
-    <g>
-      <rect x="6" y="6" width="68" height="10" rx="2.5" fill="#2ec4b6" opacity="0.18" />
-      <Glyph icon={Mail} u={12} v={11} s={7} c="#0e6f68" />
-      <rect x="19" y="9.5" width="30" height="3" rx="1.5" fill="#0e6f68" opacity="0.7" />
-      {[22, 34, 46].map((v, k) => (
-        <g key={k}>
-          <circle cx="11" cy={v + 3} r="3.2" fill={["#ff8a7a", "#8b7bff", "#3ccf91"][k]} />
-          <rect x="18" y={v} width={[44, 36, 40][k]} height="2.6" rx="1.3" fill="#1d1d23" opacity="0.55" />
-          <rect x="18" y={v + 4} width={[30, 40, 24][k]} height="2.2" rx="1.1" fill="#1d1d23" opacity="0.25" />
-        </g>
-      ))}
-    </g>
-  );
-}
-
-/** A calendar block with today picked out, a sticky checklist on top. */
-function PlanArt() {
-  const cells: ReactNode[] = [];
-  for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 6; c++) {
-      const today = r === 1 && c === 3;
-      cells.push(<rect key={`${r}-${c}`} x={6 + c * 11.5} y={22 + r * 13} width={9} height={10} rx={2} fill={today ? "#ff6b6b" : "#fff"} opacity={today ? 1 : 0.22} />);
-    }
-  const note = (
-    <g>
-      {[8, 17, 26].map((v, k) => (
-        <g key={k}>
-          <rect x="5" y={v - 3} width="6" height="6" rx="1.5" fill={k < 2 ? "#7a4b05" : "none"} stroke="#7a4b05" strokeWidth="1" />
-          {k < 2 && <path d={`M6.3 ${v} l1.5 1.5 l2.8 -3`} fill="none" stroke="#ffe7a8" strokeWidth="1.1" strokeLinecap="round" />}
-          <rect x="14" y={v - 1.2} width={[18, 14, 16][k]} height="2.4" rx="1.2" fill="#7a4b05" opacity={k < 2 ? 0.4 : 0.8} />
-        </g>
-      ))}
-    </g>
-  );
-  return (
-    <Scene
-      extra={
-        <span className="mi-chip" style={{ right: "0%", bottom: "12%" }}>
-          <span className="mi-chip-ic">
-            <Bell className="size-[1.1em]" aria-hidden />
-          </span>
-          <span>
-            <b>Client demo · 11:30</b>
-            <small>In 10 minutes</small>
-          </span>
-        </span>
-      }
-    >
-      <Shadow x={-46} y={-44} w={96} d={92} />
-      <Box
-        className="mi-b-rise"
-        x={-42}
-        y={-42}
-        z={-30}
-        w={84}
-        d={84}
-        h={18}
-        m="violet"
-        top={
-          <g>
-            <rect x="6" y="6" width="72" height="11" rx="3" fill="#fff" opacity="0.28" />
-            <rect x="10" y="10" width="22" height="3" rx="1.5" fill="#fff" />
-            {cells}
-          </g>
-        }
-        left={<rect x="4" y="6" width="76" height="2" rx="1" fill="#fff" opacity="0.25" />}
-      />
-      <Box className="mi-b-drop" style={{ "--k": 1 } as CSSProperties} x={-30} y={-46} z={-12} w={7} d={8} h={9} m="ink" />
-      <Box className="mi-b-drop" style={{ "--k": 1 } as CSSProperties} x={22} y={-46} z={-12} w={7} d={8} h={9} m="ink" />
-      <Box className="mi-b-note" x={8} y={6} z={-12} w={38} d={38} h={3} m="gold" top={note} />
-      <Sparks items={[[-112, -60, 4, "#8b7bff"], [110, -80, 3.5, "#ff6b6b"], [-96, 80, 3, "#f6c34a"]]} />
-    </Scene>
-  );
-}
-
-/** Takings rising, an invoice stamped paid and the coins to prove it. */
-function PaidArt() {
-  const bars = [18, 30, 44, 62];
-  return (
-    <Scene
-      extra={
-        <span className="mi-chip" style={{ left: "0%", top: "8%" }}>
-          <span className="mi-upi">
-            <UpiMark />
-          </span>
-          <span>
-            <b>₹24,500 received</b>
-            <small>Invoice #1042 · paid</small>
-          </span>
-          <BadgeCheck className="size-[1.25em] text-[#3ccf91]" aria-hidden />
-        </span>
-      }
-    >
-      <Shadow x={-60} y={-46} w={124} d={104} o={0.45} />
-      {bars.map((h, k) => (
-        <Box key={k} className="mi-b-grow" style={{ "--k": k } as CSSProperties} x={-10 + k * 18} y={-44} z={-30} w={13} d={13} h={h} m="mint" />
-      ))}
-      <Box className="mi-b-drop" style={{ "--k": 2 } as CSSProperties} x={-58} y={-8} z={-30} w={56} d={66} h={3} m="paper" top={<InvoiceFace />} />
-      {[0, 1, 2].map((k) => (
-        <g key={k} className="mi-b-coin" style={{ "--k": k } as CSSProperties}>
-          <Disc x={34} y={36} z={-30 + k * 6} r={13} h={5} m="gold">
-            {k === 2 && (
-              <text x="0" y="3.5" textAnchor="middle" fontSize="11" fontWeight="800" fill="#8a5a0a">
-                ₹
-              </text>
-            )}
-          </Disc>
-        </g>
-      ))}
-      <Sparks items={[[-110, -90, 4, "#3ccf91"], [112, -40, 3.5, "#f6c34a"], [-100, 80, 3, "#2ec4b6"]]} />
-    </Scene>
-  );
-}
-
-function InvoiceFace() {
-  return (
-    <g>
-      <rect x="6" y="6" width="9" height="9" rx="2" fill="#111" />
-      <rect x="19" y="7" width="24" height="3" rx="1.5" fill="#111" opacity="0.8" />
-      <rect x="19" y="12" width="14" height="2" rx="1" fill="#111" opacity="0.35" />
-      {[24, 31, 38].map((v, k) => (
-        <rect key={k} x="6" y={v} width={[42, 32, 38][k]} height="2.4" rx="1.2" fill="#111" opacity="0.14" />
-      ))}
-      <line x1="6" x2="50" y1="48" y2="48" stroke="#111" strokeOpacity="0.2" strokeDasharray="2 2" />
-      <rect x="32" y="52" width="18" height="4" rx="2" fill="#111" opacity="0.85" />
-      <g transform="rotate(-14 28 30)">
-        <g className="mi-stamp">
-          <rect x="12" y="24" width="32" height="12" rx="2.5" fill="#16a34a" fillOpacity="0.08" stroke="#16a34a" strokeWidth="1.6" />
-          <text x="28" y="33.2" textAnchor="middle" fontSize="8.5" fontWeight="800" letterSpacing="1.4" fill="#16a34a">
-            PAID
-          </text>
-        </g>
-      </g>
-    </g>
-  );
-}
-
-/** The Cloudesk block lit up, with what it holds hovering around it. */
+/** The last screen: three phones fanned out, each a different part of the business. */
 function FinalArt() {
   return (
-    <Scene
-      extra={
-        <>
-          <span className="mi-ring" />
-          <span className="mi-ring mi-ring-2" />
-        </>
-      }
-    >
-      <Shadow x={-38} y={-32} w={80} d={80} />
-      <Box className="mi-b-rise" x={-34} y={-34} z={-30} w={68} d={68} h={56} m="ink" left={<CloudMark u={34} v={28} s={32} />} />
-      <Box className="mi-b-hover" style={{ "--k": 0 } as CSSProperties} x={-100} y={-30} z={30} w={22} d={22} h={5} m="coral" top={<Glyph icon={Store} u={11} v={11} s={12} />} />
-      <Box className="mi-b-hover" style={{ "--k": 1 } as CSSProperties} x={-20} y={-108} z={36} w={22} d={22} h={5} m="teal" top={<Glyph icon={Mail} u={11} v={11} s={12} />} />
-      <Box className="mi-b-hover" style={{ "--k": 2 } as CSSProperties} x={70} y={-50} z={10} w={22} d={22} h={5} m="mint" top={<Glyph icon={ReceiptIndianRupee} u={11} v={11} s={12} />} />
-      <Box className="mi-b-hover" style={{ "--k": 3 } as CSSProperties} x={-40} y={60} z={-10} w={22} d={22} h={5} m="violet" top={<Glyph icon={CalendarDays} u={11} v={11} s={12} />} />
-    </Scene>
+    <div className="mi-art mi-fan" aria-hidden>
+      <PhoneShot shots={["phones/online-store"]} className="mi-fan-l" color="lavender" />
+      <PhoneShot shots={["phones/point-of-sale"]} className="mi-fan-r" color="sage" />
+      <PhoneShot shots={["workspace/m-mail"]} className="mi-fan-c" />
+    </div>
   );
 }

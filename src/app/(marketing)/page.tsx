@@ -10,6 +10,7 @@ import { groupFeatures, PRODUCT_GROUPS, shortName } from "@/components/marketing
 import { PhoneDeck } from "@/components/marketing/phone-deck";
 import { Businesses, Faq, H2, Integrations, SLIDE, SLIDER, W } from "@/components/marketing/sections";
 import { HorecaSpotlight } from "@/components/marketing/horeca-spotlight";
+import { IntelligenceHighlight } from "@/components/marketing/intelligence";
 import { Innovations } from "@/components/marketing/innovations";
 import { DocumentsSpotlight } from "@/components/marketing/documents-spotlight";
 import { NotesSpotlight, PartnersSpotlight, WorkdayCards } from "@/components/marketing/home-spotlights";
@@ -61,6 +62,7 @@ export default async function Landing() {
       {/* Phones open on a swipeable intro instead of the long page. */}
       <MobileIntro signedIn={!!session} />
       <HomeHero />
+      <IntelligenceHighlight />
       <WorkdayCards />
       <WorkdaySection />
       <NotesSpotlight />

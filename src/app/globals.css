@@ -552,6 +552,18 @@ input[type="range"] {
 .ob-scan { animation: ob-scanline 2.2s ease-in-out infinite; }
 .ob-type { animation: ob-type 1.2s steps(24, end) both; }
 .ob-screen { animation: p-in 0.75s cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Real screens in onboarding (components/onboarding/showcase.tsx): a slow drift
+   on the screen showing, its caption rising in, a progress line, and a strip
+   of screens that scrolls by on phones. */
+@keyframes ob-shot-pan { from { transform: scale(1.01); } to { transform: scale(1.07) translate(-1.5%, -1%); } }
+.ob-shot-pan { animation: ob-shot-pan linear both; }
+@keyframes ob-shot-cap { from { opacity: 0; transform: translateY(8px) scale(0.96); } to { opacity: 1; transform: none; } }
+.ob-shot-cap { animation: ob-shot-cap 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both; }
+.ob-shot-progress { transform-origin: left; animation: ob-grow linear both; }
+@keyframes ob-strip { to { transform: translateX(-50%); } }
+.ob-strip { mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.ob-strip-track { animation: ob-strip 40s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ob-shot-pan, .ob-shot-cap, .ob-shot-progress, .ob-strip-track { animation: none; } }
 
 /* Tour: a soft spotlight that glides between targets. */
 .tour-spot {
@@ -1545,3 +1557,73 @@ dialog.stat-pop { background: var(--glass-strong) !important; }
 @media (prefers-reduced-transparency: reduce) {
   :is([role="menu"], [role="listbox"], [data-popover]):not([data-popover="static"]) { background: var(--surface-solid) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
+
+/* ── iPhone 17 frame (components/marketing/iphone.tsx) ──────────────────────
+   Sized in cqw of the frame's own width. The body is the aluminium edge
+   (1.1cqw) around a black border (3.4cqw); the screen keeps the phone's
+   402×874 shape. Always size a frame by its width: it's a size container,
+   and Safari can't give one a width from its height. */
+.ip17 {
+  --edge: linear-gradient(135deg, #4a4a50, #1d1d21 40%, #3a3a40 70%, #18181b);
+  --btn: #2b2b30;
+  position: relative;
+  aspect-ratio: 1 / 2.07;
+  container-type: inline-size;
+  isolation: isolate;
+}
+.ip17[data-color="white"] { --edge: linear-gradient(135deg, #f4f3f1, #d9d7d2 40%, #efeeea 70%, #cfcdc8); --btn: #dcdad5; }
+.ip17[data-color="lavender"] { --edge: linear-gradient(135deg, #e6dcf3, #c9b9e2 40%, #ddd1ef 70%, #bdaed8); --btn: #cbbde3; }
+.ip17[data-color="sage"] { --edge: linear-gradient(135deg, #dfe6d6, #bcc8b0 40%, #d3dccb 70%, #b0bda4); --btn: #c1ccb6; }
+.ip17[data-color="mist"] { --edge: linear-gradient(135deg, #dde6ef, #b8c8d9 40%, #d0dce8 70%, #aabcd0); --btn: #bccbdb; }
+.ip17-body {
+  position: absolute;
+  inset: 0;
+  padding: 1.1cqw;
+  border-radius: 17cqw;
+  background: var(--edge);
+  box-shadow: 0 6cqw 14cqw -6cqw rgb(20 10 40 / 0.55), 0 2cqw 4cqw -2cqw rgb(20 10 40 / 0.35), inset 0 0 0 0.3cqw rgb(255 255 255 / 0.25);
+}
+.ip17-screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 3.4cqw solid #050506;
+  border-radius: 15.9cqw;
+  background: #fff;
+}
+/* Status bar: its own strip, so the app below isn't covered. */
+.ip17-status {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 11.5cqw;
+  padding: 1.4cqw 7.5cqw 0 9cqw;
+  background: #fff;
+  color: #0b0b0d;
+  font: 600 3.9cqw/1 -apple-system, "SF Pro Text", "Inter", system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+.ip17-icons { display: inline-flex; align-items: center; gap: 1.3cqw; }
+.ip17-signal { width: 4.2cqw; fill: currentColor; }
+.ip17-wifi { width: 3.9cqw; fill: currentColor; }
+.ip17-battery { position: relative; display: inline-block; width: 6.2cqw; height: 3cqw; border-radius: 0.95cqw; border: 0.3cqw solid rgb(11 11 13 / 0.4); padding: 0.35cqw; }
+.ip17-battery::after { content: ""; position: absolute; right: -0.9cqw; top: 50%; width: 0.5cqw; height: 1.1cqw; translate: 0 -50%; border-radius: 0 0.4cqw 0.4cqw 0; background: rgb(11 11 13 / 0.4); }
+.ip17-battery i { display: block; width: 80%; height: 100%; border-radius: 0.45cqw; background: currentColor; }
+.ip17-view { position: absolute; inset: 11.5cqw 0 0; overflow: hidden; background: #fff; }
+.ip17-island { position: absolute; z-index: 3; top: 2.6cqw; left: 50%; width: 29cqw; height: 8.4cqw; translate: -50% 0; border-radius: 99px; background: #000; box-shadow: inset 0 0 0 0.2cqw rgb(255 255 255 / 0.04); }
+.ip17-island::after { content: ""; position: absolute; right: 2.4cqw; top: 50%; width: 3.2cqw; height: 3.2cqw; translate: 0 -50%; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #2a3550, #08090d 60%); }
+.ip17-home { position: absolute; z-index: 3; bottom: 1.8cqw; left: 50%; width: 34cqw; height: 1.25cqw; translate: -50% 0; border-radius: 99px; background: rgb(11 11 13 / 0.85); }
+/* Glass: a soft diagonal light over the whole front. */
+.ip17-shine { position: absolute; inset: 1.1cqw; z-index: 4; border-radius: 15.9cqw; pointer-events: none; background: linear-gradient(115deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0.04) 28%, transparent 42%); }
+/* Side buttons stand just proud of the edge. */
+.ip17-btn { position: absolute; z-index: -1; width: 1.6cqw; border-radius: 0.8cqw; background: var(--btn); box-shadow: inset 0 0 0 0.2cqw rgb(255 255 255 / 0.2); }
+.ip17-action, .ip17-vol-up, .ip17-vol-down { left: -0.9cqw; }
+.ip17-side, .ip17-camera { right: -0.9cqw; }
+.ip17-action { top: 18%; height: 6%; }
+.ip17-vol-up { top: 27%; height: 10%; }
+.ip17-vol-down { top: 39%; height: 10%; }
+.ip17-side { top: 29%; height: 15%; }
+.ip17-camera { top: 59%; height: 8.5%; border-radius: 0.6cqw; }

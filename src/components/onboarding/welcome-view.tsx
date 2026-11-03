@@ -18,6 +18,7 @@ import { api, errorMessage } from "@/lib/client/api";
 import { profileFor, recommend, type Profile } from "@/lib/onboarding/recommend";
 import { suggestIndustry } from "@/lib/onboarding/suggest";
 import { CORE, goalsFor, industryById, INDUSTRIES, MODULE_GROUPS, moduleById, MODULES, neededBy, photoUrl, SETUP_LABEL, withRequirements, type Industry, type IndustryId, type ModuleId, type PartsOff } from "@/lib/workspace/modules";
+import { ShotCycle, ShotStrip, shotsFor, WelcomeShowcase } from "./showcase";
 import { Plan, PlanSummary, Questions } from "./steps";
 
 type Screen = "welcome" | "business" | "questions" | "plan" | "build" | "ready";
@@ -221,9 +222,17 @@ export function StepProgress({ labels, index, finished }: { labels: string[]; in
 }
 
 export function PlanAside({ name, industry, modules }: { name: string; industry: Industry; modules: ModuleId[] }) {
+  const [view, setView] = useState<"screens" | "dash">("screens");
   return (
     <div className="grid gap-3">
-      <DashPreview name={name} industry={industry} modules={modules} />
+      <div className="p-glass mx-auto flex w-fit gap-1 rounded-full p-1 text-[12.5px] font-medium" role="tablist" aria-label="Preview">
+        {([["screens", "Real screens"], ["dash", "Your dashboard"]] as const).map(([id, label]) => (
+          <button key={id} type="button" role="tab" aria-selected={view === id} onClick={() => setView(id)} className={clsx("rounded-full px-3.5 py-1.5 transition-colors", view === id ? "bg-fg text-bg" : "text-fg/55 hover:text-fg")}>{label}</button>
+        ))}
+      </div>
+      <div key={view} className="ob-chip">
+        {view === "screens" && modules.length ? <ShotCycle items={shotsFor(modules)} url={`${(name || "your-business").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.cloudesk.in`} /> : <DashPreview name={name} industry={industry} modules={modules} />}
+      </div>
       <div className="p-glass flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[18px] px-4 py-3 text-[12px] text-fg/60">
         <b className="font-semibold text-fg/75">Always included:</b>
         {CORE.map((c) => (
@@ -253,12 +262,13 @@ export function Welcome({ eyebrow, onStart, steps = WELCOME_STEPS, time = "About
         <p className="p-in inline-flex items-center justify-center gap-2 text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase lg:justify-start">
           <span className="size-1.5 rounded-full bg-[#FF5A5F]" /> {eyebrow}
         </p>
-        <h1 className="p-in text-[clamp(2.4rem,5.6vw,4.4rem)] leading-[0.98] font-semibold tracking-[-0.045em] text-balance max-sm:text-[34px] max-sm:leading-[1.04]" style={{ animationDelay: "100ms" }}>
+        <h1 className="p-in text-[clamp(2.4rem,5.6vw,4.4rem)] leading-[1] font-[380] tracking-[-0.05em] text-balance max-sm:text-[34px] max-sm:leading-[1.04]" style={{ animationDelay: "100ms" }}>
           Your business software, <span className="bg-gradient-to-r from-[#FF5A5F] to-[#e8962a] bg-clip-text text-transparent">ready in minutes.</span>
         </h1>
         <p className="p-in mx-auto max-w-xs text-[15px] leading-snug text-fg/55 sm:hidden" style={{ animationDelay: "180ms" }}>
           A few taps about your business. We set up exactly what you need.
         </p>
+        <div className="p-in" style={{ animationDelay: "220ms" }}><ShotStrip /></div>
         <p className="p-in mx-auto max-w-lg text-[17px] leading-relaxed text-fg/60 max-sm:hidden lg:mx-0" style={{ animationDelay: "180ms" }}>
           Tell us how your business works. We&apos;ll recommend exactly the tools you need — billing, stock, payroll, bookings, accounts — explain why, and set them up for you. Nothing you don&apos;t need.
         </p>
@@ -283,72 +293,8 @@ export function Welcome({ eyebrow, onStart, steps = WELCOME_STEPS, time = "About
           </span>
         </div>
       </div>
-      <FeatureOrbit />
+      <WelcomeShowcase />
     </section>
-  );
-}
-
-/** One tile per spot around the dashboard — a spread of what's inside. Spots are
- *  [side, inset %, top %, tilt]: tiles on the right are anchored from the right
- *  so long names never run off the edge. */
-const ORBIT: [ModuleId, "l" | "r", number, number, number][] = [
-  ["store", "l", 2, 10, -6], ["invoicing", "r", 2, 3, 5], ["mail", "l", 36, -1, 3], ["bi", "r", 0, 29, -4], ["chat", "l", -4, 40, -5],
-  ["hr", "r", 4, 55, 6], ["crm", "l", 0, 66, 4], ["inventory", "r", 6, 80, -6], ["bookings", "l", 10, 91, 4], ["calendar", "r", 38, 95, -3],
-];
-
-/** Feature tiles drifting around a dashboard that fills itself in. */
-function FeatureOrbit() {
-  return (
-    <div className="relative mx-auto aspect-[1.1] w-full max-w-[560px] max-sm:hidden" aria-hidden>
-      <div className="ob-piece absolute inset-[16%] overflow-hidden rounded-[26px] bg-[var(--surface-solid)] shadow-[0_40px_90px_-40px_rgb(40_20_80/0.5)] ring-1 ring-fg/[0.06]" style={{ ["--dur" as string]: "9s", ["--lift" as string]: "-6px" }}>
-        <div className="flex h-7 items-center gap-1.5 border-b border-fg/[0.06] px-3">
-          <i className="size-2 rounded-full bg-[#ff5f57]" />
-          <i className="size-2 rounded-full bg-[#febc2e]" />
-          <i className="size-2 rounded-full bg-[#28c840]" />
-        </div>
-        <div className="grid h-[calc(100%-1.75rem)] grid-cols-[30%_1fr]">
-          <div className="grid content-start gap-1.5 border-r border-fg/[0.06] p-2.5">
-            {MODULES.slice(0, 7).map((m, i) => (
-              <span key={m.id} className={clsx(`tint-${m.tint}`, "ob-badge flex items-center gap-1.5 rounded-[8px] px-1.5 py-1")} style={{ animationDelay: `${600 + i * 160}ms` }}>
-                <span className="tint-chip grid size-4 place-items-center rounded-[5px]">
-                  <ModuleGlyph id={m.id} className="size-2.5" />
-                </span>
-                <span className="h-1.5 flex-1 rounded-full bg-fg/10" />
-              </span>
-            ))}
-          </div>
-          <div className="grid content-start gap-2 p-2.5">
-            <span className="ob-badge h-12 rounded-[12px] bg-[var(--p-lavender)]" style={{ animationDelay: "500ms" }} />
-            <div className="grid grid-cols-2 gap-2">
-              {[0, 1, 2, 3].map((i) => (
-                <span key={i} className="ob-badge grid h-14 content-end gap-1 rounded-[12px] bg-fg/[0.04] p-2" style={{ animationDelay: `${900 + i * 180}ms` }}>
-                  <span className="flex h-6 items-end gap-0.5">
-                    {[40, 65, 50, 85, 70].map((h, j) => (
-                      <i key={j} className="w-1.5 origin-bottom rounded-sm" style={{ height: `${h}%`, background: ["var(--p-peach-ink)", "var(--p-mint-ink)", "var(--p-sky-ink)", "var(--p-lavender-ink)"][i], opacity: 0.6, animation: `mk-bar 0.8s ${1.2 + i * 0.18 + j * 0.06}s cubic-bezier(.2,.8,.2,1) both` }} />
-                    ))}
-                  </span>
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-      {ORBIT.map(([id, side, x, y, rot], i) => {
-        const m = moduleById(id)!;
-        return (
-          <span
-            key={m.id}
-            className={clsx(`tint-${m.tint}`, "ob-piece absolute flex items-center gap-2 rounded-[16px] bg-[var(--surface-solid)] p-1.5 sm:px-2.5 sm:py-2 text-[12px] font-semibold whitespace-nowrap shadow-[0_18px_40px_-20px_rgb(40_20_80/0.45)] ring-1 ring-fg/[0.06]")}
-            style={{ [side === "l" ? "left" : "right"]: `${x}%`, top: `${y}%`, animationDelay: `${i * 90}ms`, ["--rot" as string]: `${rot}deg`, ["--dur" as string]: `${6 + (i % 4)}s`, ["--float-delay" as string]: `${1 + (i % 3) * 0.4}s` }}
-          >
-            <span className="tint-chip grid size-7 place-items-center rounded-[10px]">
-              <ModuleGlyph id={m.id} className="size-3.5" />
-            </span>
-            <span className="hidden sm:inline">{m.name}</span>
-          </span>
-        );
-      })}
-    </div>
   );
 }
 
@@ -758,7 +704,7 @@ function Ready({ name, industry, modules, projectId }: { name: string; industry:
       <Confetti />
       <div className="grid gap-6 text-center lg:text-left">
         <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Your workspace is ready</p>
-        <h1 className="p-in text-[clamp(2.2rem,5vw,3.8rem)] leading-[1] font-semibold tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
+        <h1 className="p-in text-[clamp(2.2rem,5vw,3.8rem)] leading-[1.02] font-[380] tracking-[-0.05em] text-balance" style={{ animationDelay: "80ms" }}>
           Welcome to {name}&apos;s Cloudesk.
         </h1>
         <p className="p-in mx-auto max-w-md text-[16px] leading-relaxed text-fg/60 lg:mx-0" style={{ animationDelay: "160ms" }}>
@@ -818,7 +764,7 @@ export function Heading({ eyebrow, title, sub }: { eyebrow: string; title: strin
   return (
     <div className="grid gap-3 text-center max-sm:gap-1.5 max-sm:text-left">
       <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase max-sm:text-[10.5px] max-sm:tracking-[0.16em]">{eyebrow}</p>
-      <h1 className="p-in text-[clamp(2rem,4.6vw,3.1rem)] leading-[1.02] font-semibold tracking-[-0.04em] text-balance max-sm:text-[26px] max-sm:leading-[1.1] max-sm:tracking-[-0.035em]" style={{ animationDelay: "60ms" }}>
+      <h1 className="p-in text-[clamp(2rem,4.6vw,3.1rem)] leading-[1.04] font-[380] tracking-[-0.045em] text-balance max-sm:text-[26px] max-sm:leading-[1.1] max-sm:tracking-[-0.035em]" style={{ animationDelay: "60ms" }}>
         {title}
       </h1>
       {sub && (
