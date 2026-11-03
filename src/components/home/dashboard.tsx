@@ -1,30 +1,29 @@
 "use client";
 
-// Home: the workspace at a glance. Headline numbers with their change, what
-// needs attention, what's waiting on you, charts, recent activity, quick
-// actions (the ones you use most first), your desk (mail, calendar, chat,
-// notes and the rest at a glance) and your web apps — only for the
-// features this workspace uses and this person may see. Sections can be
-// reordered (drag, or the arrows) and hidden; the layout is saved per person.
+// Home: one calm screen. The day in a line and your plan; one row of key
+// numbers (each opens its figures, with what needs attention and what's
+// waiting); then three panels — quick actions (most used first), your day
+// (mail, meetings, chat, work, notes in a line each) and your web apps — only
+// for the features this workspace uses and this person may see. Panels can be
+// reordered and hidden; the layout is saved per person.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Lightbulb,
+import {
   AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, ChevronRight, Clock, Contact, Eye, EyeOff, GripVertical,
-  Calculator, HandCoins, Handshake, Plus, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
+  Calculator, CalendarDays, HandCoins, Handshake, Plus, History, Inbox, Info, KanbanSquare, Landmark, Mail, MessagesSquare, NotebookPen, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wrench, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ChartView, type Result } from "@/components/bi/chart";
-import { PlanStrip, SubscriptionCard } from "@/components/billing/status";
-import { Desk, DeskSkeleton, deskEmpty, useCountUp, useDesk, type DeskData } from "@/components/home/desk";
-import { ProjectCard } from "@/components/project-card";
+import { PlanStrip } from "@/components/billing/status";
+import { useCountUp, useDesk, type DeskData } from "@/components/home/desk";
 import { AppTile, openCreate, TABS } from "@/components/shell/mobile-nav";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog, useToast } from "@/components/ui/overlays";
-import { Button, ButtonLink, Card, ErrorState, Notice, Skeleton, Textarea } from "@/components/ui/primitives";
+import { Button, ButtonLink, ErrorState, Notice, Skeleton } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
-import { compact, timeAgo, usd } from "@/lib/client/format";
+import { timeAgo } from "@/lib/client/format";
 import type { ProjectSummary } from "@/lib/client/types";
 import { visibleTo } from "@/lib/workspace/modules";
 
@@ -46,15 +45,14 @@ type Dash = {
 
 // "summary" is the stat board: key numbers, what needs attention, what's
 // waiting, trends and activity, each behind a button.
-const SECTIONS = ["summary", "desk", "actions", "webapps", "create"] as const;
+const SECTIONS = ["summary", "actions", "desk", "webapps"] as const;
 type SectionId = (typeof SECTIONS)[number];
 const SECTION: Record<SectionId, { title: string; wide: boolean }> = {
   summary: { title: "At a glance", wide: true },
-  desk: { title: "Your desk", wide: true },
-  // Side by side on wide screens, so the board fits with little scrolling.
+  // The panels sit three across on wide screens, so Home fits on one screen.
   actions: { title: "Quick actions", wide: false },
+  desk: { title: "Your day", wide: false },
   webapps: { title: "Web apps", wide: false },
-  create: { title: "Build something new", wide: true },
 };
 
 const ICONS: Record<string, React.ReactNode> = {
@@ -133,8 +131,6 @@ export function Dashboard() {
     : [];
 
   const visible = order.filter((s) => editing || !current.hidden.includes(s));
-  // A half-width section only sits half width beside another one; alone (hidden partner, or moved apart) it takes the row.
-  const half = (i: number) => !SECTION[visible[i]!].wide && ((i > 0 && !SECTION[visible[i - 1]!].wide) || (i < visible.length - 1 && !SECTION[visible[i + 1]!].wide));
   return (
     <div className="dash mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
       {!user.emailVerified && <VerifyEmail email={user.email} />}
@@ -156,12 +152,13 @@ export function Dashboard() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-          {d && <span className="hidden text-[12px] text-subtle sm:inline">Updated {timeAgo(d.generatedAt)}</span>}
+          <div className="hidden w-[290px] lg:block">
+            <PlanStrip />
+          </div>
           <Link href="/ai" className="ai-entry inline-flex h-8 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-[12.5px] font-medium">
             <Sparkles className="ai-entry-ic size-3.5" aria-hidden /> Ask AI
           </Link>
           <Button size="sm" variant="ghost" aria-label="Refresh" icon={<RefreshCw className={clsx("size-3.5", q.isFetching && "animate-spin")} />} onClick={() => q.refetch()} />
-          <Link href="/requests" className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium text-muted hover:bg-surface-2 hover:text-fg md:inline-flex" title="Missing something? Ask the Cloudesk team"><Lightbulb className="size-3.5" />Request a feature</Link>
           <Button size="sm" variant={editing ? "primary" : "secondary"} aria-label={editing ? "Done" : "Customise"} icon={editing ? <CheckCircle2 className="size-3.5" /> : <Settings2 className="size-3.5" />} onClick={() => setEditing(!editing)} className="max-sm:!w-8 max-sm:!px-0">
             <span className="max-sm:hidden">{editing ? "Done" : "Customise"}</span>
           </Button>
@@ -179,7 +176,7 @@ export function Dashboard() {
         </div>
       )}
 
-      {!editing && <SubscriptionCard />}
+      <div className="mb-4 lg:hidden">{!editing && <PlanStrip />}</div>
 
       {editing && (
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-dashed border-border bg-surface px-4 py-3 text-[13px]">
@@ -191,16 +188,16 @@ export function Dashboard() {
       {q.isError ? (
         <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {visible.map((id, i) => {
             const hidden = current.hidden.includes(id);
-            const body = id === "desk" ? (desk.data ? <Desk d={desk.data} /> : <DeskSkeleton />) : d ? <SectionBody id={id} d={d} /> : <Skeleton className="h-40 rounded-[20px]" />;
-            if (!editing && (id === "desk" ? desk.isError || deskEmpty(desk.data) : d && isEmpty(id, d))) return null;
+            const body = id === "desk" ? (desk.data ? <Today d={desk.data} /> : <Skeleton className="h-60 rounded-[18px]" />) : d ? <SectionBody id={id} d={d} /> : <Skeleton className={clsx("rounded-[18px]", id === "summary" ? "h-20" : "h-60")} />;
+            if (!editing && id !== "desk" && d && isEmpty(id, d)) return null;
             return (
               <section
                 key={id}
                 aria-label={SECTION[id].title}
-                className={clsx("dash-in min-w-0", !half(i) && "lg:col-span-2", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
+                className={clsx("dash-in min-w-0", SECTION[id].wide && "md:col-span-2 lg:col-span-3", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
                 style={{ animationDelay: `${i * 45}ms` }}
                 draggable={editing}
                 onDragStart={() => setDrag(id)}
@@ -223,7 +220,6 @@ export function Dashboard() {
           })}
         </div>
       )}
-      {d && !d.kpis.length && !d.charts.length && !editing && <GettingStarted />}
       </div>
     </div>
   );
@@ -241,16 +237,14 @@ function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d
   const router = useRouter();
   const on = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
   const canCreate = org.role !== "employee";
+  // Mail, AI and Chat are in the tab bar already; one row of the rest.
   const apps = [
-    ...(on("mail") ? [TABS.mail] : []),
     ...(on("calendar") ? [TABS.calendar] : []),
-    ...(on("chat") ? [TABS.chat] : []),
-    TABS.notes,
     TABS.work,
-    ...(on("copilot") ? [{ href: "/copilot", label: "Copilot", icon: Sparkles, ink: "#7c5cdb" }] : []),
-    { href: "/calculator", label: "Calculator", icon: Calculator, ink: "#2a86d1" },
+    TABS.notes,
     { href: "/projects", label: "Web apps", icon: AppWindow, ink: "#e8743b" },
-  ].slice(0, 8);
+    { href: "/calculator", label: "Calculator", icon: Calculator, ink: "#2a86d1" },
+  ].slice(0, 4);
 
   const cells: Cell[] = [];
   if (d) {
@@ -355,8 +349,6 @@ function SectionBody({ id, d }: { id: Exclude<SectionId, "desk">; d: Dash }) {
       return <QuickActions quick={d.quick} />;
     case "webapps":
       return <WebApps />;
-    case "create":
-      return <Create />;
   }
 }
 
@@ -425,11 +417,7 @@ function Glance({ d }: { d: Dash }) {
     else groups.push([g, [x]]);
   }
   return (
-    <div className="glance rounded-[24px] p-3 sm:p-4">
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-2 px-1">
-        <h2 className="text-[14px] font-semibold tracking-[-0.01em]">At a glance</h2>
-        <p className="text-[12.5px] text-muted">Pick a stat to see its numbers</p>
-      </div>
+    <div>
       {/* Phones: sorted into groups, as list rows. */}
       <div className="grid gap-4 sm:hidden">
         {groups.map(([group, items]) => (
@@ -448,7 +436,7 @@ function Glance({ d }: { d: Dash }) {
           </div>
         ))}
       </div>
-      <div role="group" aria-label="Stats" className="hidden gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div role="group" aria-label="Key numbers" className="hidden gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
         {stats.map((x) => (
           <button key={x.id} type="button" aria-haspopup="dialog" aria-expanded={sel === x.id} onClick={() => setSel(x.id)} className={clsx("stat-btn group", `tint-${x.tint}`)}>
             <span className="stat-chip">{x.icon}</span>
@@ -547,20 +535,67 @@ function QuickActions({ quick }: { quick: Dash["quick"] }) {
     void api(`/api/v1/orgs/${org.id}/dashboard/used`, { method: "POST", body: { id: q.id } }).catch(() => null);
     router.push(q.href);
   };
-  const any = quick.some((q) => q.mostUsed);
   return (
-    <div>
-      <Head title={any ? "Quick actions · your most used first" : "Quick actions"} />
-      {/* Wider screens: a compact two-column list beside the web apps. */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
-        {quick.map((q) => (
-          <button key={q.id} type="button" onClick={() => go(q)} className="quick-pill group sm:!h-10 sm:w-full sm:min-w-0 sm:!rounded-[12px] sm:[&>span:last-child]:truncate">
-            <span className="grid size-6 place-items-center rounded-full bg-surface-2 text-fg/70 transition-colors group-hover:bg-fg group-hover:text-bg [&_svg]:size-3.5">{ICONS[q.icon] ?? <Sparkles />}</span>
-            {q.label}
-          </button>
+    <Panel title="Quick actions">
+      <ul className="grid gap-0.5">
+        {quick.slice(0, 6).map((q) => (
+          <li key={q.id}>
+            <button type="button" onClick={() => go(q)} className="dash-row group w-full">
+              <span className="dash-ic">{ICONS[q.icon] ?? <Sparkles />}</span>
+              <span className="min-w-0 flex-1 text-left">{q.label}</span>
+              <ArrowRight className="size-3.5 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
+            </button>
+          </li>
         ))}
-      </div>
+      </ul>
+    </Panel>
+  );
+}
+
+/** A home panel: a title (with an optional link) over its rows, all the same height. */
+function Panel({ title, href, link, children }: { title: string; href?: string; link?: string; children: React.ReactNode }) {
+  return (
+    <div className="dash-panel flex h-full flex-col">
+      <Head title={title} href={href} link={link} />
+      <div className="min-h-0 flex-1">{children}</div>
     </div>
+  );
+}
+
+// ─── Your day ────────────────────────────────────────────────────────────────
+// Mail, meetings, chat, your work and notes: a line each, the count that
+// matters and the next thing, one click to open.
+
+function Today({ d }: { d: DeskData }) {
+  // The desk lists today's remaining events in order, so the first timed one is next.
+  const next = d.calendar?.events.find((e) => !e.allDay);
+  const rows: { key: string; icon: React.ReactNode; label: string; sub: string; href: string; hot?: boolean }[] = [];
+  if (d.mail) rows.push({ key: "mail", icon: <Mail />, label: d.mail.unread ? `${d.mail.unread} unread email${d.mail.unread === 1 ? "" : "s"}` : "Inbox clear", sub: d.mail.needsReply ? `${d.mail.needsReply} waiting for your reply` : "Nothing waiting for a reply", href: "/mail", hot: d.mail.overdue > 0 });
+  if (d.calendar) rows.push({ key: "cal", icon: <CalendarDays />, label: d.calendar.today ? `${d.calendar.today} meeting${d.calendar.today === 1 ? "" : "s"} today` : "No meetings today", sub: next ? `Next: ${next.title} · ${new Date(next.start).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}` : d.calendar.invites ? `${d.calendar.invites} invite${d.calendar.invites === 1 ? "" : "s"} to answer` : "Your calendar is free", href: "/calendar" });
+  if (d.work) rows.push({ key: "work", icon: <Inbox />, label: `${d.work.approvals + d.work.todo} to do`, sub: d.work.overdue ? `${d.work.overdue} overdue` : d.work.items[0]?.title ?? "Approvals and tasks", href: "/inbox", hot: d.work.overdue > 0 });
+  if (d.chat) rows.push({ key: "chat", icon: <MessagesSquare />, label: d.chat.mentions ? `${d.chat.mentions} mention${d.chat.mentions === 1 ? "" : "s"}` : `${d.chat.unread} unread in chat`, sub: d.chat.channels[0] ? `${d.chat.channels[0].kind === "dm" ? "" : "#"}${d.chat.channels[0].name}` : "Team chat", href: "/chat" });
+  if (d.notes) rows.push({ key: "notes", icon: <NotebookPen />, label: d.notes.reminders ? `${d.notes.reminders} reminder${d.notes.reminders === 1 ? "" : "s"}` : d.notes.pinned ? `${d.notes.pinned} pinned note${d.notes.pinned === 1 ? "" : "s"}` : "Recent notes", sub: d.notes.items[0]?.title || "Notes", href: "/notes" });
+  return (
+    <Panel title="Your day">
+      {rows.length ? (
+        <ul className="grid gap-0.5">
+          {rows.slice(0, 5).map((r) => (
+            <li key={r.key}>
+              <Link href={r.href} className="dash-row group">
+                <span className="dash-ic">{r.icon}</span>
+                <span className="min-w-0 flex-1">
+                  <span className={clsx("block", r.hot && "text-danger")}>{r.label}</span>
+                  <span className="block text-[12px] font-normal text-muted">{r.sub}</span>
+                </span>
+                <ChevronRight className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="dash-empty">Mail, meetings, chat and your tasks appear here as you use them.</p>
+      )}
+    </Panel>
   );
 }
 
@@ -680,90 +715,31 @@ function WebApps() {
   const { org } = useSession();
   const projects = useQuery({ queryKey: ["projects", org.id, "recent"], queryFn: () => api<{ items: ProjectSummary[]; total: number }>(`/api/v1/orgs/${org.id}/projects?limit=4`) });
   return (
-    <div className="flex h-full flex-col">
-      <Head title="Recent web apps" count={projects.data?.total} href="/projects" link="All web apps" />
+    <Panel title="Web apps" href="/projects" link={projects.data?.total ? `All ${projects.data.total}` : "All"}>
       {!projects.data ? (
-        <Skeleton className="h-36 rounded-[18px]" />
+        <Skeleton className="h-40 rounded-[14px]" />
       ) : !projects.data.items.length ? (
-        <Card className="flex flex-1 flex-col items-center justify-center gap-2 p-5 text-center">
-          <AppWindow className="size-5 text-muted" />
-          <p className="text-[13.5px] font-medium">No web apps yet</p>
-          <p className="text-[12.5px] text-muted">A website, store or app for your business — ready in minutes.</p>
-          <ButtonLink href="/launch" size="sm" variant="primary" icon={<Rocket className="size-3.5" />}>Launch one</ButtonLink>
-        </Card>
+        <div className="dash-empty flex flex-col items-start gap-3">
+          <span>A website, store or booking page for your business — live in minutes.</span>
+          <ButtonLink href="/launch" size="sm" variant="secondary" icon={<Rocket className="size-3.5" />}>Launch one</ButtonLink>
+        </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {projects.data.items.slice(0, 4).map((p) => <ProjectCard key={p.id} p={p} />)}
-        </div>
+        <ul className="grid gap-0.5">
+          {projects.data.items.slice(0, 5).map((p) => (
+            <li key={p.id}>
+              <Link href={`/projects/${p.id}`} className="dash-row group">
+                <span className="dash-ic"><AppWindow /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block">{p.name}</span>
+                  <span className="block text-[12px] font-normal text-muted">{p.productionDeploymentId ? "Live" : "Draft"} · updated {timeAgo(p.updatedAt)}</span>
+                </span>
+                <ChevronRight className="size-3.5 shrink-0 text-subtle" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
       )}
-    </div>
-  );
-}
-
-// ─── Build something new ─────────────────────────────────────────────────────
-
-type Usage = { ai: { costMicroUsd: number; tasks: number; tokens: number; budgetMicroUsd: number } };
-
-function Create() {
-  const { org } = useSession();
-  const router = useRouter();
-  const [brief, setBrief] = useState("");
-  const usage = useQuery({ queryKey: ["usage", org.id], queryFn: () => api<Usage>(`/api/v1/orgs/${org.id}/usage`) });
-  const go = () => router.push(`/create?brief=${encodeURIComponent(brief)}`);
-  return (
-    <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_0.8fr]">
-      <Link href="/launch" className="lx-card launch-card group relative flex items-center gap-4 overflow-hidden rounded-[22px] p-4">
-        <span className="lx-float grid size-12 shrink-0 place-items-center rounded-[16px] bg-surface-solid text-[var(--tint-lavender-ink)] shadow-[0_8px_20px_-12px_rgb(91_72_176/0.6)] ring-1 ring-border/60">
-          <Rocket className="size-5" aria-hidden />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-semibold tracking-tight">Launch a store or website in 5 minutes</span>
-          <span className="block text-[13px] text-muted">Bring your product spreadsheet, pick a look, and go live.</span>
-        </span>
-        <ArrowRight className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-1 group-hover:text-fg" aria-hidden />
-      </Link>
-      <Card className="p-1.5">
-        <form onSubmit={(e) => (e.preventDefault(), go())}>
-          <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && brief.trim() && go()} aria-label="Describe what you want to build" placeholder="Describe a website or app — a menu with online reservations, a booking page…" className="min-h-[60px] border-0 shadow-none focus:ring-0" />
-          <div className="flex items-center justify-between gap-2 px-1.5 pb-1">
-            <Link href="/templates" className="inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-fg">
-              <LayoutTemplate className="size-3.5" aria-hidden /> Templates
-            </Link>
-            <Button type="submit" size="sm" variant="primary" disabled={brief.trim().length < 10} icon={<Wand2 className="size-3.5" />}>Plan it</Button>
-          </div>
-        </form>
-      </Card>
-      <Card className="flex flex-col justify-between p-4">
-        <div>
-          <p className="text-[12.5px] font-medium text-muted">AI usage this month</p>
-          {usage.data ? (
-            <>
-              <p className="mt-1 text-[22px] font-semibold tracking-[-0.02em] tabular-nums">{usd(usage.data.ai.costMicroUsd)}</p>
-              <p className="text-[12px] text-muted">{usage.data.ai.tasks} tasks · {compact(usage.data.ai.tokens)} tokens</p>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2" role="progressbar" aria-label="Monthly AI budget used" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((usage.data.ai.costMicroUsd / Math.max(1, usage.data.ai.budgetMicroUsd)) * 100)}>
-                <div className="h-full rounded-full bg-accent" style={{ width: `${Math.min(100, (usage.data.ai.costMicroUsd / Math.max(1, usage.data.ai.budgetMicroUsd)) * 100)}%` }} />
-              </div>
-            </>
-          ) : (
-            <Skeleton className="mt-2 h-10" />
-          )}
-        </div>
-        <Link href="/settings/ai" className="mt-3 inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-fg">
-          <KeyRound className="size-3.5" /> AI providers
-        </Link>
-      </Card>
-    </div>
-  );
-}
-
-function GettingStarted() {
-  return (
-    <Card className="mt-5 flex items-center gap-3 px-4 py-3">
-      <Sparkles className="size-4 shrink-0 text-muted" aria-hidden />
-      <p className="min-w-0 text-[13px] text-muted">
-        <b className="font-medium text-fg">Your dashboard fills in as you work.</b> Issue an invoice, add your team, record a sale or a deal — the numbers, charts and alerts come from your own records.
-      </p>
-    </Card>
+    </Panel>
   );
 }
 
