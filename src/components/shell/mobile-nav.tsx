@@ -5,7 +5,7 @@
 // has), the middle button makes something new, and More opens everything
 // else as a sheet. It steps aside while the on-screen keyboard is up.
 import clsx from "clsx";
-import { Calculator, CalendarDays, Home, Inbox, LogOut, Mail, MessagesSquare, Monitor, Moon, MoreHorizontal, NotebookPen, PenSquare, Plus, Rocket, Settings, Sparkles, StickyNote, Sun, X, BadgeCheck, type LucideIcon } from "lucide-react";
+import { Calculator, CalendarDays, Home, Inbox, LogOut, Mail, MessagesSquare, Monitor, Moon, MoreHorizontal, NotebookPen, PenSquare, Rocket, Settings, Sparkles, StickyNote, Sun, X, BadgeCheck, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -177,6 +177,10 @@ function SheetHead({ title, sub, onClose }: { title: string; sub?: string; onClo
 }
 
 /** A quick-launch tile in the More sheet. */
+
+/** Fired by Home's "New" button to open the create sheet. */
+export const OPEN_CREATE = "cc:open-create";
+export const openCreate = () => window.dispatchEvent(new Event(OPEN_CREATE));
 export function AppTile({ href, label, icon: Icon, ink, badge, active, onNavigate }: { href: string; label: string; icon: LucideIcon; ink: string; badge?: Tab["badge"]; active: boolean; onNavigate: () => void }) {
   const b = useBadge(badge);
   const n = badge ? count(b) : null;
@@ -288,20 +292,26 @@ export function MobileNav({ pathname, nav, org: orgSwitcher }: { pathname: strin
   const close = () => setSheet(null);
   const activeIdx = tabs.findIndex((t) => (t.match ? t.match(pathname) : at(t.href, pathname)));
   const create = org.role !== "employee";
-  // Two tabs, the create button, the rest of the tabs, More.
-  const slots: ("create" | "more" | Tab)[] = create ? [...tabs.slice(0, 2), "create" as const, ...tabs.slice(2), "more" as const] : [...tabs, "more" as const];
+  // Two tabs, AI in the middle, the rest of the tabs, More. "New" lives on Home's header and opens the create sheet from there.
+  const slots: ("ai" | "more" | Tab)[] = [...tabs.slice(0, 2), "ai" as const, ...tabs.slice(2), "more" as const];
+  useEffect(() => {
+    if (!create) return;
+    const open = () => setSheet("create");
+    window.addEventListener(OPEN_CREATE, open);
+    return () => window.removeEventListener(OPEN_CREATE, open);
+  }, [create]);
   return (
     <>
       <nav aria-label="Tabs" data-hidden={keyboard || undefined} className="app-dock tabbar fixed inset-x-0 bottom-0 z-40 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="mx-auto grid h-[58px] max-w-[560px] items-stretch px-1" style={{ gridTemplateColumns: `repeat(${slots.length}, minmax(0, 1fr))` }}>
           {slots.map((s) =>
-            s === "create" ? (
-              <button key="create" type="button" onClick={() => setSheet("create")} aria-label="Create" aria-haspopup="dialog" aria-expanded={sheet === "create"} className="tab-item flex h-full min-w-0 flex-col items-center justify-center gap-1">
-                <span className="tab-new grid size-[30px] place-items-center rounded-[10px]">
-                  <Plus className={clsx("size-[18px] transition-transform duration-300", sheet === "create" && "rotate-45")} strokeWidth={2.4} aria-hidden />
+            s === "ai" ? (
+              <Link key="ai" href="/ai" onClick={close} aria-label="AI" aria-current={pathname.startsWith("/ai") ? "page" : undefined} className="tab-item flex h-full min-w-0 flex-col items-center justify-center gap-1">
+                <span className="ai-entry tab-ai grid size-[30px] place-items-center rounded-[10px]">
+                  <Sparkles className="ai-entry-ic size-[17px]" strokeWidth={2.1} aria-hidden />
                 </span>
-                <span className="text-[10.5px] leading-none font-medium">New</span>
-              </button>
+                <span className="text-[10.5px] leading-none font-medium">AI</span>
+              </Link>
             ) : s === "more" ? (
               <button key="more" type="button" onClick={() => setSheet("more")} aria-label="More" aria-haspopup="dialog" aria-expanded={sheet === "more"} aria-current={activeIdx < 0 || sheet === "more" ? "page" : undefined} className="tab-item flex h-full min-w-0 flex-col items-center justify-center gap-1">
                 <span className="grid h-[30px] place-items-center"><MoreHorizontal className="size-[23px]" strokeWidth={activeIdx < 0 || sheet === "more" ? 2.25 : 1.75} aria-hidden /></span>

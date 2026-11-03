@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import { Lightbulb,
   AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, ChevronRight, Clock, Contact, Eye, EyeOff, GripVertical,
-  Calculator, HandCoins, Handshake, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
+  Calculator, HandCoins, Handshake, Plus, History, Inbox, Info, KanbanSquare, KeyRound, Landmark, LayoutTemplate, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wand2, Wrench, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,7 +19,7 @@ import { ChartView, type Result } from "@/components/bi/chart";
 import { PlanStrip, SubscriptionCard } from "@/components/billing/status";
 import { Desk, DeskSkeleton, deskEmpty, useCountUp, useDesk, type DeskData } from "@/components/home/desk";
 import { ProjectCard } from "@/components/project-card";
-import { AppTile, TABS } from "@/components/shell/mobile-nav";
+import { AppTile, openCreate, TABS } from "@/components/shell/mobile-nav";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog, useToast } from "@/components/ui/overlays";
 import { Button, ButtonLink, Card, ErrorState, Notice, Skeleton, Textarea } from "@/components/ui/primitives";
@@ -240,6 +240,7 @@ function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d
   const { org } = useSession();
   const router = useRouter();
   const on = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
+  const canCreate = org.role !== "employee";
   const apps = [
     ...(on("mail") ? [TABS.mail] : []),
     ...(on("calendar") ? [TABS.calendar] : []),
@@ -283,9 +284,12 @@ function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/ai" aria-label="Ask AI" className="ai-entry inline-flex h-9 items-center gap-1.5 rounded-full pr-3.5 pl-3 text-[13px] font-medium active:scale-95">
-            <Sparkles className="ai-entry-ic size-3.5" aria-hidden /> AI
-          </Link>
+          {/* Phones: AI is the middle tab; "New" (the create sheet) sits here instead. */}
+          {canCreate && (
+            <button type="button" onClick={openCreate} aria-label="New" aria-haspopup="dialog" className="phone-card inline-flex h-9 items-center gap-1 rounded-full pr-3.5 pl-2.5 text-[13px] font-medium active:scale-95">
+              <Plus className="size-4" strokeWidth={2.2} aria-hidden /> New
+            </button>
+          )}
           <button type="button" aria-label="Refresh" onClick={onRefresh} className="phone-card grid size-9 shrink-0 place-items-center rounded-full text-muted active:scale-95">
             <RefreshCw className={clsx("size-4", fetching && "animate-spin")} />
           </button>
