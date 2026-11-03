@@ -132,7 +132,7 @@ export function Dashboard() {
 
   const visible = order.filter((s) => editing || !current.hidden.includes(s));
   return (
-    <div className="dash mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
+    <div className="dash mx-auto max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">
       {!user.emailVerified && <VerifyEmail email={user.email} />}
       <PhoneHome d={d} desk={desk.data} greeting={`${greeting}, ${user.name.split(" ")[0]}`} status={lines[0] ?? ""} tone={urgent ? "danger" : notes ? "accent" : "ok"} fetching={q.isFetching} onRefresh={() => void Promise.all([q.refetch(), desk.refetch()])} />
       <div className="max-sm:hidden">
@@ -188,7 +188,7 @@ export function Dashboard() {
       {q.isError ? (
         <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="dash-grid grid grid-cols-1 gap-3 md:grid-cols-2">
           {visible.map((id, i) => {
             const hidden = current.hidden.includes(id);
             const body = id === "desk" ? (desk.data ? <Today d={desk.data} /> : <Skeleton className="h-60 rounded-[18px]" />) : d ? <SectionBody id={id} d={d} /> : <Skeleton className={clsx("rounded-[18px]", id === "summary" ? "h-20" : "h-60")} />;
@@ -197,7 +197,7 @@ export function Dashboard() {
               <section
                 key={id}
                 aria-label={SECTION[id].title}
-                className={clsx("dash-in min-w-0", SECTION[id].wide && "md:col-span-2 lg:col-span-3", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
+                className={clsx("dash-in min-w-0", SECTION[id].wide && "md:col-span-2", id === "desk" && !editing && "md:row-span-2", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
                 style={{ animationDelay: `${i * 45}ms` }}
                 draggable={editing}
                 onDragStart={() => setDrag(id)}
@@ -350,22 +350,6 @@ function SectionBody({ id, d }: { id: Exclude<SectionId, "desk">; d: Dash }) {
     case "webapps":
       return <WebApps />;
   }
-}
-
-function Head({ title, href, link, count }: { title: string; href?: string; link?: string; count?: number }) {
-  return (
-    <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-2 text-[14px] font-semibold tracking-[-0.01em]">
-        {title}
-        {count ? <span className="rounded-full bg-surface-2 px-1.5 text-[11.5px] font-medium text-muted tabular-nums">{count}</span> : null}
-      </h2>
-      {href && (
-        <Link href={href} className="inline-flex items-center gap-1 text-[12.5px] text-muted hover:text-fg">
-          {link ?? "Open"} <ArrowRight className="size-3.5" />
-        </Link>
-      )}
-    </div>
-  );
 }
 
 // ─── At a glance ─────────────────────────────────────────────────────────────
@@ -538,13 +522,12 @@ function QuickActions({ quick }: { quick: Dash["quick"] }) {
   };
   return (
     <Panel title="Quick actions">
-      <ul className="grid gap-0.5">
+      <ul className="grid grid-cols-2 gap-1.5">
         {quick.slice(0, 6).map((q) => (
-          <li key={q.id}>
-            <button type="button" onClick={() => go(q)} className="dash-row group w-full">
+          <li key={q.id} className="min-w-0">
+            <button type="button" onClick={() => go(q)} className="dash-action group">
               <span className="dash-ic">{ICONS[q.icon] ?? <Sparkles />}</span>
               <span className="min-w-0 flex-1 text-left">{q.label}</span>
-              <ArrowRight className="size-3.5 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100" aria-hidden />
             </button>
           </li>
         ))}
@@ -557,8 +540,15 @@ function QuickActions({ quick }: { quick: Dash["quick"] }) {
 function Panel({ title, href, link, children }: { title: string; href?: string; link?: string; children: React.ReactNode }) {
   return (
     <div className="dash-panel flex h-full flex-col">
-      <Head title={title} href={href} link={link} />
-      <div className="min-h-0 flex-1">{children}</div>
+      <div className="dash-panel-h">
+        <h2>{title}</h2>
+        {href && (
+          <Link href={href} className="inline-flex items-center gap-1 text-[12px] text-muted hover:text-fg">
+            {link ?? "Open"} <ArrowRight className="size-3" />
+          </Link>
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
     </div>
   );
 }
@@ -580,7 +570,7 @@ function Today({ d }: { d: DeskData }) {
     <Panel title="Your day">
       {rows.length ? (
         <ul className="grid gap-0.5">
-          {rows.slice(0, 5).map((r) => (
+          {rows.slice(0, 6).map((r) => (
             <li key={r.key}>
               <Link href={r.href} className="dash-row group">
                 <span className="dash-ic">{r.icon}</span>
@@ -596,6 +586,11 @@ function Today({ d }: { d: DeskData }) {
       ) : (
         <p className="dash-empty">Mail, meetings, chat and your tasks appear here as you use them.</p>
       )}
+      <Link href="/ai" className="dash-plan">
+        <Sparkles className="size-3.5" aria-hidden />
+        <span className="flex-1">Plan my day with AI</span>
+        <ArrowRight className="size-3.5" aria-hidden />
+      </Link>
     </Panel>
   );
 }
@@ -720,9 +715,9 @@ function WebApps() {
       {!projects.data ? (
         <Skeleton className="h-40 rounded-[14px]" />
       ) : !projects.data.items.length ? (
-        <div className="dash-empty flex flex-col items-start gap-3">
-          <span>A website, store or booking page for your business — live in minutes.</span>
-          <ButtonLink href="/launch" size="sm" variant="secondary" icon={<Rocket className="size-3.5" />}>Launch one</ButtonLink>
+        <div className="dash-empty flex items-center justify-between gap-3">
+          <span>A website, store or booking page — live in minutes.</span>
+          <ButtonLink href="/launch" size="sm" variant="secondary" icon={<Rocket className="size-3.5" />} className="shrink-0">Launch one</ButtonLink>
         </div>
       ) : (
         <ul className="grid gap-0.5">
