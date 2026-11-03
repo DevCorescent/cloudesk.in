@@ -11,7 +11,7 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { RiseWords } from "./interactive";
+import { RiseWords, WordCycle } from "./interactive";
 import { IPhone17 } from "./iphone";
 import { MacBook } from "./macbook";
 import type { Shot } from "./shot-tour";
@@ -112,6 +112,17 @@ const QUICK = [
   { label: "Create a website", icon: Globe, tone: "#a5b4fc", href: signup("/launch?kind=website") },
 ] as const;
 
+/** What “Run your whole …” cycles through, each with its colour. */
+const CYCLE = [
+  { text: "business.", tone: "#ffffff" },
+  { text: "store.", tone: "#fdba74" },
+  { text: "website.", tone: "#a5b4fc" },
+  { text: "sales.", tone: "#7dd3fc" },
+  { text: "books.", tone: "#fde68a" },
+  { text: "team.", tone: "#a7f3d0" },
+  { text: "clinic.", tone: "#fda4af" },
+];
+
 /** The hero's row of built-in features, each linking to its page (tones read on the matte black). */
 const BUILT_IN = [
   { slug: "mail", label: "Mail", icon: Mail, tone: "#8ab4ff" },
@@ -152,8 +163,11 @@ export function HomeHero() {
           ))}
         </nav>
         {/* The headline: one row across the page, the intelligence in the logo's colours. */}
-        <h1 className="mt-7 text-[clamp(2.35rem,5.4vw,5.6rem)] leading-[1.08] font-[340] tracking-[-0.045em] lg:mt-9">
-          <RiseWords delay={60} parts={["Run your whole business. ", { text: "Intelligence built in.", className: "mk-logo-gradient" }]} />
+        {/* data-no-fit: the cycling word changes the width, so the one-line fitting would keep resizing it. */}
+        <h1 data-no-fit className="mt-7 text-[clamp(2.35rem,5.4vw,5.6rem)] leading-[1.08] font-[340] tracking-[-0.045em] lg:mt-9">
+          <RiseWords delay={60} parts={["Run your whole "]} />
+          <span className="hero-rise" style={{ animationDelay: "240ms" }}><WordCycle words={CYCLE} delay={900} /></span>{" "}
+          <RiseWords delay={320} parts={[{ text: "Intelligence built in.", className: "mk-logo-gradient" }]} />
         </h1>
         <div className="mt-8 grid gap-8 border-t border-fg/[0.08] pt-8 lg:mt-12 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end lg:gap-16 lg:pt-10">
           {/* What's built in: each one opens its feature page. */}

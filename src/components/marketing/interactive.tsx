@@ -141,3 +141,46 @@ export function RiseWords({ parts, delay = 0, className }: { parts: (string | { 
     </span>
   );
 }
+
+/**
+ * One word in a headline that cycles through `words` (“Run your whole
+ * business. / store. / website.”): each slides up out of a soft blur, and the
+ * gap it sits in resizes to fit, so the line around it never jumps. A thin
+ * underline takes each word's own colour. Still (the first word) for reduced motion.
+ */
+export function WordCycle({ words, every = 2200, delay = 0 }: { words: { text: string; tone: string }[]; every?: number; delay?: number }) {
+  const [at, setAt] = useState(0);
+  const [w, setW] = useState<number[]>([]);
+  const measure = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = measure.current;
+    if (!el) return;
+    const read = () => setW(Array.from(el.children).map((c) => (c as HTMLElement).offsetWidth));
+    read();
+    // Fonts arriving (and the headline resizing) change the widths.
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    void document.fonts?.ready.then(read);
+    return () => ro.disconnect();
+  }, [words]);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let t: ReturnType<typeof setTimeout>;
+    const start = setTimeout(function tick() {
+      setAt((a) => (a + 1) % words.length);
+      t = setTimeout(tick, every);
+    }, every + delay);
+    return () => {
+      clearTimeout(start);
+      clearTimeout(t);
+    };
+  }, [words.length, every, delay]);
+  return (
+    <span className="mk-cycle" style={{ width: w[at] ? `${w[at]}px` : undefined, "--tone": words[at]!.tone } as CSSProperties}>
+      {/* The words, laid out unseen, to measure each one's width. */}
+      <span ref={measure} aria-hidden className="mk-cycle-measure">{words.map((x) => <span key={x.text}>{x.text}</span>)}</span>
+      <span className="sr-only">{words[0]!.text}</span>
+      {words.map((x, i) => <span key={x.text} aria-hidden className="mk-cycle-word" data-on={i === at || undefined} data-gone={i === (at - 1 + words.length) % words.length || undefined}>{x.text}</span>)}
+    </span>
+  );
+}
