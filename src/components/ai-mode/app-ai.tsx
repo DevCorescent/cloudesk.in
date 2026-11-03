@@ -5,7 +5,7 @@
 // the copilot, which answers from the workspace's data within the person's
 // role. Setup shortcuts lead the screen while the workspace is still new.
 import { useQuery } from "@tanstack/react-query";
-import { Boxes, BellRing, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, Compass, Contact, FileSearch, Inbox, Landmark, Mail, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
+import { Boxes, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, Compass, Contact, FileSearch, Inbox, Landmark, Mail, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -19,6 +19,9 @@ import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
 type Insight = { id: string; tone: "danger" | "warning" | "info" | "success"; title: string; detail: string; href: string };
 type Dash = { kpis: Kpi[]; insights: Insight[]; waiting: { counts: { approvals: number; todo: number; overdue: number } } | null };
+type BriefItem = { text: string; sub?: string; href?: string; tone?: "danger" | "warning" | "info" };
+type BriefTip = { label: string; prompt: string };
+type Brief = { today: BriefItem[]; attention: BriefItem[]; suggestions: BriefTip[]; updates: BriefTip[]; counts: { meetings: number; replies: number; overdueInvoices: number; overdueTasks: number } };
 type Doc = { attachmentId: string; kind: string; title: string; facts: string[] };
 type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string; doc?: Doc })[]; actions: CopilotAction[] };
 const ADVISOR_ICON: Record<string, LucideIcon> = { sparkles: Sparkles, landmark: Landmark, scale: Scale, trending: TrendingUp, boxes: Boxes, users: Users, compass: Compass };
@@ -92,6 +95,7 @@ export function AppAiMode() {
   const copilotOn = has("copilot");
 
   const dash = useQuery({ queryKey: ["dashboard", org.id], queryFn: () => api<Dash>(`/api/v1/orgs/${org.id}/dashboard`), staleTime: 60_000 });
+  const brief = useQuery({ queryKey: ["copilot", org.id, "briefing"], queryFn: () => api<Brief>(`/api/v1/orgs/${org.id}/copilot/briefing`), enabled: copilotOn, staleTime: 2 * 60_000, retry: false });
   const meta = useQuery({ queryKey: ["copilot", org.id, "meta"], queryFn: () => api<{ connected: boolean; canConnect: boolean }>(`/api/v1/orgs/${org.id}/copilot/meta`), enabled: copilotOn, staleTime: 5 * 60_000, retry: false });
 
   // Full screen on phones: the app bar and the tab dock step aside.
@@ -243,7 +247,6 @@ export function AppAiMode() {
     title: "A few ways to stay ahead.",
     cards: [
       { id: "recap", title: "Get today's business recap", sub: "Sales, money owed, stock and team — at a glance.", icon: ChartColumn, tone: "#4f5ef7", onPick: () => void recap() },
-      { id: "attention", title: "See what needs my attention", sub: "Overdue invoices, approvals and anything unusual.", icon: BellRing, tone: "#f5a35c", onPick: () => void attention() },
       { id: "inbox", title: "Catch me up on email", sub: "What's new, what needs a reply, and drafts ready to send.", icon: Inbox, tone: "#2ec4b6", onPick: () => void ask("Catch me up on my inbox: what's new, and what needs a reply from me? Offer to draft the replies.") },
       { id: "week", title: "Plan my week", sub: "Meetings, overdue invoices and follow-ups in one view.", icon: CalendarDays, tone: "#8b7bff", onPick: () => void ask("What's on my calendar this week, which invoices are overdue, and what should I follow up on?") },
       { id: "ask", title: "Ask about my sales", sub: "This month against last, answered from your own data.", icon: Sparkles, tone: "#ff7aa2", onPick: () => void ask("How did sales do this month compared with last month?") },
@@ -287,6 +290,7 @@ export function AppAiMode() {
   return (
     <AiScreen
       greeting={hello(user.name)}
+      lead={copilotOn ? <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} /> : undefined}
       sections={fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
       messages={msgs}
       busy={busy}
@@ -357,6 +361,90 @@ function DocCard({ doc, onAct }: { doc: Doc; onAct: (prompt: string) => void }) 
           Save to Documents
         </button>
       </div>
+    </div>
+  );
+}
+
+/** The briefing AI mode opens with: the day in a sentence, what's coming up, what needs them, what to do next, and what to tell it. */
+function BriefCard({ brief, loading, dash, onAsk, onAttention }: { brief?: Brief; loading: boolean; dash?: Dash; onAsk: (prompt: string) => void; onAttention: () => void }) {
+  if (loading || !brief)
+    return (
+      <div className="ai-brief" aria-busy="true">
+        <p className="ai-brief-h">Getting your day ready…</p>
+        <span className="ai-brief-skel" />
+        <span className="ai-brief-skel" />
+      </div>
+    );
+  const c = brief.counts;
+  const waiting = dash?.waiting?.counts;
+  // The dashboard's own alerts (orders to ship, payroll, missed targets…) join the briefing's.
+  const fromDash: BriefItem[] = (dash?.insights ?? []).filter((i) => i.tone !== "success").slice(0, 3).map((i) => ({ text: i.title, sub: i.detail, href: i.href, tone: i.tone === "danger" ? "danger" : i.tone === "warning" ? "warning" : "info" }));
+  const approvals: BriefItem[] = waiting?.approvals ? [{ text: `${waiting.approvals} approval${waiting.approvals === 1 ? "" : "s"} waiting on you`, href: "/requests", tone: "warning" }] : [];
+  const attention = [...brief.attention, ...approvals, ...fromDash].slice(0, 5);
+  const bits = [c.meetings && `${c.meetings} meeting${c.meetings === 1 ? "" : "s"} coming up`, c.replies && `${c.replies} email${c.replies === 1 ? "" : "s"} to answer`, c.overdueInvoices && `${c.overdueInvoices} overdue invoice${c.overdueInvoices === 1 ? "" : "s"}`, c.overdueTasks && `${c.overdueTasks} overdue task${c.overdueTasks === 1 ? "" : "s"}`].filter(Boolean) as string[];
+  const line = bits.length ? `You have ${bits.length > 1 ? `${bits.slice(0, -1).join(", ")} and ${bits.at(-1)}` : bits[0]}.` : attention.length ? "A few things could use a look." : "You're all clear — nothing urgent right now.";
+  const Row = ({ i }: { i: BriefItem }) => {
+    const body = (
+      <>
+        <i className="ai-dot-tone" style={{ "--c": i.tone === "danger" ? "#ff6b6b" : i.tone === "warning" ? "#f5a35c" : i.tone === "info" ? "#6cc0ff" : "var(--ai-muted)" } as React.CSSProperties} aria-hidden />
+        <span>
+          {i.text}
+          {i.sub && <small>{i.sub}</small>}
+        </span>
+        {i.href && <ChevronRight className="size-4" aria-hidden />}
+      </>
+    );
+    return i.href ? (
+      <Link href={i.href} className="ai-link">
+        {body}
+      </Link>
+    ) : (
+      <div className="ai-link">{body}</div>
+    );
+  };
+  return (
+    <div className="ai-brief">
+      <p className="ai-brief-h">{line}</p>
+      {brief.today.length > 0 && (
+        <section>
+          <h3>Coming up</h3>
+          <div className="ai-rows">{brief.today.map((i, k) => <Row key={k} i={i} />)}</div>
+        </section>
+      )}
+      {attention.length > 0 && (
+        <section>
+          <h3>
+            Needs your attention
+            <button type="button" onClick={onAttention}>
+              All
+            </button>
+          </h3>
+          <div className="ai-rows">{attention.map((i, k) => <Row key={k} i={i} />)}</div>
+        </section>
+      )}
+      {brief.suggestions.length > 0 && (
+        <section>
+          <h3>Suggested next</h3>
+          <div className="ai-next">
+            {brief.suggestions.map((t) => (
+              <button key={t.label} type="button" onClick={() => onAsk(t.prompt)}>
+                <Sparkles className="size-3.5" aria-hidden />
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      <section>
+        <h3>Any updates for me?</h3>
+        <div className="ai-chips">
+          {brief.updates.map((t) => (
+            <button key={t.label} type="button" className="ai-chip" onClick={() => onAsk(t.prompt)}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

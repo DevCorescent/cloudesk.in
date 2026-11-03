@@ -420,3 +420,22 @@
   .ai-top.is-glass, .ai-dock.is-glass { background: var(--bg); -webkit-backdrop-filter: none; backdrop-filter: none; }
   .ai-composer { background: color-mix(in srgb, var(--fg) 10%, var(--bg)); }
 }
+
+/* The opening briefing */
+.ai-brief { display: grid; gap: 16px; margin-top: 14px; padding: 18px; border-radius: 24px; background: var(--ai-card); border: 1px solid var(--ai-line); animation: ai-up 0.6s var(--ai-ease) both; }
+.ai-brief-h { margin: 0; font-size: 19px; font-weight: 400; line-height: 1.35; letter-spacing: -0.015em; }
+.ai-brief section { display: grid; gap: 6px; }
+.ai-brief h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ai-muted); }
+.ai-brief h3 button { font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ai-muted); }
+.ai-brief .ai-link { padding: 9px 2px; font-size: 14px; }
+.ai-brief .ai-link > span { display: grid; gap: 1px; }
+.ai-brief .ai-link small { font-size: 12px; color: var(--ai-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-next { display: grid; gap: 6px; }
+.ai-next button { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 0 13px; border-radius: 13px; text-align: left; font-size: 14px; font-weight: 500; background: color-mix(in srgb, var(--fg) 4%, transparent); border: 1px solid var(--ai-line); transition: background 0.2s; }
+.ai-next button svg { flex: none; color: var(--ai-blue); }
+.ai-next button:active { background: var(--ai-soft); }
+@media (hover: hover) { .ai-next button:hover { background: color-mix(in srgb, var(--fg) 7%, transparent); } }
+.ai-brief-skel { display: block; height: 14px; border-radius: 7px; background: linear-gradient(90deg, var(--ai-soft), color-mix(in srgb, var(--fg) 12%, var(--bg)), var(--ai-soft)); background-size: 200% 100%; animation: ai-skel 1.2s linear infinite; }
+.ai-brief-skel + .ai-brief-skel { width: 60%; }
+@keyframes ai-skel { to { background-position: -200% 0; } }
+@media (min-width: 768px) { .ai-brief { grid-template-columns: 1fr 1fr; column-gap: 28px; } .ai-brief-h { grid-column: 1 / -1; font-size: 21px; } }

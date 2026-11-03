@@ -37,6 +37,8 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
   switch (key) {
     case "GET meta":
       return status(s);
+    case "GET briefing":
+      return (await import("@/server/copilot/briefing")).briefing(s);
     case "GET threads":
       return { threads: await threads(s) };
     case "POST threads": {

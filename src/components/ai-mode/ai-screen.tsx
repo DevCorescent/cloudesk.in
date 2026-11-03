@@ -66,7 +66,7 @@ function speech(): (new () => SpeechLike) | null {
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const pick = useRef<HTMLInputElement>(null);
@@ -175,6 +175,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
         {!chatting ? (
           <div className="ai-home">
             {p.greeting && <p className="ai-greet">{p.greeting}</p>}
+            {p.lead}
             {p.sections.map((s, si) => (
               <section key={s.title} className="ai-sec" style={{ "--s": si } as CSSProperties}>
                 <h2 className="ai-h">{s.title}</h2>
