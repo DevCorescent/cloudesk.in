@@ -1,3 +1,4 @@
+import { DarkHero } from "@/components/marketing/dark-hero";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -12,16 +13,19 @@ const photo = (id: string) => `https://images.unsplash.com/photo-${id}?auto=form
 
 export default function BusinessesIndex() {
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 pt-10 pb-8 sm:px-8 lg:px-14 lg:pt-16 xl:px-20">
-      <div className="mx-auto max-w-3xl text-center">
-        <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Who it&apos;s for</p>
-        <h1 className="p-in mt-4 text-[clamp(2.3rem,5.6vw,4.2rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
-          Made for <Mark tone="peach" delay={500}>businesses like yours</Mark>.
-        </h1>
-        <p className="p-in mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "160ms" }}>
-          Pick yours to see how it runs on Cloudesk — with real screens, a day in the life, and the tools we switch on for you.
-        </p>
-      </div>
+    <>
+      <DarkHero tint="peach" className="pt-12 pb-6 lg:pt-16">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Who it&apos;s for</p>
+          <h1 className="p-in mt-4 text-[clamp(2.3rem,5.6vw,4.2rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
+            Made for <Mark tone="peach" delay={500}>businesses like yours</Mark>.
+          </h1>
+          <p className="p-in mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "160ms" }}>
+            Pick yours to see how it runs on Cloudesk — with real screens, a day in the life, and the tools we switch on for you.
+          </p>
+        </div>
+      </DarkHero>
+      <div className="mx-auto w-full max-w-[1600px] px-5 pb-8 sm:px-8 lg:px-14 xl:px-20">
       <ul className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:mt-16 lg:grid-cols-3">
         {BUSINESSES.map((b, i) => {
           const Icon = b.icon;
@@ -48,5 +52,6 @@ export default function BusinessesIndex() {
         })}
       </ul>
     </div>
+    </>
   );
 }

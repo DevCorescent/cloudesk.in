@@ -36,12 +36,25 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   // A click closes a menu only if a click opened it (hovering then clicking keeps it open).
   const openedBy = useRef<"hover" | "click">("hover");
+  // Whether the bar is still over the page's dark first band (its bottom, less the bar's 64px).
+  const [inBand, setInBand] = useState(true);
   useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 8);
+    const on = () => {
+      setScrolled(window.scrollY > 8);
+      const band = document.querySelector<HTMLElement>("main .mk-under-head");
+      // The top half of the band's fade into the page still reads as dark.
+      const fade = band?.nextElementSibling as HTMLElement | null;
+      const extra = fade && /mk-(dark|matte)-fade/.test(fade.className) ? fade.offsetHeight / 2 : 0;
+      setInBand(!!band && band.getBoundingClientRect().bottom + extra > 64);
+    };
     on();
     window.addEventListener("scroll", on, { passive: true });
-    return () => window.removeEventListener("scroll", on);
-  }, []);
+    window.addEventListener("resize", on);
+    return () => {
+      window.removeEventListener("scroll", on);
+      window.removeEventListener("resize", on);
+    };
+  }, [pathname]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -94,10 +107,15 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
     </button>
   );
   const solid = scrolled || mobile || !!menu;
+  // Pages that open on a dark band: the header sits over it, transparent and light, until you scroll.
+  const overDark = DARK_TOP.some((re) => re.test(pathname ?? ""));
+  // Light-on-dark while over the band with nothing open; menus always get the light bar.
+  const onDark = overDark && inBand && !mobile && !menu;
   const tab = "inline-flex h-9 items-center rounded-full px-3 whitespace-nowrap transition-colors duration-200";
   return (
-    <header className="sticky top-0 z-40" onMouseLeave={() => close()}>
-      <div aria-hidden className={clsx("absolute inset-0 -z-10 transition-[background,box-shadow] duration-500", solid ? "bg-[var(--p-canvas)]/85 shadow-[0_1px_0_rgb(0_0_0/0.06)] backdrop-blur-2xl backdrop-saturate-150" : "bg-transparent")} />
+    <header className={clsx("sticky top-0 z-40", overDark && "-mb-16", onDark && "mk-head-dark")} onMouseLeave={() => close()}>
+      {/* Transparent at the top of the page; frosted glass once it scrolls — dark glass over the dark band, light glass after. */}
+      <div aria-hidden className={clsx("absolute inset-0 -z-10 transition-[background-color,box-shadow,backdrop-filter] duration-500", !solid ? "bg-transparent" : onDark ? "bg-[rgb(12_12_14/0.55)] shadow-[0_1px_0_rgb(255_255_255/0.06),0_10px_30px_-20px_rgb(0_0_0/0.6)] backdrop-blur-2xl backdrop-saturate-150" : "bg-[var(--p-canvas)]/72 shadow-[0_1px_0_rgb(0_0_0/0.06),0_10px_30px_-20px_rgb(20_20_40/0.25)] backdrop-blur-2xl backdrop-saturate-150")} />
       <div className={clsx(BAR, "flex h-16 items-center")}>
         <Link href="/" aria-label="Cloudesk home" className="mr-4 flex shrink-0 items-center xl:mr-6" onMouseEnter={() => close(60)}>
           <Wordmark className="text-[23px]" />
@@ -169,6 +187,9 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
     </header>
   );
 }
+
+/** Pages whose first band is matte black (the homepage hero, components/marketing/dark-hero.tsx). */
+const DARK_TOP = [/^\/$/, /^\/features(\/[^/]+)?$/, /^\/for(\/[^/]+)?$/, /^\/pricing$/, /^\/partners$/];
 
 /** The header's frame: the same width and gutters as the page below it. */
 const BAR = "mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20";

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import clsx from "clsx";
 import { businessBySlug, BUSINESSES, signupFor } from "@/components/marketing/businesses";
+import { DarkHero } from "@/components/marketing/dark-hero";
 import { featureBySlug } from "@/components/marketing/features";
 import { Mark, Reveal } from "@/components/marketing/interactive";
 import { StackTour } from "@/components/marketing/shot-tour";
@@ -31,8 +32,7 @@ export default async function BusinessPage({ params }: PageProps<"/for/[slug]">)
   return (
     <div className={`tint-${b.tint}`}>
       {/* Hero: who it's for, then the real screens stacked */}
-      <section className={clsx(W, "relative overflow-x-clip pt-8 pb-10 lg:pt-14")}>
-        <span aria-hidden className="pointer-events-none absolute inset-x-0 top-[38%] -z-10 mx-auto h-[60%] max-w-5xl rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(closest-side, var(--t), transparent)" }} />
+      <DarkHero className="pt-8 pb-6 lg:pt-14">
         <div className="mx-auto max-w-3xl text-center">
           <Link href="/for" className="p-in inline-flex items-center gap-1 text-[13px] text-fg/50 hover:text-fg">
             <ArrowLeft className="size-3.5" /> All businesses
@@ -61,7 +61,10 @@ export default async function BusinessPage({ params }: PageProps<"/for/[slug]">)
             </a>
           </div>
         </div>
-        <div className="p-in mx-auto mt-12 max-w-[1240px] sm:mt-16" style={{ animationDelay: "340ms" }}>
+      </DarkHero>
+      <section className={clsx(W, "relative z-10 -mt-20 overflow-x-clip pb-10 sm:-mt-28")}>
+        <span aria-hidden className="pointer-events-none absolute inset-x-0 top-[30%] -z-10 mx-auto h-[60%] max-w-5xl rounded-full opacity-70 blur-3xl" style={{ background: "radial-gradient(closest-side, var(--t), transparent)" }} />
+        <div className="p-in mx-auto max-w-[1240px]" style={{ animationDelay: "340ms" }}>
           <StackHero cards={b.stack} />
         </div>
         <p className="mt-14 text-center text-[12.5px] text-fg/40 sm:mt-16">Real screenshots of Cloudesk, from demo businesses.</p>

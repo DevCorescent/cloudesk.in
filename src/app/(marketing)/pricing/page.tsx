@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DarkHero } from "@/components/marketing/dark-hero";
 import { PricingSection } from "@/components/marketing/pricing";
 import { TrustStrip } from "@/components/marketing/trust-strip";
 import { publicCatalog } from "@/server/billing/subscriptions";
@@ -20,14 +21,17 @@ const FAQ: [string, string][] = [
 export default async function PricingPage() {
   const { plans, pricing, free } = await publicCatalog();
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 pt-12 sm:px-8 lg:px-14 xl:px-20">
-      <section className="mx-auto max-w-3xl text-center">
-        <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Pricing</p>
-        <h1 className="p-in mt-3 text-[clamp(2.3rem,5.4vw,4.2rem)] leading-[1.04] font-[360] tracking-[-0.045em]" style={{ animationDelay: "80ms" }}>
-          {pricing.trialDays} days free. <span className="mk-logo-gradient">Then pay for what you use.</span>
-        </h1>
-        <p className="p-in mx-auto mt-5 max-w-xl text-[16.5px] text-fg/60" style={{ animationDelay: "160ms" }}>Every new workspace gets every feature free for {pricing.trialDays} days. Pick a plan below, or customise one from just the features you need.</p>
-      </section>
+    <>
+      <DarkHero tint="mint" className="pt-12 pb-6 lg:pt-16">
+        <section className="mx-auto max-w-3xl text-center">
+          <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">Pricing</p>
+          <h1 className="p-in mt-3 text-[clamp(2.3rem,5.4vw,4.2rem)] leading-[1.04] font-[360] tracking-[-0.045em]" style={{ animationDelay: "80ms" }}>
+            {pricing.trialDays} days free. <span className="mk-logo-gradient">Then pay for what you use.</span>
+          </h1>
+          <p className="p-in mx-auto mt-5 max-w-xl text-[16.5px] text-fg/60" style={{ animationDelay: "160ms" }}>Every new workspace gets every feature free for {pricing.trialDays} days. Pick a plan below, or customise one from just the features you need.</p>
+        </section>
+      </DarkHero>
+      <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20">
 
       <section id="build" className="mt-14 scroll-mt-24">
         <PricingSection plans={plans} pricing={pricing} free={free} />
@@ -46,5 +50,6 @@ export default async function PricingPage() {
         </div>
       </section>
     </div>
+    </>
   );
 }

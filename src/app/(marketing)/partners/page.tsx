@@ -1,3 +1,4 @@
+import { DarkHero } from "@/components/marketing/dark-hero";
 import { ArrowRight, BadgeIndianRupee, BarChart3, CalendarClock, Check, Gift, Layers, LineChart, Lock, Repeat, ShieldCheck, Target, Trophy, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import { Reveal } from "@/components/marketing/interactive";
@@ -80,29 +81,32 @@ export default async function PartnersPage() {
   ];
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 pt-10 sm:px-8 lg:px-14 xl:px-20">
+    <>
       {/* Hero */}
-      <section className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="min-w-0">
-          <p className="p-in inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[12.5px] font-medium text-fg/65 ring-1 ring-fg/[0.06]"><span className="size-1.5 rounded-full bg-[var(--p-mint-ink)]" />Cloudesk Partner Program</p>
-          <h1 className="p-in mt-5 text-[clamp(2.3rem,5vw,4.2rem)] leading-[1.04] font-[360] tracking-[-0.045em]" style={{ animationDelay: "80ms" }}>
-            Recommend Cloudesk. <span className="mk-logo-gradient">Earn every month.</span>
-          </h1>
-          <p className="p-in mt-5 max-w-xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "160ms" }}>
-            Bring businesses to Cloudesk and earn a share of everything they pay — every month, {longest ? `for up to ${longest} months` : "for as long as they stay"}. For agencies, freelancers, sales and marketing partners and creators.
-          </p>
-          <div className="p-in mt-7 flex flex-wrap gap-3" style={{ animationDelay: "220ms" }}>
-            <a href="#apply" className="p-cta lx-sheen inline-flex items-center gap-2 px-7">Become a partner <ArrowRight className="size-4" /></a>
-            <a href="#calculator" className="inline-flex h-12 items-center gap-2 rounded-full bg-white/70 px-6 text-[15px] font-medium ring-1 ring-fg/[0.08] transition-colors hover:bg-white">What could I earn?</a>
+      <DarkHero tint="butter" className="pt-10 pb-8 lg:pt-14">
+        <section className="grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <div className="min-w-0">
+            <p className="p-in inline-flex items-center gap-2 rounded-full bg-fg/[0.06] px-3 py-1 text-[12.5px] font-medium text-fg/70 ring-1 ring-fg/[0.1]"><span className="size-1.5 rounded-full bg-[var(--p-mint-ink)]" />Cloudesk Partner Program</p>
+            <h1 className="p-in mt-5 text-[clamp(2.3rem,5vw,4.2rem)] leading-[1.04] font-[360] tracking-[-0.045em]" style={{ animationDelay: "80ms" }}>
+              Recommend Cloudesk. <span className="mk-logo-gradient">Earn every month.</span>
+            </h1>
+            <p className="p-in mt-5 max-w-xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "160ms" }}>
+              Bring businesses to Cloudesk and earn a share of everything they pay — every month, {longest ? `for up to ${longest} months` : "for as long as they stay"}. For agencies, freelancers, sales and marketing partners and creators.
+            </p>
+            <div className="p-in mt-7 flex flex-wrap gap-3" style={{ animationDelay: "220ms" }}>
+              <a href="#apply" className="p-cta lx-sheen inline-flex items-center gap-2 px-7">Become a partner <ArrowRight className="size-4" /></a>
+              <a href="#calculator" className="inline-flex h-12 items-center gap-2 rounded-full bg-fg/[0.06] px-6 text-[15px] font-medium ring-1 ring-fg/[0.12] transition-colors hover:bg-fg/[0.1]">What could I earn?</a>
+            </div>
+            <ul className="p-in mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[13.5px] text-fg/60" style={{ animationDelay: "280ms" }}>
+              {["Free to join", "No targets", "Your own dashboard"].map((x) => <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-4 text-emerald-400" />{x}</li>)}
+            </ul>
           </div>
-          <ul className="p-in mt-7 flex flex-wrap gap-x-5 gap-y-2 text-[13.5px] text-fg/60" style={{ animationDelay: "280ms" }}>
-            {["Free to join", "No targets", "Your own dashboard"].map((x) => <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-4 text-[var(--p-mint-ink)]" />{x}</li>)}
-          </ul>
-        </div>
-        <div className="p-in min-w-0" style={{ animationDelay: "200ms" }}>
-          <HeroDashboard origin={origin} />
-        </div>
-      </section>
+          <div className="p-in min-w-0" style={{ animationDelay: "200ms" }}>
+            <div className="mk-keep-light"><HeroDashboard origin={origin} /></div>
+          </div>
+        </section>
+      </DarkHero>
+    <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20">
 
       {/* The program in four numbers */}
       <section aria-label="The program at a glance" className="mt-16 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -226,5 +230,6 @@ export default async function PartnersPage() {
         <p className="mt-6 text-[13.5px] text-fg/50">Read the full <a href="/partner-terms" className="font-medium text-fg underline underline-offset-2">Partner Terms</a>.</p>
       </section>
     </div>
+    </>
   );
 }

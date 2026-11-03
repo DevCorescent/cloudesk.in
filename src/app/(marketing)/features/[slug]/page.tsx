@@ -6,6 +6,7 @@ import clsx from "clsx";
 import { featureBySlug, FEATURES } from "@/components/marketing/features";
 import { HighlightExplorer } from "@/components/marketing/highlight-explorer";
 import { MailConnections, RecurringWeek } from "@/components/marketing/mail-connections";
+import { DarkBand, DarkHero } from "@/components/marketing/dark-hero";
 import { Mark, Reveal } from "@/components/marketing/interactive";
 import { PhoneFrame } from "@/components/marketing/phone-deck";
 import { PHONE_SHOTS } from "@/components/marketing/phone-shots";
@@ -46,50 +47,55 @@ export default async function FeaturePage({ params }: PageProps<"/features/[slug
     <div className={`tint-${f.tint}`}>
       {show ? (
         /* Hero with a real screenshot that straightens as you scroll */
-        <section className="relative mx-auto w-full max-w-[1600px] overflow-x-clip px-5 pt-8 pb-10 sm:px-8 lg:px-14 lg:pt-14 xl:px-20">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-[38%] -z-10 mx-auto h-[60%] max-w-5xl rounded-full opacity-70 blur-3xl"
-            style={{
-              background: "radial-gradient(closest-side, var(--t), transparent)",
-            }}
-          />
-          <div className="mx-auto max-w-3xl text-center">
-            <Link href="/features" className="p-in inline-flex items-center gap-1 text-[13px] text-fg/50 hover:text-fg">
-              <ArrowLeft className="size-3.5" /> All features
-            </Link>
-            <p className="p-in mt-5" style={{ animationDelay: "60ms" }}>
-              <span className="tint-chip inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold">
-                <Icon className="size-3.5" /> {f.name}
-              </span>
-            </p>
-            <h1 className="p-in mt-5 text-[clamp(2.3rem,5.6vw,4.4rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "120ms" }}>
-              {title}
-            </h1>
-            <p className="p-in mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "200ms" }}>
-              {f.lede}
-            </p>
-            <div className="p-in mt-8 flex flex-col justify-center gap-3 sm:flex-row" style={{ animationDelay: "280ms" }}>
-              <Link href="/start" className="p-cta lx-sheen inline-flex items-center justify-center gap-2 px-7">
-                Try it free <ArrowRight className="size-4" />
+        <>
+          <DarkHero className="pt-8 pb-6 lg:pt-14">
+            <div className="mx-auto max-w-3xl text-center">
+              <Link href="/features" className="p-in inline-flex items-center gap-1 text-[13px] text-fg/50 hover:text-fg">
+                <ArrowLeft className="size-3.5" /> All features
               </Link>
-              <a href="#tour" className="p-glass inline-flex h-[50px] items-center justify-center rounded-full px-6 text-[15px] font-semibold">
-                Take the tour
-              </a>
+              <p className="p-in mt-5" style={{ animationDelay: "60ms" }}>
+                <span className="tint-chip inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-semibold">
+                  <Icon className="size-3.5" /> {f.name}
+                </span>
+              </p>
+              <h1 className="p-in mt-5 text-[clamp(2.3rem,5.6vw,4.4rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "120ms" }}>
+                {title}
+              </h1>
+              <p className="p-in mx-auto mt-5 max-w-2xl text-[17px] leading-relaxed text-fg/60" style={{ animationDelay: "200ms" }}>
+                {f.lede}
+              </p>
+              <div className="p-in mt-8 flex flex-col justify-center gap-3 sm:flex-row" style={{ animationDelay: "280ms" }}>
+                <Link href="/start" className="p-cta lx-sheen inline-flex items-center justify-center gap-2 px-7">
+                  Try it free <ArrowRight className="size-4" />
+                </Link>
+                <a href="#tour" className="p-glass inline-flex h-[50px] items-center justify-center rounded-full px-6 text-[15px] font-semibold">
+                  Take the tour
+                </a>
+              </div>
             </div>
-          </div>
-          <div className={`p-in mx-auto mt-12 max-w-[1240px] sm:mt-16 ${phone ? "hidden sm:block" : ""}`} style={{ animationDelay: "340ms" }}>
+          </DarkHero>
+          <section className="relative z-10 mx-auto -mt-20 w-full max-w-[1600px] overflow-x-clip px-5 pb-10 sm:-mt-28 sm:px-8 lg:px-14 xl:px-20">
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-[30%] -z-10 mx-auto h-[60%] max-w-5xl rounded-full opacity-70 blur-3xl"
+              style={{
+                background: "radial-gradient(closest-side, var(--t), transparent)",
+              }}
+            />
+          <div className={`p-in mx-auto max-w-[1240px] ${phone ? "hidden sm:block" : ""}`} style={{ animationDelay: "340ms" }}>
             {show.hero.stack ? <StackHero cards={show.hero.stack} /> : <TiltShot shot={show.hero.shot} detailLeft={show.hero.left} detailRight={show.hero.right} leftWidth={show.hero.leftWidth} />}
           </div>
           {/* On a phone: the feature as it looks on a phone. */}
           {phone && (
-            <div className="p-in mx-auto mt-10 w-[min(74vw,300px)] sm:hidden" style={{ animationDelay: "340ms" }}>
+            <div className="p-in mx-auto w-[min(74vw,300px)] sm:hidden" style={{ animationDelay: "340ms" }}>
               <PhoneFrame src={phone.src} alt={phone.alt} priority />
             </div>
           )}
           <p className="mt-14 text-center text-[12.5px] text-fg/40 sm:mt-16">{show.note}</p>
-        </section>
+          </section>
+        </>
       ) : (
+        <DarkBand>
         <section className="mx-auto grid grid-cols-1 w-full max-w-[1600px] items-center gap-12 px-5 pt-8 pb-16 sm:px-8 lg:px-14 xl:px-20 lg:grid-cols-[1fr_1fr] lg:pt-14">
           <div>
             <Link href="/features" className="p-in inline-flex items-center gap-1 text-[13px] text-fg/50 hover:text-fg">
@@ -122,6 +128,7 @@ export default async function FeaturePage({ params }: PageProps<"/features/[slug
             </div>
           </div>
         </section>
+        </DarkBand>
       )}
 
       {/* Steps */}

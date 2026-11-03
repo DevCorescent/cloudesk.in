@@ -1,3 +1,4 @@
+import { DarkHero } from "@/components/marketing/dark-hero";
 import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
@@ -15,14 +16,17 @@ export const metadata: Metadata = {
 
 export default function FeaturesIndex() {
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-5 pt-10 sm:px-8 lg:px-14 xl:px-20">
-      <section className="mx-auto max-w-3xl text-center">
-        <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">All features</p>
-        <h1 className="p-in mt-3 text-[clamp(2.4rem,6vw,4.4rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
-          Everything you need to <span className="mk-text-shine">build, sell and run</span> your business.
-        </h1>
-        <p className="p-in mx-auto mt-5 max-w-xl text-[16.5px] text-fg/60" style={{ animationDelay: "160ms" }}>Each page shows real screens from the app, says plainly what it does, and what it doesn&apos;t do yet.</p>
-      </section>
+    <>
+      <DarkHero tint="lavender" className="pt-12 pb-6 lg:pt-16">
+        <section className="mx-auto max-w-3xl text-center">
+          <p className="p-in text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">All features</p>
+          <h1 className="p-in mt-3 text-[clamp(2.4rem,6vw,4.4rem)] leading-[1] font-[380] tracking-[-0.045em] text-balance" style={{ animationDelay: "80ms" }}>
+            Everything you need to <span className="mk-text-shine">build, sell and run</span> your business.
+          </h1>
+          <p className="p-in mx-auto mt-5 max-w-xl text-[16.5px] text-fg/60" style={{ animationDelay: "160ms" }}>Each page shows real screens from the app, says plainly what it does, and what it doesn&apos;t do yet.</p>
+        </section>
+      </DarkHero>
+      <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20">
 
       <nav aria-label="Feature categories" className="sticky top-16 z-20 -mx-5 mt-10 overflow-x-auto bg-[var(--p-canvas)]/85 px-5 py-3 backdrop-blur-xl sm:mx-0 sm:rounded-full sm:px-2">
         <ul className="mx-auto flex w-max gap-1.5">
@@ -70,5 +74,6 @@ export default function FeaturesIndex() {
         </section>
       ))}
     </div>
+    </>
   );
 }

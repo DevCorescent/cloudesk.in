@@ -1,9 +1,10 @@
 "use client";
 
-// Home page: the ideas that make Cloudesk different, in five groups. Each
-// card has a small animated mock-up of the feature at work (HTML and CSS, so
-// it's crisp and light). The groups take turns while the section is on
-// screen; hovering pauses, and people who prefer less motion see it still.
+// Home page: the ideas that make Cloudesk different, in five groups, on a
+// full-width matte-black band lit in each group's pastel. One idea at a time
+// takes the spotlight with its small animated mock-up shown large (HTML and
+// CSS, so it's crisp and light); they play in turn, then the next group.
+// Hovering pauses, and people who prefer less motion see it still.
 import clsx from "clsx";
 import { ArrowUpRight, Bot, CalendarPlus, Check, IndianRupee, Link2, ListChecks, Mail, MessagesSquare, NotebookPen, ShieldCheck, Sparkles, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
@@ -172,13 +173,14 @@ const GROUPS: Group[] = [
   },
 ];
 
-const SPANS = ["lg:col-span-4", "lg:col-span-2", "lg:col-span-3", "lg:col-span-3"];
-const TURN_MS = 8000;
+const IDEA_MS = 3600;
 
+/** The whole "What makes it different" section, on matte black lit in each group's pastel. */
 export function Innovations() {
-  const root = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLElement>(null);
   const [inView, setIn] = useState(false);
   const [at, setAt] = useState(0);
+  const [idea, setIdea] = useState(0);
   const [paused, setPaused] = useState(false);
   const [still] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   useEffect(() => {
@@ -189,50 +191,88 @@ export function Innovations() {
     return () => io.disconnect();
   }, []);
   const running = inView && !paused && !still;
+  // Each idea in turn; after a group's last idea, the next group.
   useEffect(() => {
     if (!running) return;
-    const t = setTimeout(() => setAt((a) => (a + 1) % GROUPS.length), TURN_MS);
+    const t = setTimeout(() => {
+      if (idea + 1 < GROUPS[at]!.cards.length) {
+        setIdea(idea + 1);
+      } else {
+        setIdea(0);
+        setAt((at + 1) % GROUPS.length);
+      }
+    }, IDEA_MS);
     return () => clearTimeout(t);
-  }, [running, at]);
+  }, [running, at, idea]);
+  // Keep the active group in view in the row (it scrolls on phones), without moving the page.
+  const rail = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const r = rail.current;
+    const tab = r?.children[at] as HTMLElement | undefined;
+    if (r && tab && r.scrollWidth > r.clientWidth) r.scrollTo({ left: tab.offsetLeft - r.offsetLeft - (r.clientWidth - tab.offsetWidth) / 2, behavior: "smooth" });
+  }, [at]);
   const g = GROUPS[at]!;
+  const c = g.cards[idea]!;
+  const pickGroup = (i: number) => (setAt(i), setIdea(0));
   return (
-    <div ref={root} onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
-      {/* The groups */}
-      <div role="tablist" aria-label="Kinds of ideas" className="mx-auto flex w-fit max-w-full gap-1 overflow-x-auto rounded-full bg-fg/[0.04] p-1 ring-1 ring-fg/[0.06] [scrollbar-width:none]">
-        {GROUPS.map((x, i) => {
-          const on = i === at;
-          return (
-            <button key={x.key} type="button" role="tab" aria-selected={on} onClick={() => setAt(i)} className={clsx("relative flex shrink-0 items-center gap-2 overflow-hidden rounded-full px-4 py-2 text-[13px] font-semibold transition-colors [&>svg]:size-4", on ? "bg-[var(--surface-solid)] text-fg shadow-[0_2px_10px_-4px_rgba(0,0,0,0.2)]" : "text-fg/55 hover:text-fg")}>
-              <span className={clsx("grid size-6 place-items-center rounded-full [&>svg]:size-3.5", `tint-${x.tone}`, on ? "tint-chip" : "")}>{x.icon}</span>
-              {x.label}
-              {on && running && <span key={`p-${at}`} aria-hidden className="mk-inv-progress absolute inset-x-3 bottom-0.5 h-[2px] origin-left rounded-full" style={{ background: `var(--p-${x.tone}-ink)`, animationDuration: `${TURN_MS}ms` }} />}
-            </button>
-          );
-        })}
-      </div>
-      <p key={`pitch-${at}`} className="mk-inv-rise mx-auto mt-5 max-w-2xl text-center text-[15.5px] leading-relaxed text-fg/60">{g.pitch}</p>
+    <section ref={root} id="ideas" className="relative py-12 sm:py-16" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={() => setPaused(false)}>
+      <div className="mk-dark iv-band relative isolate overflow-hidden pt-16 pb-10 sm:pt-24 sm:pb-14">
+        {/* The light takes each group's pastel; all five stay mounted and cross-fade. */}
+        {GROUPS.map((x, i) => <div key={x.key} aria-hidden className={clsx("mk-dark-glow iv-glow", `tint-${x.tone}`, i === at && "is-on")} />)}
+        <div className="mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="text-[12px] font-semibold tracking-[0.18em] text-fg/45 uppercase">What makes it different</p>
+            <h2 className="mt-3 text-[clamp(2rem,4.6vw,3.6rem)] leading-[1.03] font-[360] tracking-[-0.045em] text-balance">Ideas no one else <span className="iv-shine">put together.</span></h2>
+          </div>
 
-      {/* Its ideas */}
-      <div key={g.key} className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6" role="tabpanel" aria-label={g.label}>
-        {g.cards.map((c, i) => (
-          <Link
-            key={c.title}
-            href={c.href}
-            className={clsx("mk-inv-card group relative flex flex-col overflow-hidden rounded-[26px] border border-fg/[0.07] bg-[var(--surface-solid)] p-2 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_24px_50px_-36px_rgba(30,27,75,0.35)] transition-[transform,box-shadow] duration-300 hover:-translate-y-1 hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_30px_60px_-30px_rgba(30,27,75,0.4)]", SPANS[i], `tint-${g.tone}`)}
-            style={{ "--i": i } as CSSProperties}
-          >
-            <div className={clsx("relative overflow-hidden rounded-[20px] p-4", i === 0 ? "h-[190px]" : "h-[160px]")} style={{ background: `linear-gradient(140deg, var(--p-${g.tone}) 0%, color-mix(in oklab, var(--p-${g.tone}) 40%, var(--surface-solid)) 100%)` }}>
-              <span aria-hidden className="pointer-events-none absolute -top-10 -right-10 size-32 rounded-full bg-white/40 blur-2xl" />
-              <div className="relative h-full">{c.visual}</div>
+          <div className="mt-12 grid gap-8 lg:mt-16 lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:items-center lg:gap-14">
+            {/* The five groups */}
+            <div ref={rail} role="tablist" aria-label="Kinds of ideas" className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] sm:-mx-8 sm:px-8 lg:mx-0 lg:grid lg:gap-1 lg:overflow-visible lg:px-0 [&::-webkit-scrollbar]:hidden">
+              {GROUPS.map((x, i) => {
+                const on = i === at;
+                return (
+                  <button key={x.key} type="button" role="tab" aria-selected={on} onClick={() => pickGroup(i)} className={clsx("iv-group group relative shrink-0 text-left transition-colors max-lg:rounded-full max-lg:px-4 max-lg:py-2.5 lg:rounded-[20px] lg:px-5 lg:py-4", `tint-${x.tone}`, on ? "is-on max-lg:bg-white max-lg:text-[#0b0b0c] lg:bg-white/[0.06]" : "text-fg/45 hover:text-fg/80 max-lg:bg-white/[0.06]")}>
+                    <span className="flex items-center gap-3">
+                      <span className="hidden text-[12px] font-medium tabular-nums opacity-60 lg:inline">{String(i + 1).padStart(2, "0")}</span>
+                      <span className={clsx("grid size-7 shrink-0 place-items-center rounded-full [&>svg]:size-3.5 lg:size-9 lg:[&>svg]:size-4", on ? "tint-chip" : "bg-white/[0.06]")}>{x.icon}</span>
+                      <span className={clsx("text-[13.5px] font-medium whitespace-nowrap lg:text-[clamp(1.15rem,1.7vw,1.5rem)] lg:font-[380] lg:tracking-[-0.025em]", on && "lg:text-fg")}>{x.label}</span>
+                    </span>
+                    {on && <span key={`pitch-${at}`} className="mk-inv-rise mt-2 hidden pl-[4.6rem] text-[14px] leading-relaxed text-fg/55 lg:block">{x.pitch}</span>}
+                    {on && running && <span key={`p-${at}`} aria-hidden className="iv-progress absolute right-5 bottom-0 left-5 hidden h-[2px] origin-left rounded-full lg:block" style={{ animationDuration: `${IDEA_MS * x.cards.length}ms` }} />}
+                  </button>
+                );
+              })}
             </div>
-            <div className="flex flex-1 flex-col px-3 pt-4 pb-3">
-              <h3 className="text-[16.5px] leading-snug font-semibold tracking-[-0.01em]">{c.title}</h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-fg/60">{c.body}</p>
-              <span className="tint-ink mt-auto inline-flex items-center gap-1 pt-3 text-[13px] font-semibold">See how <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" /></span>
+
+            {/* The spotlight: one idea, its animated scene large */}
+            <div className={clsx("min-w-0", `tint-${g.tone}`)}>
+              <Link key={`${g.key}-${idea}`} href={c.href} className="iv-card group block overflow-hidden rounded-[30px] bg-white/[0.05] p-2.5 ring-1 ring-white/[0.08] backdrop-blur-xl">
+                <div className="mk-keep-light iv-scene relative h-[240px] overflow-hidden rounded-[22px] p-6 sm:h-[300px] sm:p-10" style={{ background: `linear-gradient(140deg, var(--p-${g.tone}) 0%, color-mix(in oklab, var(--p-${g.tone}) 45%, #fff) 100%)` }}>
+                  <span aria-hidden className="pointer-events-none absolute -top-16 -right-16 size-56 rounded-full bg-white/50 blur-3xl" />
+                  <div className="iv-visual relative mx-auto h-full max-w-[440px]">{c.visual}</div>
+                </div>
+                <div className="flex items-end justify-between gap-4 px-4 pt-5 pb-3 sm:px-5">
+                  <div className="min-w-0">
+                    <h3 className="text-[clamp(1.15rem,1.8vw,1.45rem)] leading-snug font-[420] tracking-[-0.02em] text-balance">{c.title}</h3>
+                    <p className="mt-1.5 line-clamp-2 max-w-xl text-[14px] leading-relaxed text-fg/55">{c.body}</p>
+                  </div>
+                  <span className="tint-chip grid size-11 shrink-0 place-items-center rounded-full transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"><ArrowUpRight className="size-5" /></span>
+                </div>
+              </Link>
+              {/* The group's ideas */}
+              <div role="tablist" aria-label={g.label} className="mt-4 grid grid-cols-4 gap-2">
+                {g.cards.map((x, i) => (
+                  <button key={x.title} type="button" role="tab" aria-selected={i === idea} onClick={() => setIdea(i)} title={x.title} className={clsx("relative h-1.5 overflow-hidden rounded-full transition-colors", i < idea ? "bg-white/60" : "bg-white/[0.12] hover:bg-white/25")}>
+                    {i === idea && <span key={`i-${at}-${idea}-${running}`} aria-hidden className={clsx("absolute inset-0 origin-left rounded-full bg-white", running && "iv-fill")} style={running ? { animationDuration: `${IDEA_MS}ms` } : undefined} />}
+                    <span className="sr-only">{x.title}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </Link>
-        ))}
+          </div>
+        </div>
       </div>
-    </div>
+      <div aria-hidden className="mk-dark-fade -mt-px" />
+    </section>
   );
 }

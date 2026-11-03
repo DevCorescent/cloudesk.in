@@ -1,5 +1,17 @@
 /* Marketing-site styles that belong only to these pages. */
 
+/* Soft edges, shared: eased (smootherstep) curves with many stops, so dark
+   and pastel bands melt into the page instead of showing a grey seam. A
+   whisper of grain on the long fades hides 8-bit banding. */
+:root {
+  --mk-fade-dark: linear-gradient(to bottom, rgb(11 11 12 / 1.000) 0.0%, rgb(11 11 12 / 0.998) 6.2%, rgb(11 11 12 / 0.984) 12.5%, rgb(11 11 12 / 0.951) 18.8%, rgb(11 11 12 / 0.896) 25.0%, rgb(11 11 12 / 0.820) 31.2%, rgb(11 11 12 / 0.725) 37.5%, rgb(11 11 12 / 0.616) 43.8%, rgb(11 11 12 / 0.500) 50.0%, rgb(11 11 12 / 0.384) 56.2%, rgb(11 11 12 / 0.275) 62.5%, rgb(11 11 12 / 0.180) 68.8%, rgb(11 11 12 / 0.104) 75.0%, rgb(11 11 12 / 0.049) 81.2%, rgb(11 11 12 / 0.016) 87.5%, rgb(11 11 12 / 0.002) 93.8%, rgb(11 11 12 / 0.000) 100.0%);
+  --mk-edges: linear-gradient(to bottom, rgb(0 0 0 / 0.000) 0px, rgb(0 0 0 / 0.005) 10px, rgb(0 0 0 / 0.035) 20px, rgb(0 0 0 / 0.104) 30px, rgb(0 0 0 / 0.210) 40px, rgb(0 0 0 / 0.347) 50px, rgb(0 0 0 / 0.500) 60px, rgb(0 0 0 / 0.653) 70px, rgb(0 0 0 / 0.790) 80px, rgb(0 0 0 / 0.896) 90px, rgb(0 0 0 / 0.965) 100px, rgb(0 0 0 / 0.995) 110px, rgb(0 0 0 / 1.000) 120px, rgb(0 0 0 / 1.000) calc(100% - 120px), rgb(0 0 0 / 0.995) calc(100% - 110px), rgb(0 0 0 / 0.965) calc(100% - 100px), rgb(0 0 0 / 0.896) calc(100% - 90px), rgb(0 0 0 / 0.790) calc(100% - 80px), rgb(0 0 0 / 0.653) calc(100% - 70px), rgb(0 0 0 / 0.500) calc(100% - 60px), rgb(0 0 0 / 0.347) calc(100% - 50px), rgb(0 0 0 / 0.210) calc(100% - 40px), rgb(0 0 0 / 0.104) calc(100% - 30px), rgb(0 0 0 / 0.035) calc(100% - 20px), rgb(0 0 0 / 0.005) calc(100% - 10px), rgb(0 0 0 / 0.000) calc(100% - 0px));
+  --mk-edge-top: linear-gradient(to bottom, rgb(0 0 0 / 0.000) 0px, rgb(0 0 0 / 0.005) 13px, rgb(0 0 0 / 0.035) 27px, rgb(0 0 0 / 0.104) 40px, rgb(0 0 0 / 0.210) 53px, rgb(0 0 0 / 0.347) 67px, rgb(0 0 0 / 0.500) 80px, rgb(0 0 0 / 0.653) 93px, rgb(0 0 0 / 0.790) 107px, rgb(0 0 0 / 0.896) 120px, rgb(0 0 0 / 0.965) 133px, rgb(0 0 0 / 0.995) 147px, rgb(0 0 0 / 1.000) 160px, #000 100%);
+  --mk-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.mk-matte-fade, .mk-dark-fade { position: relative; height: clamp(170px, 22vw, 340px); background: var(--mk-fade-dark); }
+.mk-matte-fade::after, .mk-dark-fade::after { content: ""; position: absolute; inset: 0; background-image: var(--mk-grain); opacity: 0.05; mix-blend-mode: overlay; pointer-events: none; mask-image: linear-gradient(to bottom, #000, transparent); }
+
 /* ── The homepage hero, on a quiet light canvas ── */
 .mk-hero.mk-hero-light { background: var(--p-canvas); color: var(--fg); }
 .mk-hero-light .mk-hero-mesh {
@@ -23,9 +35,48 @@
     radial-gradient(36% 50% at 92% 8%, rgb(255 122 89 / 0.07), transparent 70%),
     linear-gradient(rgb(255 255 255 / 0.025) 1px, transparent 1px) 0 0 / 72px 72px,
     linear-gradient(90deg, rgb(255 255 255 / 0.025) 1px, transparent 1px) 0 0 / 72px 72px;
-  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  mask-image: linear-gradient(to bottom, #000 40%, rgb(0 0 0 / 0.8) 58%, rgb(0 0 0 / 0.45) 74%, rgb(0 0 0 / 0.15) 88%, transparent);
 }
-.mk-matte-fade { height: clamp(90px, 13vw, 200px); background: linear-gradient(to bottom, #0b0b0c 0%, rgb(11 11 12 / 0.82) 28%, rgb(11 11 12 / 0.38) 62%, rgb(11 11 12 / 0.08) 88%, transparent); }
+
+/* Page openings on matte black (components/marketing/dark-hero.tsx), lit in
+   the page's pastel: --hue mixes the tint's pastel with its ink so the colour
+   reads on black. Inside, highlights become pastel text and chips glow. */
+.mk-dark {
+  --fg: #f7f7f8;
+  --bg: #0b0b0c;
+  --p-glass: rgb(255 255 255 / 0.06);
+  --p-glass-border: rgb(255 255 255 / 0.12);
+  --p-shadow: none;
+  --hue: color-mix(in srgb, var(--t, #e9e4fc) 45%, var(--t-ink, #5b48b0));
+  position: relative;
+  isolation: isolate;
+  background: #0b0b0c;
+  color: var(--fg);
+}
+.mk-dark-glow {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 85% at 50% -20%, color-mix(in srgb, var(--hue) 85%, transparent), transparent 70%),
+    radial-gradient(36% 70% at 0% 10%, color-mix(in srgb, var(--t, #e9e4fc) 40%, transparent), transparent 70%),
+    radial-gradient(36% 70% at 100% 20%, color-mix(in srgb, var(--hue) 55%, transparent), transparent 70%),
+    radial-gradient(70% 45% at 50% 105%, color-mix(in srgb, var(--hue) 35%, transparent), transparent 75%),
+    linear-gradient(rgb(255 255 255 / 0.03) 1px, transparent 1px) 0 0 / 72px 72px,
+    linear-gradient(90deg, rgb(255 255 255 / 0.03) 1px, transparent 1px) 0 0 / 72px 72px;
+  mask-image: linear-gradient(to bottom, #000 50%, rgb(0 0 0 / 0.8) 66%, rgb(0 0 0 / 0.45) 80%, rgb(0 0 0 / 0.15) 91%, transparent);
+  animation: mk-dark-breathe 9s ease-in-out infinite alternate;
+}
+@keyframes mk-dark-breathe { to { opacity: 0.82; } }
+@media (prefers-reduced-motion: reduce) { .mk-dark-glow { animation: none; } }
+
+.mk-dark .mk-mark { color: color-mix(in srgb, var(--mk-c) 70%, #fff); background-image: linear-gradient(100deg, color-mix(in srgb, var(--hue) 55%, transparent), color-mix(in srgb, var(--hue) 30%, transparent)); }
+/* A light card sitting in the band (a sample dashboard) keeps the light theme. */
+.mk-dark .mk-keep-light { --fg: #1d1d1f; --bg: #f4f4f5; --p-glass: rgb(255 255 255 / 0.72); --p-glass-border: rgb(255 255 255 / 0.9); color: var(--fg); }
+.mk-dark .tint-chip { background: color-mix(in srgb, var(--hue) 22%, transparent); color: color-mix(in srgb, var(--t, #e9e4fc) 85%, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hue) 35%, transparent); }
+.mk-dark .tint-ink { color: color-mix(in srgb, var(--t, #e9e4fc) 85%, #fff); }
+
 .mk-ink-gradient { background: linear-gradient(95deg, #5b3fd6 0%, #c43a86 52%, #e0702b 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
 /* Header menus: a category's items fade in as you move between categories. */
@@ -221,17 +272,33 @@
    and their resting state is the finished picture, so reduced motion shows
    it still. */
 .bi-panel { background: linear-gradient(160deg, color-mix(in srgb, var(--p-lavender) 55%, #fff) 0%, color-mix(in srgb, var(--p-sky) 45%, #fff) 45%, color-mix(in srgb, var(--p-peach) 45%, #fff) 100%); }
+/* Full-width band: no corners, soft top and bottom edges into the page. */
+.bi-band { mask-image: var(--mk-edges); }
+/* The card row lines up with the page's content edge (the W container: 1600px wide,
+   gutters 20/32/56/80px) and runs to both edges of the screen. */
+.bi-bleed { --g: 20px; padding-inline: max(var(--g), calc((100vw - 1600px) / 2 + var(--g))); scroll-padding-inline: max(var(--g), calc((100vw - 1600px) / 2 + var(--g))); }
+@media (min-width: 640px) { .bi-bleed { --g: 32px; } }
+@media (min-width: 1024px) { .bi-bleed { --g: 56px; } }
+@media (min-width: 1280px) { .bi-bleed { --g: 80px; } }
 .bi-blob { filter: blur(60px); opacity: 0.75; animation: bi-drift 18s ease-in-out infinite alternate; }
 .bi-blob-a { background: var(--p-lavender); }
 .bi-blob-b { background: var(--p-mint); animation-delay: -6s; }
 .bi-blob-c { background: var(--p-rose); animation-delay: -12s; }
 @keyframes bi-drift { from { translate: 0 0; scale: 1; } to { translate: 60px 40px; scale: 1.15; } }
-.bi-card { background: rgb(255 255 255 / 0.62); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.7), 0 1px 0 rgb(0 0 0 / 0.02), 0 24px 50px -34px rgb(30 25 60 / 0.35); transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.5s; }
-.bi-card:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.9), 0 34px 60px -30px rgb(30 25 60 / 0.4); }
+.bi-card { background: rgb(255 255 255 / 0.66); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.75), 0 1px 0 rgb(0 0 0 / 0.02), 0 30px 60px -38px rgb(30 25 60 / 0.4); transition: transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.7s, box-shadow 0.7s; }
+/* Each card's stage is lit in its own pastel; the device in it settles forward when the card is the one showing. */
+.bi-stage { background: radial-gradient(70% 70% at 30% 20%, color-mix(in srgb, var(--t) 95%, #fff), transparent 75%), radial-gradient(60% 60% at 85% 90%, color-mix(in srgb, var(--t) 70%, #fff), transparent 75%), color-mix(in srgb, var(--t) 45%, #fff); }
+.bi-device { transition: transform 1s cubic-bezier(0.2, 0.7, 0.2, 1), filter 1s; }
+.bi-card:not([data-on]) .bi-device { transform: scale(0.94) translateY(10px); filter: saturate(0.85); }
+.bi-card:not([data-on]) .bi-stage > .absolute { opacity: 0; transform: translateY(8px); }
+.bi-stage > .absolute { transition: opacity 0.6s 0.25s, transform 0.8s 0.25s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.bi-tilt { transform: perspective(1600px) rotateY(-14deg) rotateX(6deg); transition: transform 1.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.bi-card[data-on] .bi-tilt { transform: perspective(1600px) rotateY(-8deg) rotateX(4deg); }
+.bi-progress { transform: scaleX(var(--p, 0)); }
 .bi-anim { animation-duration: 6s; animation-iteration-count: infinite; animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1); animation-fill-mode: both; animation-play-state: paused; }
 .bi-root[data-live] .bi-anim { animation-play-state: running; }
 .bi-pan { animation-name: bi-pan; animation-duration: 14s; animation-timing-function: ease-in-out; animation-direction: alternate; }
-@keyframes bi-pan { from { transform: scale(1.02); } to { transform: scale(1.1) translate(-2%, -1.5%); } }
+@keyframes bi-pan { from { transform: scale(1.01); } to { transform: scale(1.07) translate(-1.5%, -1%); } }
 .bi-bar { transform-origin: bottom; animation-name: bi-bar; }
 @keyframes bi-bar { 0% { transform: scaleY(0.06); } 22%, 86% { transform: scaleY(1); } 100% { transform: scaleY(0.06); } }
 .bi-row { animation-name: bi-row; }
@@ -253,5 +320,224 @@
 @media (prefers-reduced-motion: reduce) {
   .bi-anim, .bi-typing i, .bi-blob { animation: none; }
   .bi-typing { display: none; }
-  .bi-card, .bi-card:hover { transform: none; }
+  .bi-card, .bi-card:hover, .bi-device, .bi-tilt { transform: none !important; }
 }
+
+/* "Your workday" desk (components/marketing/workday-dock.tsx): a pastel wallpaper
+   per tool, a notification sliding in, and a dock whose icons rise on hover. */
+.wd-desk { min-height: 0; }
+/* Full width: no corners, soft top and bottom edges into the page. */
+.wd-band { mask-image: var(--mk-edges); }
+.wd-wall { opacity: 0; transition: opacity 1s ease; background: radial-gradient(60% 70% at 15% 10%, color-mix(in srgb, var(--t) 95%, #fff), transparent 70%), radial-gradient(55% 65% at 90% 90%, color-mix(in srgb, var(--t) 75%, #fff), transparent 70%), linear-gradient(150deg, color-mix(in srgb, var(--t) 55%, #fff), #fbfafd); }
+.wd-wall.is-on { opacity: 1; }
+.wd-note { animation: wd-note 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.15) 1.1s both; }
+@keyframes wd-note { from { opacity: 0; transform: translate3d(24px, -6px, 0) scale(0.96); } to { opacity: 1; transform: none; } }
+.wd-app { transition: transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.2); transform-origin: 50% 100%; }
+.wd-app:hover { transform: translateY(-6px) scale(1.18); }
+.wd-app.is-on { transform: translateY(-4px); }
+.wd-app.is-on:hover { transform: translateY(-6px) scale(1.18); }
+.wd-tip { opacity: 0; transform: translateY(4px); transition: opacity 0.2s, transform 0.2s; }
+.wd-app:hover .wd-tip { opacity: 1; transform: none; }
+.wd-ring { fill: none; stroke: var(--t-ink); stroke-width: 2; stroke-dasharray: 1; stroke-dashoffset: 1; animation: wd-ring linear forwards; }
+@keyframes wd-ring { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .wd-note, .wd-ring { animation: none; } .wd-app, .wd-app:hover { transform: none; } }
+
+
+/* Feature marquee (components/marketing/feature-marquee.tsx): two rows in
+   opposite directions, faded at both edges; a hovered row stops, its card
+   lifts and glows in its pastel, the others step back. */
+.fm { mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 0.1) 2%, rgb(0 0 0 / 0.4) 4.5%, rgb(0 0 0 / 0.75) 7%, #000 10%, #000 90%, rgb(0 0 0 / 0.75) 93%, rgb(0 0 0 / 0.4) 95.5%, rgb(0 0 0 / 0.1) 98%, transparent 100%); }
+.fm-row { overflow: hidden; padding-block: 10px; }
+.fm-track { animation: fm-slide linear infinite; will-change: transform; }
+.fm-rev { animation-direction: reverse; }
+.fm-row:hover .fm-track, .fm-row:focus-within .fm-track { animation-play-state: paused; }
+@keyframes fm-slide { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(calc(-50% - 6px), 0, 0); } }
+.fm-item { transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2), box-shadow 0.45s, opacity 0.35s, background-color 0.3s; }
+.fm-item:hover, .fm-item:focus-visible { transform: translateY(-4px) scale(1.03); background: #fff; box-shadow: 0 0 0 1px color-mix(in srgb, var(--t-ink) 22%, transparent), 0 18px 36px -16px color-mix(in srgb, var(--t-ink) 45%, transparent); }
+.fm-row:hover .fm-item:not(:hover) { opacity: 0.55; }
+.fm-icon { transition: transform 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.fm-item:hover .fm-icon { transform: rotate(-6deg) scale(1.08); }
+.fm-go { opacity: 0; transform: translateX(-4px); transition: opacity 0.3s, transform 0.3s; }
+.fm-item:hover .fm-go { opacity: 1; transform: none; color: var(--t-ink); }
+@media (prefers-reduced-motion: reduce) {
+  .fm-track { animation: none; flex-wrap: wrap; width: auto; justify-content: center; padding-inline: 20px; }
+  .fm-track > [aria-hidden="true"] { display: none; }
+  .fm-item, .fm-item:hover, .fm-icon, .fm-item:hover .fm-icon { transform: none; }
+}
+
+/* Notes motion stage (components/marketing/notes-show.tsx): a full-width
+   butter band; each scene zooms its screen in and plays its own graphic.
+   Resting states are the finished picture, so reduced motion shows it still. */
+.ns-band { background: linear-gradient(170deg, color-mix(in srgb, var(--p-butter) 85%, #fff) 0%, color-mix(in srgb, var(--p-butter) 40%, var(--p-canvas, #faf9f7)) 55%, var(--p-canvas, #faf9f7) 100%); mask-image: var(--mk-edges); }
+.ns-glow { background: radial-gradient(40% 50% at 85% 20%, color-mix(in srgb, var(--p-peach) 70%, transparent), transparent 70%), radial-gradient(35% 45% at 10% 70%, color-mix(in srgb, var(--p-butter) 90%, transparent), transparent 70%); animation: ns-drift 14s ease-in-out infinite alternate; }
+@keyframes ns-drift { to { transform: translate3d(3%, 2%, 0) scale(1.06); } }
+.ns-zoom { animation: ns-zoom 4.6s cubic-bezier(0.25, 0.8, 0.25, 1) both; }
+@keyframes ns-zoom { 0% { transform: scale(1); } 35% { transform: scale(var(--z)); } 100% { transform: scale(calc(var(--z) * 1.03)); } }
+.ns-art { animation: ns-fade 0.6s ease both; }
+@keyframes ns-fade { from { opacity: 0; } }
+.ns-pop { animation: ns-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+@keyframes ns-pop { from { opacity: 0; transform: scale(0.6) translateY(10px); } }
+.ns-fly { animation: ns-fly 0.7s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+@keyframes ns-fly { from { opacity: 0; transform: translate3d(-40px, -14px, 0) rotate(-6deg) scale(0.9); } }
+.ns-key { animation: ns-key 1.6s ease-in-out 0.2s both; }
+@keyframes ns-key { 0% { opacity: 0; transform: translateY(-14px); } 25% { opacity: 1; transform: none; } 40% { transform: translateY(5px); box-shadow: 0 1px 0 rgb(0 0 0 / 0.08), 0 8px 20px -12px rgb(60 40 0 / 0.4); } 55%, 100% { transform: none; } }
+.ns-dash line { stroke: var(--p-butter-ink); stroke-width: 2; stroke-dasharray: 0.06 0.06; stroke-linecap: round; }
+.ns-dash { animation: ns-fade 0.5s ease both; }
+.ns-orb { background: radial-gradient(circle at 35% 30%, #fff6, transparent 45%), conic-gradient(from 200deg, #f5b84a, #f07c5a, #b07ce8, #f5b84a); box-shadow: 0 16px 36px -12px rgb(176 124 232 / 0.6); animation: ns-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) both, ns-spin 6s linear 0.6s infinite; }
+@keyframes ns-spin { to { filter: hue-rotate(40deg); transform: rotate(360deg); } }
+.ns-tick { animation: ns-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both; }
+.ns-orbit { animation: ns-pop 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+.ns-bar { transform-origin: left; animation: ns-grow 1.4s cubic-bezier(0.25, 0.8, 0.25, 1) 0.3s both; }
+@keyframes ns-grow { from { transform: scaleX(0); } }
+.ns-prog { transform-origin: left; animation: ns-grow linear both; }
+@media (prefers-reduced-motion: reduce) {
+  .ns-glow, .ns-zoom, .ns-art, .ns-pop, .ns-fly, .ns-key, .ns-dash, .ns-orb, .ns-tick, .ns-orbit, .ns-bar, .ns-prog { animation: none; }
+}
+
+/* "One platform" trio (components/marketing/platform-trio.tsx): a full-width
+   band shading lavender → peach → mint under the three, a light flowing along
+   the shared spine, and each device's small live detail. */
+.pt-band { background: linear-gradient(90deg, color-mix(in srgb, var(--p-lavender) 75%, #fff), color-mix(in srgb, var(--p-peach) 65%, #fff) 50%, color-mix(in srgb, var(--p-mint) 75%, #fff)); mask-image: var(--mk-edges); }
+.pt-stage { background: radial-gradient(70% 70% at 50% 40%, rgb(255 255 255 / 0.7), transparent 75%); transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.pt-col a:hover .pt-stage { transform: translateY(-6px); }
+.pt-tilt { transform: perspective(1400px) rotateY(10deg) rotateX(4deg); transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.pt-col a:hover .pt-tilt { transform: perspective(1400px) rotateY(2deg) rotateX(1deg); }
+.pt-drag { animation: pt-drag 4.5s cubic-bezier(0.45, 0, 0.2, 1) infinite; }
+@keyframes pt-drag { 0%, 12% { opacity: 0; transform: translate(0, 0); } 20% { opacity: 1; } 55%, 80% { opacity: 1; transform: translate(34%, 120%); } 92%, 100% { opacity: 0; transform: translate(34%, 120%); } }
+.pt-float { animation: pt-float 6s ease-in-out infinite; }
+@keyframes pt-float { 50% { transform: translateY(-8px); } }
+.pt-cart { animation: pt-pop 5s cubic-bezier(0.2, 0.9, 0.3, 1.2) 0.8s infinite; }
+.pt-kpi { animation: pt-pop 5s cubic-bezier(0.2, 0.9, 0.3, 1.2) 2.2s infinite; }
+@keyframes pt-pop { 0%, 6% { opacity: 0; transform: translateY(10px) scale(0.92); } 14%, 82% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: translateY(-4px); } }
+.pt-flow { stroke-dasharray: 0.08 0.92; animation: pt-flow 4.2s linear infinite; filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.9)); }
+@keyframes pt-flow { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.pt-node { box-shadow: 0 0 0 4px color-mix(in srgb, var(--t-ink) 18%, transparent); animation: pt-node 1.8s ease-in-out infinite; }
+@keyframes pt-node { 50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--t-ink) 0%, transparent); } }
+.pt-share { animation: pt-share 3s ease-in-out infinite; }
+@keyframes pt-share { 0%, 30%, 100% { background: rgb(255 255 255 / 0.8); color: rgb(22 19 42 / 0.7); } 12% { background: #fff; color: rgb(22 19 42 / 0.95); box-shadow: 0 10px 24px -12px rgb(40 20 90 / 0.45); } }
+@media (prefers-reduced-motion: reduce) {
+  .pt-drag, .pt-float, .pt-cart, .pt-kpi, .pt-flow, .pt-node, .pt-share { animation: none; }
+  .pt-tilt, .pt-col a:hover .pt-tilt, .pt-col a:hover .pt-stage { transform: none; }
+}
+
+/* "What makes it different" (components/marketing/innovations.tsx): matte
+   black, the glow cross-fading to each group's pastel, the spotlight card
+   rising in for each idea. */
+.iv-band { mask-image: var(--mk-edge-top); }
+.iv-glow { --hue: color-mix(in srgb, var(--t) 35%, var(--t-ink)); opacity: 0; transition: opacity 1.2s ease; animation: none; }
+/* (no breathing here: an opacity animation would show every group's light at once) */
+.iv-glow.is-on { opacity: 1; }
+.iv-shine { background: linear-gradient(95deg, #c7d2fe, #f0abfc 40%, #fdba74 70%, #86efac); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: iv-shine 8s ease-in-out infinite alternate; }
+@keyframes iv-shine { to { background-position: 100% 0; } }
+.iv-group.is-on { box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08); }
+.iv-progress { background: color-mix(in srgb, var(--t, #e9e4fc) 85%, #fff); animation: iv-fill linear both; }
+.iv-fill { animation: iv-fill linear both; }
+@keyframes iv-fill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.iv-card { animation: iv-card 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; transition: box-shadow 0.4s, transform 0.4s; }
+.iv-card:hover { transform: translateY(-3px); box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.8), inset 0 0 0 1px rgb(255 255 255 / 0.14); }
+@keyframes iv-card { from { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+/* The scene's mock-up, shown larger than its original card size. */
+.iv-visual { transform: scale(1.12); transform-origin: center; }
+@media (min-width: 640px) { .iv-visual { transform: scale(1.3); } }
+@media (prefers-reduced-motion: reduce) { .iv-shine, .iv-card, .iv-progress, .iv-fill { animation: none; } .iv-card:hover { transform: none; } }
+
+/* Feature films (components/marketing/film-reel.tsx): a full-width band, the
+   glow taking the focused film's colour. The phone in focus is sharp and full
+   size; the rest are smaller, blurred and dimmed. Badges stay sharp. */
+.fr-band { background: linear-gradient(180deg, var(--p-canvas, #faf9f7), color-mix(in srgb, var(--p-lavender) 30%, var(--p-canvas, #faf9f7)) 50%, var(--p-canvas, #faf9f7)); mask-image: var(--mk-edges); }
+.fr-glow { background: radial-gradient(36% 50% at 50% 46%, color-mix(in srgb, var(--fr) 24%, transparent), transparent 72%); transition: background 1s ease; }
+.fr-card { width: min(62vw, 250px); }
+@media (min-width: 640px) { .fr-card { width: 230px; } }
+@media (min-width: 1024px) { .fr-card { width: min(270px, 18vw, 25dvh); } }
+/* Phones: room either side so the first and last can sit in the middle. */
+.fr-free { padding-inline: calc(50% - min(31vw, 125px)); }
+@media (min-width: 640px) { .fr-free { padding-inline: calc(50% - 115px); } }
+.fr-phone { transition: transform 0.9s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.9s, opacity 0.9s; transform: scale(0.84); filter: blur(5px) saturate(0.7); opacity: 0.55; }
+.fr-card[data-on] .fr-phone { transform: none; filter: none; opacity: 1; }
+.fr-card[data-on] .fr-phone::after { content: ""; position: absolute; inset: 8% -14% -4%; z-index: -1; border-radius: 40%; background: radial-gradient(closest-side, color-mix(in srgb, var(--fr) 50%, transparent), transparent); filter: blur(26px); }
+.fr-card:not([data-on]):hover .fr-phone { transform: scale(0.88); filter: blur(2px) saturate(0.85); opacity: 0.8; }
+.fr-badge { background: var(--fr); box-shadow: 0 10px 24px -10px var(--fr), inset 0 0 0 1px rgb(255 255 255 / 0.25); transition: transform 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.2), opacity 0.6s; transform: translate(-50%, 18px) scale(0.86); opacity: 0.85; }
+.fr-card[data-on] .fr-badge { transform: translate(-50%, 0) scale(1); opacity: 1; box-shadow: 0 14px 30px -10px var(--fr), 0 0 0 4px color-mix(in srgb, var(--fr) 18%, transparent), inset 0 0 0 1px rgb(255 255 255 / 0.25); }
+.fr-info { animation: fr-info 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes fr-info { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.fr-progress { transform: scaleX(var(--p, 0)); }
+@media (prefers-reduced-motion: reduce) { .fr-phone, .fr-badge { transition: none; } .fr-info { animation: none; } }
+
+/* "How Cloudesk helps" (components/marketing/impact.tsx): number tiles, each
+   with a graphic that plays once the section is on screen ([data-on]). The
+   resting state is the finished picture, so reduced motion shows it still. */
+.im-band { background: linear-gradient(180deg, var(--p-canvas, #faf9f7), color-mix(in srgb, var(--p-sky) 28%, var(--p-canvas, #faf9f7)) 45%, color-mix(in srgb, var(--p-peach) 24%, var(--p-canvas, #faf9f7)) 80%, var(--p-canvas, #faf9f7)); mask-image: var(--mk-edges); }
+.im-tile { background: rgb(255 255 255 / 0.7); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.8), 0 26px 50px -34px rgb(30 25 60 / 0.35); transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s; }
+.im-tile:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 1px #fff, 0 34px 60px -32px rgb(30 25 60 / 0.4); }
+.im-tile:not(.im-cta) .im-graphic::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: 22px; background: radial-gradient(60% 70% at 50% 50%, color-mix(in srgb, var(--im) 14%, transparent), transparent 75%); }
+.im-cta { background: #0b0b0c; box-shadow: 0 30px 60px -30px rgb(0 0 0 / 0.6); }
+/* entrance, staggered by tile */
+.im-tile { opacity: 0; translate: 0 18px; transition: opacity 0.7s, translate 0.8s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.5s; }
+.im[data-on] .im-tile { opacity: 1; translate: none; }
+.im[data-on] .im-tile:nth-child(2) { transition-delay: 0.08s; } .im[data-on] .im-tile:nth-child(3) { transition-delay: 0.16s; }
+.im[data-on] .im-tile:nth-child(4) { transition-delay: 0.24s; } .im[data-on] .im-tile:nth-child(5) { transition-delay: 0.32s; }
+.im[data-on] .im-tile:nth-child(6) { transition-delay: 0.4s; } .im[data-on] .im-tile:nth-child(7) { transition-delay: 0.48s; } .im[data-on] .im-tile:nth-child(8) { transition-delay: 0.56s; }
+/* ten apps → one */
+.im-app { translate: -50% -50%; transform: translate(var(--x), var(--y)); }
+.im[data-on] .im-app { animation: im-gather 5s cubic-bezier(0.6, 0, 0.3, 1) calc(0.6s + var(--k) * 0.05s) infinite; }
+@keyframes im-gather { 0%, 40% { transform: translate(var(--x), var(--y)); opacity: 1; } 58%, 82% { transform: translate(0, 0) scale(0.4); opacity: 0; } 100% { transform: translate(var(--x), var(--y)); opacity: 1; } }
+.im[data-on] .im-one { animation: im-one 5s cubic-bezier(0.2, 0.9, 0.3, 1.3) 0.6s infinite; }
+@keyframes im-one { 0%, 48% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.4; } 60%, 84% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; box-shadow: 0 0 0 10px color-mix(in srgb, var(--im) 14%, transparent), 0 20px 40px -16px rgb(30 20 70 / 0.6); } 100% { transform: translate(-50%, -50%) scale(0.7); opacity: 0.4; } }
+/* the ring */
+.im-ring { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2s cubic-bezier(0.3, 0, 0.2, 1) 0.4s; }
+.im-ring.is-on { stroke-dashoffset: 0.08; }
+/* commission bars */
+.im-bar { transform-origin: left; transform: scaleX(0); transition: transform 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) calc(0.4s + var(--k) * 0.15s); }
+.im[data-on] .im-bar { transform: none; }
+/* dots */
+.im-dot { background: var(--t); color: var(--t-ink); opacity: 0.25; transform: scale(0.7); transition: opacity 0.4s, transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4); transition-delay: calc(0.5s + var(--k) * 0.035s); }
+.im[data-on] .im-dot { opacity: 1; transform: none; }
+/* typed once */
+.im[data-on] .im-pulse { animation: im-pulse 2.6s ease-in-out calc(var(--k) * 0.18s) infinite; }
+@keyframes im-pulse { 0% { left: 0; opacity: 0; } 15% { opacity: 1; } 70% { left: calc(100% - 6px); opacity: 1; } 85%, 100% { left: calc(100% - 6px); opacity: 0; } }
+.im[data-on] .im-dest { animation: im-light 2.6s ease-in-out calc(var(--k) * 0.18s) infinite; }
+@keyframes im-light { 0%, 62% { box-shadow: 0 0 0 0 transparent; } 74% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--im) 18%, transparent); } 90%, 100% { box-shadow: 0 0 0 0 transparent; } }
+/* templates fan out */
+.im-card { transform: translateX(-50%) rotate(0deg); transition: transform 1s cubic-bezier(0.2, 0.9, 0.3, 1.1) calc(0.5s + var(--k) * 0.08s); }
+.im[data-on] .im-card { transform: translateX(-50%) rotate(var(--r)); }
+.im-tile:hover .im-card { transform: translateX(-50%) rotate(calc(var(--r) * 1.3)) translateY(-4px); }
+/* GST chips */
+.im-rate { opacity: 0; transform: translateY(8px) scale(0.9); transition: opacity 0.4s, transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4); transition-delay: calc(0.5s + var(--k) * 0.1s); }
+.im[data-on] .im-rate { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .im-tile, .im-bar, .im-dot, .im-card, .im-rate, .im-ring { transition: none; }
+  .im-tile { opacity: 1; translate: none; }
+  .im-app, .im-one, .im-pulse, .im-dest { animation: none !important; }
+  .im-app { opacity: 0; } .im-one { transform: translate(-50%, -50%); }
+  .im-ring { stroke-dashoffset: 0.08; } .im-bar, .im-dot, .im-rate { opacity: 1; transform: none; }
+}
+
+/* The hero's "Setup with AI": the in-app AI button (.ai-entry, app/globals.css) on dark glass. */
+.hero-ai { background: transparent; color: #f7f7f8; }
+/* Within the button's own stacking context the glow paints over its background, so the face is a layer of its own. */
+.hero-ai-face { background: linear-gradient(180deg, #1c1c1f, #121214); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08); transition: background 0.3s; }
+.hero-ai::after { opacity: 0.6; }
+.hero-ai:hover .hero-ai-face { background: linear-gradient(180deg, #232327, #18181b); }
+.hero-ai:hover::after { opacity: 0.9; }
+.hero-ai .ai-entry-ic { color: #ff8a7a; }
+
+/* The hero buttons' time badges. */
+/* Centred on the button's top edge, inset from the right so it clears the curve. */
+.hero-badge { position: absolute; top: -9px; right: 18px; z-index: 2; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 7px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: -0.005em; white-space: nowrap; pointer-events: none; }
+.hero-badge-ai { color: #1b0f0a; background: linear-gradient(95deg, #ff8a6b, #fdba5a); box-shadow: 0 6px 16px -6px rgb(255 122 89 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.4); animation: hero-badge-glow 2.6s ease-in-out infinite; }
+.hero-badge-mint { color: #0c3b28; background: #c9f2dd; box-shadow: 0 6px 16px -8px rgb(47 179 127 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.6); }
+@keyframes hero-badge-glow { 50% { box-shadow: 0 8px 22px -6px rgb(255 122 89 / 0.95), inset 0 1px 0 rgb(255 255 255 / 0.4); } }
+@media (prefers-reduced-motion: reduce) { .hero-badge-ai { animation: none; } }
+.hero-badge svg { width: 10px; height: 10px; }
+
+/* The hero's quick ways in (Open a store, Create a website): dark glass pills. */
+.hero-quick { color: #f7f7f8; background: rgb(255 255 255 / 0.05); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.06); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); transition: background-color 0.25s, box-shadow 0.25s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.hero-quick:hover { background: rgb(255 255 255 / 0.09); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.18), 0 10px 24px -14px rgb(0 0 0 / 0.8); transform: translateY(-1px); }
+.hero-quick:active { transform: scale(0.98); }
+
+/* The header over a page's dark first band (site-header.tsx): transparent,
+   with the band's light tokens, until it scrolls and turns to frosted glass.
+   The band takes the header's 64px back as top padding. */
+.mk-under-head { padding-top: 4rem; }
+.mk-head-dark { --fg: #f7f7f8; --bg: #0b0b0c; color: var(--fg); }
+.mk-head-dark .mk-tab[data-on]::after { background: var(--fg); }

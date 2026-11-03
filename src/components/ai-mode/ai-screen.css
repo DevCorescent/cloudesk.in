@@ -676,8 +676,9 @@
 @media (prefers-reduced-motion: reduce) { .aih-line { stroke-dashoffset: 0; } .aih-dot { opacity: 1; } }
 @media (max-width: 420px) { .aih-hero h1 { font-size: 21px; } .aih-mark { width: 50px; height: 50px; } .aih-faq button { min-height: 46px; font-size: 13.5px; } }
 
-/* ── Final pass: monochrome, transparent bars, gradient tiles ─────────────────
-   No colour but the text's own (red only where something is late); the top bar
+/* ── Final pass: transparent bars, gradient tiles ─────────────────────────────
+   Quiet colour only (the subtle pastels at the end of this file; red where
+   something is late); the top bar
    and the bottom bar have no background — only their buttons and the input do;
    and only tiles carry a surface: a faint top-to-bottom gradient with a hairline. */
 .ai {
@@ -741,3 +742,47 @@
 .aih-attn > button, .ai-more, .ai-next button, .ai-chip, .ai-tabs button, .ai-btn, .ai-btn-ghost, .ai-advisor { font-weight: 450; }
 .ai-card-tx b, .ai-mailrow-tx b { font-weight: 500; }
 .aih-fig b { font-weight: 500; letter-spacing: -0.03em; }
+
+/* ── Subtle pastels (after the final pass, so they win) ───────────────────────
+   Each tile gets a faint wash of its own colour — its tone if it has one, else
+   the next in a six-colour set — with a hairline in the same colour; your
+   messages a hint of lavender, the text box lavender into peach. Mixed into
+   transparent over the screen's own background, so they stay quiet in light
+   and dark alike. */
+.ai {
+  --ai-lav: #8b7bff;
+  --ai-peach: #f08a5d;
+  --ai-mint: #2fb37f;
+  --ai-sky: #4f8df0;
+  --ai-butter: #e2a43b;
+  --ai-rose: #e0668a;
+}
+.ai-cards > :nth-child(6n + 1), .ai-opts > :nth-child(6n + 1), .aih-faq li:nth-child(6n + 1) button { --pc: var(--ai-lav); }
+.ai-cards > :nth-child(6n + 2), .ai-opts > :nth-child(6n + 2), .aih-faq li:nth-child(6n + 2) button { --pc: var(--ai-peach); }
+.ai-cards > :nth-child(6n + 3), .ai-opts > :nth-child(6n + 3), .aih-faq li:nth-child(6n + 3) button { --pc: var(--ai-mint); }
+.ai-cards > :nth-child(6n + 4), .ai-opts > :nth-child(6n + 4), .aih-faq li:nth-child(6n + 4) button { --pc: var(--ai-sky); }
+.ai-cards > :nth-child(6n + 5), .ai-opts > :nth-child(6n + 5), .aih-faq li:nth-child(6n + 5) button { --pc: var(--ai-butter); }
+.ai-cards > :nth-child(6n + 6), .ai-opts > :nth-child(6n + 6), .aih-faq li:nth-child(6n + 6) button { --pc: var(--ai-rose); }
+.ai-panel, .ai-brief, .ai-done { --pc: var(--ai-mint); }
+.ai-act, .ai-doc { --pc: var(--ai-sky); }
+.ai-msg-me { --pc: var(--ai-lav); }
+.ai-card, .ai-opt, .ai-panel, .ai-act, .ai-doc, .ai-brief, .ai-brief .ai-link, .aih-faq button, .aih-fig, .ai-msg-me {
+  --ai-hue: var(--tone, var(--pc, var(--ai-lav)));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--ai-hue) 9%, transparent), color-mix(in srgb, var(--ai-hue) 3.5%, transparent)), color-mix(in srgb, var(--fg) 2.5%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--ai-hue) 16%, var(--ai-tile-edge)) !important;
+}
+.ai-brief .ai-link { border: 0 !important; background: none !important; }
+@media (hover: hover) {
+  .ai-card:hover, .ai-opt:hover, .aih-faq button:hover {
+    background: linear-gradient(160deg, color-mix(in srgb, var(--ai-hue) 14%, transparent), color-mix(in srgb, var(--ai-hue) 6%, transparent)), color-mix(in srgb, var(--fg) 3%, transparent) !important;
+    border-color: color-mix(in srgb, var(--ai-hue) 30%, transparent) !important;
+  }
+}
+.ai-opt[aria-pressed="true"] { background: color-mix(in srgb, var(--ai-hue) 16%, var(--bg)) !important; border-color: color-mix(in srgb, var(--ai-hue) 55%, transparent) !important; }
+.ai-card .ai-obj { color: color-mix(in srgb, var(--ai-hue) 70%, var(--fg)); background: color-mix(in srgb, var(--ai-hue) 10%, transparent); border-color: color-mix(in srgb, var(--ai-hue) 20%, transparent); }
+.ai-composer {
+  background: linear-gradient(100deg, color-mix(in srgb, var(--ai-lav) 7%, transparent), color-mix(in srgb, var(--ai-peach) 6%, transparent)), color-mix(in srgb, var(--bg) 70%, transparent) !important;
+  border-color: color-mix(in srgb, var(--ai-lav) 18%, var(--ai-tile-edge)) !important;
+}
+.ai-chip { background: color-mix(in srgb, var(--c, var(--ai-lav)) 9%, transparent); }
+.ai-tabs button.is-on, .ai-chip.is-key, .ai-next button.is-key { background: linear-gradient(160deg, color-mix(in srgb, var(--ai-lav) 10%, transparent), color-mix(in srgb, var(--ai-peach) 6%, transparent)); border-color: color-mix(in srgb, var(--ai-lav) 26%, transparent); }
