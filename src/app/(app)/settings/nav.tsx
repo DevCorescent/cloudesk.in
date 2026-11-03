@@ -4,7 +4,7 @@
 // menu beside the page; on narrow ones a strip of tabs that scrolls sideways
 // on its own (the page never does), with the current tab kept in view.
 import clsx from "clsx";
-import { Bell, Blocks, Building2, CreditCard, Database, GitBranch, IdCard, KeyRound, LayoutGrid, Monitor, ScrollText, Settings2, ShieldCheck, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Bell, Blocks, Building2, CreditCard, Database, GitBranch, KeyRound, LayoutGrid, Monitor, ScrollText, Settings2, ShieldCheck, Sparkles, User, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
@@ -13,7 +13,6 @@ type Item = { href: string; label: string; icon: LucideIcon };
 export const GROUPS: { label: string; items: Item[] }[] = [
   { label: "You", items: [
     { href: "/settings", label: "Account", icon: User },
-    { href: "/settings/business-id", label: "Business ID", icon: IdCard },
     { href: "/settings/notifications", label: "Notifications", icon: Bell },
   ] },
   { label: "Workspace", items: [

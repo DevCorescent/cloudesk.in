@@ -11,7 +11,7 @@ import { chatScope, type ChatScope } from "@/server/chat/access";
 import { ask, catchUp, rewrite } from "@/server/chat/ai";
 import { subscribe, type ChatEvent } from "@/server/chat/bus";
 import { addToCalendar, makeTasks, taskTargets } from "@/server/chat/convert";
-import { createInvite, decide, emailInvite, invitePerson, listGuests, listInvites, removeGuest, updateInvite } from "@/server/chat/guests";
+import { createInvite, decide, emailInvite, listGuests, listInvites, removeGuest, updateInvite } from "@/server/chat/guests";
 import * as chat from "@/server/chat/core";
 import { db } from "@/db";
 import { sql } from "drizzle-orm";
@@ -222,9 +222,6 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
     case "POST invites :id email":
       await rateLimit(`chat-invite-mail:${s.userId}`, 200, 24 * 60 * 60_000);
       return emailInvite(s, id!, await body(ctx));
-    case "POST channels :id invite-person":
-      await rateLimit(`chat-invite-mail:${s.userId}`, 200, 24 * 60 * 60_000);
-      return invitePerson(s, id!, await body(ctx));
     case "GET channels :id guests":
       return listGuests(s, id!);
     case "POST guests :id decide":

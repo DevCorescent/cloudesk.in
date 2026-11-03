@@ -178,7 +178,6 @@ export const NOTIFICATION_KINDS = {
   "chat.approval": { label: "An approval asked of you in Chat, or its answer", email: true, fields: ["who", "title", "link"] },
   "chat.guest": { label: "Someone outside the workspace asks to join a Chat conversation you run", email: true, fields: ["who", "channel", "link"] },
   "chat.reminder": { label: "A Chat message you asked to be reminded about", email: false, fields: ["channel", "text", "link"] },
-  "card.exchange": { label: "Someone sent you their details from your business ID", email: true, fields: ["name", "contact", "link"] },
   "feature.updated": { label: "News on a feature you requested", email: true, fields: ["number", "title", "status", "link"] },
   "feature.released": { label: "A feature you asked for (or for your workspace) is live", email: true, fields: ["number", "title", "link"] },
   "billing.trial": { label: "Your free trial is ending", email: true, fields: ["days", "link"] },
