@@ -886,14 +886,32 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 }
 /* Phones' home screen: solid cards. Dark mode on phones is matte — a flat
    charcoal ground with no ambient light, and cards without glass or glow. */
-/* The way into AI mode: a soft blue-violet pill that reads in both themes. */
+/* The way into AI mode: a quiet surface pill with a hairline gradient edge and a soft glow — noticeable, not loud. */
 .ai-entry {
-  color: color-mix(in srgb, #4f5ef7 80%, var(--fg));
-  background: linear-gradient(135deg, color-mix(in srgb, #4f5ef7 14%, transparent), color-mix(in srgb, #a878ff 12%, transparent));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #6b6cff 30%, transparent);
-  transition: transform 0.2s, background 0.2s;
+  position: relative;
+  isolation: isolate;
+  color: var(--fg);
+  background: var(--surface-solid);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 18px -10px color-mix(in srgb, #5b5ff8 55%, transparent);
+  transition: transform 0.2s, box-shadow 0.3s;
 }
-.ai-entry:hover { background: linear-gradient(135deg, color-mix(in srgb, #4f5ef7 20%, transparent), color-mix(in srgb, #a878ff 18%, transparent)); }
+/* The edge: a 1px gradient ring drawn with a mask, so the pill itself stays plain. */
+.ai-entry::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(120deg, color-mix(in srgb, #5b5ff8 70%, transparent), color-mix(in srgb, #b07cff 55%, transparent) 45%, color-mix(in srgb, var(--fg) 12%, transparent) 75%, color-mix(in srgb, #5b5ff8 55%, transparent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+.ai-entry-ic { color: #5b5ff8; filter: drop-shadow(0 0 6px color-mix(in srgb, #7a6cff 45%, transparent)); }
+:root[data-theme="dark"] .ai-entry-ic { color: #a39dff; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-entry-ic { color: #a39dff; } }
+.ai-entry:hover { transform: translateY(-1px); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 10px 24px -10px color-mix(in srgb, #5b5ff8 65%, transparent); }
 .phone-card, .plan-strip { background: var(--surface-solid); box-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04); }
 .plan-strip { background: color-mix(in srgb, var(--tint-lavender) 45%, var(--surface-solid)); }
 @media (max-width: 1023.98px) {
@@ -1415,3 +1433,43 @@ dialog.stat-pop {
 .mk-slide-in { animation: mk-slide-in 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 @keyframes mk-slide-in { from { opacity: 0; transform: translateY(10px); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 @media (prefers-reduced-motion: reduce) { .mk-slide-in { animation: none; } }
+
+/* ── Home dashboard: one calm, neutral palette ──────────────────────────────
+   Inside .dash the six accent tints become greys, cards are flat surfaces
+   with a hairline edge, and the glows are gone. Colour is left only where it
+   means something: red for urgent, green for all clear, and charts' data. */
+.dash {
+  --tint-peach: var(--surface-2); --tint-peach-ink: var(--muted);
+  --tint-lavender: var(--surface-2); --tint-lavender-ink: var(--muted);
+  --tint-mint: var(--surface-2); --tint-mint-ink: var(--muted);
+  --tint-sky: var(--surface-2); --tint-sky-ink: var(--muted);
+  --tint-butter: var(--surface-2); --tint-butter-ink: var(--muted);
+  --tint-rose: var(--surface-2); --tint-rose-ink: var(--muted);
+  --dash-card: var(--surface-solid);
+  --dash-edge: color-mix(in srgb, var(--fg) 8%, transparent);
+}
+/* Phone app tiles: neutral squares with the icon in the text colour. */
+.dash .app-tile { color: var(--fg); background: color-mix(in srgb, var(--fg) 5%, var(--surface-solid)); box-shadow: inset 0 0 0 1px var(--dash-edge); }
+.dash .app-tile-on { color: var(--bg); background: var(--fg); box-shadow: none; }
+.dash .app-tile svg { opacity: 0.85; stroke-width: 1.75; }
+/* Cards, the glance board, the launch card and the plan strip: flat. */
+.dash .glass-card, .dash .glance, .dash .launch-card, .dash .tint-card, .dash .phone-card, .dash .plan-strip, .dash .plan-card, .dash .stat-list {
+  background: var(--dash-card) !important;
+  box-shadow: inset 0 0 0 1px var(--dash-edge) !important;
+  border-color: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.dash .stat-btn, .dash .quick-pill { background: var(--dash-card) !important; box-shadow: inset 0 0 0 1px var(--dash-edge) !important; }
+.dash .stat-btn:hover, .dash .quick-pill:hover { background: color-mix(in srgb, var(--fg) 3%, var(--dash-card)) !important; transform: none; }
+.dash .stat-btn[aria-expanded="true"] { background: color-mix(in srgb, var(--fg) 5%, var(--dash-card)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 22%, transparent) !important; }
+.dash .stat-chip, .dash .tint-chip { color: var(--muted); background: color-mix(in srgb, var(--fg) 5%, transparent) !important; box-shadow: none !important; }
+.dash .stat-btn:hover .stat-caret, .dash .stat-btn[aria-expanded="true"] .stat-caret { color: var(--fg); }
+dialog.stat-pop { background: var(--glass-strong) !important; }
+/* No coloured glow behind the page. */
+.dash::before { content: none !important; }
+/* Dark: matte near-black, cards one step up, a faint top light instead of colour. */
+:root[data-theme="dark"] .dash { --dash-card: #17171a; --dash-edge: rgb(255 255 255 / 0.065); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dash { --dash-card: #17171a; --dash-edge: rgb(255 255 255 / 0.065); } }
+:root[data-theme="dark"] dialog.stat-pop { background: #18181b !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07), 0 30px 80px -20px rgb(0 0 0 / 0.8) !important; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) dialog.stat-pop { background: #18181b !important; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.07), 0 30px 80px -20px rgb(0 0 0 / 0.8) !important; } }

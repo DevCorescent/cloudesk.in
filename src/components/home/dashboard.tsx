@@ -51,8 +51,9 @@ type SectionId = (typeof SECTIONS)[number];
 const SECTION: Record<SectionId, { title: string; wide: boolean }> = {
   summary: { title: "At a glance", wide: true },
   desk: { title: "Your desk", wide: true },
-  actions: { title: "Quick actions", wide: true },
-  webapps: { title: "Web apps", wide: true },
+  // Side by side on wide screens, so the board fits with little scrolling.
+  actions: { title: "Quick actions", wide: false },
+  webapps: { title: "Web apps", wide: false },
   create: { title: "Build something new", wide: true },
 };
 
@@ -132,6 +133,8 @@ export function Dashboard() {
     : [];
 
   const visible = order.filter((s) => editing || !current.hidden.includes(s));
+  // A half-width section only sits half width beside another one; alone (hidden partner, or moved apart) it takes the row.
+  const half = (i: number) => !SECTION[visible[i]!].wide && ((i > 0 && !SECTION[visible[i - 1]!].wide) || (i < visible.length - 1 && !SECTION[visible[i + 1]!].wide));
   return (
     <div className="dash mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8">
       {!user.emailVerified && <VerifyEmail email={user.email} />}
@@ -154,8 +157,8 @@ export function Dashboard() {
         </div>
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           {d && <span className="hidden text-[12px] text-subtle sm:inline">Updated {timeAgo(d.generatedAt)}</span>}
-          <Link href="/ai" className="ai-entry inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] font-medium">
-            <Sparkles className="size-3.5" /> AI mode
+          <Link href="/ai" className="ai-entry inline-flex h-8 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-[12.5px] font-medium">
+            <Sparkles className="ai-entry-ic size-3.5" aria-hidden /> Ask AI
           </Link>
           <Button size="sm" variant="ghost" aria-label="Refresh" icon={<RefreshCw className={clsx("size-3.5", q.isFetching && "animate-spin")} />} onClick={() => q.refetch()} />
           <Link href="/requests" className="hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] font-medium text-muted hover:bg-surface-2 hover:text-fg md:inline-flex" title="Missing something? Ask the Cloudesk team"><Lightbulb className="size-3.5" />Request a feature</Link>
@@ -188,7 +191,7 @@ export function Dashboard() {
       {q.isError ? (
         <ErrorState message={errorMessage(q.error)} onRetry={() => q.refetch()} />
       ) : (
-        <div className="grid grid-flow-row-dense grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {visible.map((id, i) => {
             const hidden = current.hidden.includes(id);
             const body = id === "desk" ? (desk.data ? <Desk d={desk.data} /> : <DeskSkeleton />) : d ? <SectionBody id={id} d={d} /> : <Skeleton className="h-40 rounded-[20px]" />;
@@ -197,7 +200,7 @@ export function Dashboard() {
               <section
                 key={id}
                 aria-label={SECTION[id].title}
-                className={clsx("dash-in min-w-0", SECTION[id].wide && "lg:col-span-2", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
+                className={clsx("dash-in min-w-0", !half(i) && "lg:col-span-2", editing && "rounded-[22px] ring-1 ring-border ring-offset-4 ring-offset-bg transition-opacity", editing && hidden && "opacity-45", drag === id && "opacity-50")}
                 style={{ animationDelay: `${i * 45}ms` }}
                 draggable={editing}
                 onDragStart={() => setDrag(id)}
@@ -280,8 +283,8 @@ function PhoneHome({ d, desk, greeting, status, tone, fetching, onRefresh }: { d
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Link href="/ai" aria-label="AI mode" className="ai-entry inline-flex h-9 items-center gap-1 rounded-full px-3 text-[13px] font-semibold active:scale-95">
-            <Sparkles className="size-3.5" /> AI
+          <Link href="/ai" aria-label="Ask AI" className="ai-entry inline-flex h-9 items-center gap-1.5 rounded-full pr-3.5 pl-3 text-[13px] font-medium active:scale-95">
+            <Sparkles className="ai-entry-ic size-3.5" aria-hidden /> AI
           </Link>
           <button type="button" aria-label="Refresh" onClick={onRefresh} className="phone-card grid size-9 shrink-0 place-items-center rounded-full text-muted active:scale-95">
             <RefreshCw className={clsx("size-4", fetching && "animate-spin")} />
@@ -419,7 +422,7 @@ function Glance({ d }: { d: Dash }) {
   }
   return (
     <div className="glance rounded-[24px] p-3 sm:p-4">
-      <div className="mb-3 px-1">
+      <div className="mb-3 flex flex-wrap items-baseline gap-x-2 px-1">
         <h2 className="text-[14px] font-semibold tracking-[-0.01em]">At a glance</h2>
         <p className="text-[12.5px] text-muted">Pick a stat to see its numbers</p>
       </div>
@@ -544,9 +547,10 @@ function QuickActions({ quick }: { quick: Dash["quick"] }) {
   return (
     <div>
       <Head title={any ? "Quick actions · your most used first" : "Quick actions"} />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+      {/* Wider screens: a compact two-column list beside the web apps. */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
         {quick.map((q) => (
-          <button key={q.id} type="button" onClick={() => go(q)} className="quick-pill group">
+          <button key={q.id} type="button" onClick={() => go(q)} className="quick-pill group sm:!h-10 sm:w-full sm:min-w-0 sm:!rounded-[12px] sm:[&>span:last-child]:truncate">
             <span className="grid size-6 place-items-center rounded-full bg-surface-2 text-fg/70 transition-colors group-hover:bg-fg group-hover:text-bg [&_svg]:size-3.5">{ICONS[q.icon] ?? <Sparkles />}</span>
             {q.label}
           </button>
@@ -672,19 +676,19 @@ function WebApps() {
   const { org } = useSession();
   const projects = useQuery({ queryKey: ["projects", org.id, "recent"], queryFn: () => api<{ items: ProjectSummary[]; total: number }>(`/api/v1/orgs/${org.id}/projects?limit=4`) });
   return (
-    <div className="h-full">
+    <div className="flex h-full flex-col">
       <Head title="Recent web apps" count={projects.data?.total} href="/projects" link="All web apps" />
       {!projects.data ? (
         <Skeleton className="h-36 rounded-[18px]" />
       ) : !projects.data.items.length ? (
-        <Card className="grid place-items-center gap-2 p-6 text-center">
+        <Card className="flex flex-1 flex-col items-center justify-center gap-2 p-5 text-center">
           <AppWindow className="size-5 text-muted" />
           <p className="text-[13.5px] font-medium">No web apps yet</p>
           <p className="text-[12.5px] text-muted">A website, store or app for your business — ready in minutes.</p>
           <ButtonLink href="/launch" size="sm" variant="primary" icon={<Rocket className="size-3.5" />}>Launch one</ButtonLink>
         </Card>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2">
           {projects.data.items.slice(0, 4).map((p) => <ProjectCard key={p.id} p={p} />)}
         </div>
       )}
@@ -704,7 +708,7 @@ function Create() {
   const go = () => router.push(`/create?brief=${encodeURIComponent(brief)}`);
   return (
     <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr_0.8fr]">
-      <Link href="/launch" className="lx-card launch-card group relative flex items-center gap-4 overflow-hidden rounded-[22px] p-5">
+      <Link href="/launch" className="lx-card launch-card group relative flex items-center gap-4 overflow-hidden rounded-[22px] p-4">
         <span className="lx-float grid size-12 shrink-0 place-items-center rounded-[16px] bg-surface-solid text-[var(--tint-lavender-ink)] shadow-[0_8px_20px_-12px_rgb(91_72_176/0.6)] ring-1 ring-border/60">
           <Rocket className="size-5" aria-hidden />
         </span>
@@ -716,7 +720,7 @@ function Create() {
       </Link>
       <Card className="p-1.5">
         <form onSubmit={(e) => (e.preventDefault(), go())}>
-          <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && brief.trim() && go()} aria-label="Describe what you want to build" placeholder="Describe a website or app — a menu with online reservations, a booking page…" className="min-h-[76px] border-0 shadow-none focus:ring-0" />
+          <Textarea value={brief} onChange={(e) => setBrief(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.metaKey || e.ctrlKey) && brief.trim() && go()} aria-label="Describe what you want to build" placeholder="Describe a website or app — a menu with online reservations, a booking page…" className="min-h-[60px] border-0 shadow-none focus:ring-0" />
           <div className="flex items-center justify-between gap-2 px-1.5 pb-1">
             <Link href="/templates" className="inline-flex items-center gap-1.5 text-[12.5px] text-muted hover:text-fg">
               <LayoutTemplate className="size-3.5" aria-hidden /> Templates
@@ -750,10 +754,11 @@ function Create() {
 
 function GettingStarted() {
   return (
-    <Card className="mt-5 p-6 text-center">
-      <Sparkles className="mx-auto size-6 text-accent" />
-      <h2 className="mt-2 text-[16px] font-semibold">Your dashboard fills in as you work</h2>
-      <p className="mx-auto mt-1 max-w-md text-[13px] text-muted">Issue an invoice, add your team, record a sale or a deal — the numbers, charts and alerts here come from your own records, nothing made up.</p>
+    <Card className="mt-5 flex items-center gap-3 px-4 py-3">
+      <Sparkles className="size-4 shrink-0 text-muted" aria-hidden />
+      <p className="min-w-0 text-[13px] text-muted">
+        <b className="font-medium text-fg">Your dashboard fills in as you work.</b> Issue an invoice, add your team, record a sale or a deal — the numbers, charts and alerts come from your own records.
+      </p>
     </Card>
   );
 }
