@@ -886,36 +886,57 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 }
 /* Phones' home screen: solid cards. Dark mode on phones is matte — a flat
    charcoal ground with no ambient light, and cards without glass or glow. */
-/* The way into AI mode: a quiet surface pill with a hairline gradient edge and a soft glow — noticeable, not loud. */
+/* The way into AI mode: a quiet surface pill whose hairline edge is the logo's
+   coral and amber, slowly turning, with a soft glow of the same colours. */
+@property --ai-turn { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes ai-turn { to { --ai-turn: 360deg; } }
 .ai-entry {
+  --ai-ring: conic-gradient(from var(--ai-turn), #ff5a5f, #fdba5a 25%, color-mix(in srgb, #fdba5a 25%, transparent) 42%, #ff5a5f 58%, #fdba5a 75%, color-mix(in srgb, #ff5a5f 25%, transparent) 90%, #ff5a5f);
   position: relative;
   isolation: isolate;
   color: var(--fg);
   background: var(--surface-solid);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 6px 18px -10px color-mix(in srgb, #5b5ff8 55%, transparent);
-  transition: transform 0.2s, box-shadow 0.3s;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: transform 0.2s;
+  animation: ai-turn 6s linear infinite;
 }
-/* The edge: a 1px gradient ring drawn with a mask, so the pill itself stays plain. */
-.ai-entry::before {
+/* The edge: a 1.25px ring of the turning gradient, masked so the pill stays plain. */
+.ai-entry::before, .ai-entry::after {
   content: "";
   position: absolute;
+  border-radius: inherit;
+  background: var(--ai-ring);
+  pointer-events: none;
+  animation: inherit;
+}
+.ai-entry::before {
   inset: 0;
   z-index: -1;
-  padding: 1px;
-  border-radius: inherit;
-  background: linear-gradient(120deg, color-mix(in srgb, #5b5ff8 70%, transparent), color-mix(in srgb, #b07cff 55%, transparent) 45%, color-mix(in srgb, var(--fg) 12%, transparent) 75%, color-mix(in srgb, #5b5ff8 55%, transparent));
+  padding: 1.25px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
 }
-.ai-entry-ic { color: #5b5ff8; filter: drop-shadow(0 0 6px color-mix(in srgb, #7a6cff 45%, transparent)); }
-:root[data-theme="dark"] .ai-entry-ic { color: #a39dff; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-entry-ic { color: #a39dff; } }
-/* The same treatment as the middle tab: slightly stronger glow so it reads at a glance. */
-.tab-ai { box-shadow: 0 1px 2px rgb(0 0 0 / 0.08), 0 6px 16px -6px color-mix(in srgb, #5b5ff8 70%, transparent); }
+/* The glow: the same gradient, blurred, just behind. */
+.ai-entry::after {
+  inset: 2px;
+  z-index: -2;
+  filter: blur(9px);
+  opacity: 0.45;
+  transition: opacity 0.3s;
+}
+.ai-entry-ic { color: #ff5a5f; filter: drop-shadow(0 0 5px color-mix(in srgb, #fdba5a 55%, transparent)); }
+:root[data-theme="dark"] .ai-entry-ic { color: #ff8a7a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-entry-ic { color: #ff8a7a; } }
+:root[data-theme="dark"] .ai-entry::after { opacity: 0.55; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ai-entry::after { opacity: 0.55; } }
+.ai-entry:hover { transform: translateY(-1px); }
+.ai-entry:hover::after { opacity: 0.7; }
+@media (prefers-reduced-motion: reduce) { .ai-entry { animation: none; } }
+/* The middle tab: the same edge and glow, a little stronger so it reads at a glance. */
+.tab-ai::after { opacity: 0.65; }
 .tab-item:active .tab-ai { transform: scale(0.94); }
-.tab-item[aria-current="page"] .tab-ai { box-shadow: 0 0 0 3px color-mix(in srgb, #5b5ff8 22%, transparent), 0 6px 16px -6px color-mix(in srgb, #5b5ff8 80%, transparent); }
-.ai-entry:hover { transform: translateY(-1px); box-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 10px 24px -10px color-mix(in srgb, #5b5ff8 65%, transparent); }
+.tab-item[aria-current="page"] .tab-ai::after { opacity: 0.9; }
 .phone-card, .plan-strip { background: var(--surface-solid); box-shadow: inset 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04); }
 .plan-strip { background: color-mix(in srgb, var(--tint-lavender) 45%, var(--surface-solid)); }
 @media (max-width: 1023.98px) {
