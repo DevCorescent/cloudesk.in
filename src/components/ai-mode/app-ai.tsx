@@ -264,6 +264,7 @@ export function AppAiMode() {
 
   const ahead: AiSection = {
     title: "A few ways to stay ahead.",
+    label: "For you",
     cards: [
       { id: "recap", title: "Get today's business recap", sub: "Sales, money owed, stock and team — at a glance.", icon: ChartColumn, tone: "#4f5ef7", onPick: () => void recap() },
       { id: "inbox", title: "Catch me up on email", sub: "What's new, what needs a reply, and drafts ready to send.", icon: Inbox, tone: "#2ec4b6", onPick: () => void ask("Catch me up on my inbox: what's new, and what needs a reply from me? Offer to draft the replies.") },
@@ -273,6 +274,7 @@ export function AppAiMode() {
   };
   const doIt: AiSection = {
     title: "Get things done in a sentence.",
+    label: "Quick tasks",
     cards: [
       { id: "draft", title: "Draft an email", sub: "Tell me who and what — I'll write it for you to check and send.", icon: PenLine, tone: "#4f5ef7", onPick: () => void ask("I want to send an email. Ask me who it's for and what it's about, then draft it.") },
       { id: "invoice", title: "Make an invoice", sub: "Client, items and prices in your words — saved as a draft.", icon: Mail, tone: "#3ccf91", onPick: () => void ask("Help me make an invoice. Ask me for the client and what to bill, then prepare a draft.") },
@@ -280,6 +282,7 @@ export function AppAiMode() {
   };
   const files: AiSection = {
     title: "Hand me a document.",
+    label: "Documents",
     cards: [
       { id: "bill", title: "Record a bill or receipt", sub: "Snap or upload it — I read it into Accounts with GST.", icon: Receipt, tone: "#3ccf91", onPick: () => add({ role: "assistant", text: "Tap **+** below and choose **Take a photo** or **Photo or document**, then send it. I'll read the bill — supplier, GSTIN, lines and GST — and prepare it for Accounts." }) },
       { id: "review", title: "Review a contract", sub: "Risks, money, dates and what to negotiate, clause by clause.", icon: FileSearch, tone: "#8b7bff", onPick: () => (setAdvisor("legal"), add({ role: "assistant", text: "Your **Legal & contracts advisor** is on. Tap **+** and add the contract (PDF, Word or photos), and I'll review it in depth." })) },
@@ -287,11 +290,13 @@ export function AppAiMode() {
   };
   const advisors: AiSection = {
     title: "Talk to an advisor.",
+    label: "Advisors",
     cards: ADVISORS.filter((a) => a.id !== "general").map((a) => ({ id: a.id, title: a.name, sub: a.role, icon: ADVISOR_ICON[a.icon]!, tone: a.tone, onPick: () => meet(a.id) })),
   };
   // Ready-made work: each a prompt that gets a finished piece, from the workspace's own data.
   const savers: AiSection = {
     title: "Save an hour today.",
+    label: "Time savers",
     cards: [
       { id: "quote", title: "Write a quotation", sub: "Client, items and terms — a ready-to-send quote.", icon: FileSignature, tone: "#4f5ef7", onPick: () => void ask("Prepare a professional quotation. Ask me for the client, items, quantities and prices if you can't find them, then write it in full with GST, validity and payment terms.") },
       { id: "chase", title: "Chase payments", sub: "Polite reminders for every overdue invoice.", icon: BadgeIndianRupee, tone: "#3ccf91", onPick: () => void ask("Show my overdue invoices and draft a professional payment reminder email to each client — courteous for recent ones, firmer for the oldest.") },
@@ -303,6 +308,7 @@ export function AppAiMode() {
   };
   const teach: AiSection = {
     title: "Make it yours.",
+    label: "Knowledge",
     cards: [
       { id: "kb", title: "Knowledge base", sub: "Prices, policies and FAQs the AI should know.", icon: BookOpen, tone: "#2ec4b6", onPick: () => setKnowing("business") },
       { id: "memory", title: "What I remember", sub: "Facts and preferences learned from your chats.", icon: Brain, tone: "#ff7aa2", onPick: () => setKnowing("memory") },
@@ -310,6 +316,7 @@ export function AppAiMode() {
   };
   const launch: AiSection = {
     title: "Set up in a few taps.",
+    label: "Launch",
     tiles: [
       { id: "store", label: "Launch my online store", photo: industryById("retail")!.photo, onPick: () => router.push("/launch?kind=store") },
       { id: "site", label: "Build my website", photo: industryById("services")!.photo, onPick: () => router.push("/launch?kind=website") },
@@ -317,6 +324,7 @@ export function AppAiMode() {
   };
   const finish: AiSection = {
     title: fresh ? `Let's get ${org.name} ready.` : "Finish setting up.",
+    label: "Set up",
     cards: [
       { id: "profile", title: "Set up my business details", sub: "Legal name, GSTIN, address and UPI — just tell me in chat.", icon: Building2, tone: "#ff7a59", onPick: () => void ask("Help me set up my workspace: check what's missing, ask me for it, and save it.") },
       { id: "team", title: "Invite my team", sub: "Give me their emails — I'll send the invitations.", icon: Users, tone: "#4fb3ff", onPick: () => void ask("I want to invite people to my team. Ask me for their emails and roles, then send the invitations.") },
@@ -331,7 +339,7 @@ export function AppAiMode() {
       lead={
         copilotOn ? (
           <>
-            <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} />
+            <BriefCard brief={brief.data} loading={brief.isLoading} dash={dash.data} onAsk={(q) => void ask(q)} onAttention={() => void attention()} mailShown={has("mail") && !!brief.data?.counts.replies} />
             {has("mail") && <InboxCard orgId={org.id} me={user.name} onAsk={(q) => void ask(q)} />}
           </>
         ) : undefined
@@ -413,7 +421,7 @@ function DocCard({ doc, onAct }: { doc: Doc; onAct: (prompt: string) => void }) 
 }
 
 /** The briefing AI mode opens with: the day in a sentence, what's coming up, what needs them, what to do next, and what to tell it. */
-function BriefCard({ brief, loading, dash, onAsk, onAttention }: { brief?: Brief; loading: boolean; dash?: Dash; onAsk: (prompt: string) => void; onAttention: () => void }) {
+function BriefCard({ brief, loading, dash, onAsk, onAttention, mailShown }: { brief?: Brief; loading: boolean; dash?: Dash; onAsk: (prompt: string) => void; onAttention: () => void; mailShown?: boolean }) {
   if (loading || !brief)
     return (
       <div className="ai-brief" aria-busy="true">
@@ -427,7 +435,10 @@ function BriefCard({ brief, loading, dash, onAsk, onAttention }: { brief?: Brief
   // The dashboard's own alerts (orders to ship, payroll, missed targets…) join the briefing's.
   const fromDash: BriefItem[] = (dash?.insights ?? []).filter((i) => i.tone !== "success").slice(0, 3).map((i) => ({ text: i.title, sub: i.detail, href: i.href, tone: i.tone === "danger" ? "danger" : i.tone === "warning" ? "warning" : "info" }));
   const approvals: BriefItem[] = waiting?.approvals ? [{ text: `${waiting.approvals} approval${waiting.approvals === 1 ? "" : "s"} waiting on you`, href: "/requests", tone: "warning" }] : [];
-  const attention = [...brief.attention, ...approvals, ...fromDash].slice(0, 5);
+  // With the inbox card right below, its emails aren't repeated here.
+  const attention = [...brief.attention.filter((i) => !(mailShown && i.href?.startsWith("/mail"))), ...approvals, ...fromDash].slice(0, 3);
+  const next = [...brief.suggestions.filter((t) => !(mailShown && /^Draft (the )?repl/.test(t.label))), ...brief.updates];
+  const keyed = next.length - brief.updates.length;
   const bits = [c.meetings && `${c.meetings} meeting${c.meetings === 1 ? "" : "s"} coming up`, c.replies && `${c.replies} email${c.replies === 1 ? "" : "s"} to answer`, c.overdueInvoices && `${c.overdueInvoices} overdue invoice${c.overdueInvoices === 1 ? "" : "s"}`, c.overdueTasks && `${c.overdueTasks} overdue task${c.overdueTasks === 1 ? "" : "s"}`].filter(Boolean) as string[];
   const line = bits.length ? `You have ${bits.length > 1 ? `${bits.slice(0, -1).join(", ")} and ${bits.at(-1)}` : bits[0]}.` : attention.length ? "A few things could use a look." : "You're all clear — nothing urgent right now.";
   const Row = ({ i }: { i: BriefItem }) => {
@@ -455,7 +466,7 @@ function BriefCard({ brief, loading, dash, onAsk, onAttention }: { brief?: Brief
       {brief.today.length > 0 && (
         <section>
           <h3>Coming up</h3>
-          <div className="ai-rows">{brief.today.map((i, k) => <Row key={k} i={i} />)}</div>
+          <div className="ai-rows">{brief.today.slice(0, 3).map((i, k) => <Row key={k} i={i} />)}</div>
         </section>
       )}
       {attention.length > 0 && (
@@ -469,24 +480,12 @@ function BriefCard({ brief, loading, dash, onAsk, onAttention }: { brief?: Brief
           <div className="ai-rows">{attention.map((i, k) => <Row key={k} i={i} />)}</div>
         </section>
       )}
-      {brief.suggestions.length > 0 && (
-        <section>
-          <h3>Suggested next</h3>
-          <div className="ai-next">
-            {brief.suggestions.map((t) => (
-              <button key={t.label} type="button" onClick={() => onAsk(t.prompt)}>
-                <Sparkles className="size-3.5" aria-hidden />
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-      <section>
-        <h3>Any updates for me?</h3>
-        <div className="ai-chips">
-          {brief.updates.map((t) => (
-            <button key={t.label} type="button" className="ai-chip" onClick={() => onAsk(t.prompt)}>
+      <section className="ai-brief-wide">
+        <h3>Suggested next</h3>
+        <div className="ai-next">
+          {next.slice(0, 4).map((t, k) => (
+            <button key={t.label} type="button" className={k < keyed ? "is-key" : undefined} onClick={() => onAsk(t.prompt)}>
+              {k < keyed && <Sparkles className="size-3.5" aria-hidden />}
               {t.label}
             </button>
           ))}

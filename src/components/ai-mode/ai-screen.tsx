@@ -15,7 +15,7 @@ import { photoUrl } from "@/lib/site/media";
 
 export type AiCard = { id: string; title: string; sub: string; icon: LucideIcon; tone: string; onPick: () => void };
 export type AiTile = { id: string; label: string; photo: string | null; onPick: () => void };
-export type AiSection = { title: string; cards?: AiCard[]; tiles?: AiTile[] };
+export type AiSection = { title: string; label?: string; cards?: AiCard[]; tiles?: AiTile[] };
 export type AiMsg = { id: string; role: "user" | "assistant"; text?: string; node?: ReactNode; files?: { name: string; mime?: string }[] };
 
 /** What the + menu accepts: photos and the documents the copilot can read. */
@@ -82,6 +82,8 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
     setQuickOpen(false);
   };
   const [quickOpen, setQuickOpen] = useState(false);
+  // Shortcuts: one group at a time, picked from a tab strip, so the first screen fits without scrolling.
+  const [tab, setTab] = useState(0);
   const end = useRef<HTMLDivElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   // The bars turn to frosted glass once something scrolls beneath them.
@@ -153,39 +155,52 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
           <div className="ai-home">
             {p.greeting && <p className="ai-greet">{p.greeting}</p>}
             {p.lead}
-            {p.sections.map((s, si) => (
-              <section key={s.title} className="ai-sec" style={{ "--s": si } as CSSProperties}>
-                <h2 className="ai-h">{s.title}</h2>
-                {s.cards && (
-                  <div className="ai-cards">
-                    {s.cards.map((c, i) => {
-                      const Icon = c.icon;
-                      return (
-                        <button key={c.id} type="button" className="ai-card" onClick={c.onPick} style={{ "--tone": c.tone, "--i": i } as CSSProperties}>
-                          <span className="ai-card-tx">
-                            <b>{c.title}</b>
-                            <span>{c.sub}</span>
-                          </span>
-                          <span className="ai-obj" aria-hidden>
-                            <Icon strokeWidth={2} />
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {s.tiles && (
-                  <div className="ai-tiles">
-                    {s.tiles.map((t, i) => (
-                      <button key={t.id} type="button" className="ai-tile" onClick={t.onPick} style={{ "--i": i } as CSSProperties}>
-                        {t.photo && <Image src={photoUrl(t.photo, 520, [1, 1])} alt="" fill sizes="50vw" className="object-cover" />}
-                        <span>{t.label}</span>
+            {p.sections.length > 0 && (
+              <section className="ai-sec">
+                {p.sections.length > 1 ? (
+                  <div className="ai-tabs" role="tablist" aria-label="Shortcuts">
+                    {p.sections.map((s, i) => (
+                      <button key={s.title} type="button" role="tab" aria-selected={i === tab} className={clsx(i === tab && "is-on")} onClick={() => setTab(i)}>
+                        {s.label ?? s.title}
                       </button>
                     ))}
                   </div>
+                ) : (
+                  <h2 className="ai-h">{p.sections[0]!.title}</h2>
                 )}
+                {(() => {
+                  const s = p.sections[Math.min(tab, p.sections.length - 1)]!;
+                  return (
+                    <div key={s.title} className="ai-cards" role="tabpanel" aria-label={s.label ?? s.title}>
+                      {s.cards?.map((c, i) => {
+                        const Icon = c.icon;
+                        return (
+                          <button key={c.id} type="button" className="ai-card" onClick={c.onPick} style={{ "--tone": c.tone, "--i": i } as CSSProperties}>
+                            <span className="ai-obj" aria-hidden>
+                              <Icon strokeWidth={1.9} />
+                            </span>
+                            <span className="ai-card-tx">
+                              <b>{c.title}</b>
+                              <span>{c.sub}</span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {s.tiles?.map((t, i) => (
+                        <button key={t.id} type="button" className="ai-card" onClick={t.onPick} style={{ "--i": i } as CSSProperties}>
+                          <span className="ai-obj ai-obj-photo" aria-hidden>
+                            {t.photo && <Image src={photoUrl(t.photo, 120, [1, 1])} alt="" fill sizes="40px" className="object-cover" />}
+                          </span>
+                          <span className="ai-card-tx">
+                            <b>{t.label}</b>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </section>
-            ))}
+            )}
           </div>
         ) : (
           <div className="ai-thread" aria-live="polite">

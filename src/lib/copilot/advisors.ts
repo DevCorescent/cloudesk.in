@@ -9,7 +9,7 @@ export type Advisor = { id: AdvisorId; name: string; role: string; tone: string;
 const CAUTION = "Give specific, practical advice grounded in this workspace's data (look it up first). State the rule, the number or the deadline exactly, and say when something depends on facts you don't have. For anything with real legal or tax exposure, say plainly that a qualified professional should confirm it before they act.";
 
 export const ADVISORS: Advisor[] = [
-  { id: "general", name: "Copilot", role: "Everything in your workspace", tone: "#4f5ef7", icon: "sparkles", starters: [], brief: "" },
+  { id: "general", name: "Copilot", role: "Everything in your workspace", tone: "#f2705a", icon: "sparkles", starters: [], brief: "" },
   {
     id: "finance",
     name: "Finance & tax advisor",

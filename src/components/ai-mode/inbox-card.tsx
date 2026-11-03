@@ -6,7 +6,7 @@
 // the drafts. Done and Later put an email away without answering it.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
-import { Archive, ArrowUpRight, Clock, Loader2, Send, Sparkles, Undo2, Zap } from "lucide-react";
+import { Archive, ArrowUpRight, Clock, FileText, Loader2, Send, Sparkles, Undo2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api, errorMessage } from "@/lib/client/api";
@@ -39,6 +39,7 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [tone, setTone] = useState<Tone>("friendly");
   const [bulk, setBulk] = useState<"" | "drafting" | "sending">("");
+  const [all, setAll] = useState(false);
   const base = `/api/v1/orgs/${orgId}/copilot`;
   const patch = (id: string, r: Partial<Row>) => setRows((x) => ({ ...x, [id]: { ...x[id], ...r } }));
   const myName = me.split(" ")[0] || me;
@@ -148,7 +149,7 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
       </div>
 
       <div className="ai-inbox-list">
-        {items.slice(0, 6).map((i) => {
+        {items.slice(0, all ? 8 : 3).map((i) => {
           const r = rows[i.id] ?? {};
           const to = first(i.from.name, i.from.address);
           if (r.sent) {
@@ -179,6 +180,16 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
                   <small>{i.snippet}</small>
                 </Link>
                 <span className="ai-mailrow-side">
+                  {r.draft === undefined && (
+                    <>
+                      <button type="button" className="ai-chip ai-chip-ic is-key" disabled={r.drafting} onClick={() => void draft(i)} aria-label={`Draft a reply to ${to}`} title="Draft reply">
+                        {r.drafting ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+                      </button>
+                      <button type="button" className={clsx("ai-chip ai-chip-ic", r.quick && "is-on")} onClick={() => patch(i.id, { quick: !r.quick })} aria-expanded={!!r.quick} aria-label="Quick reply" title="Quick reply">
+                        <Zap className="size-3.5" />
+                      </button>
+                    </>
+                  )}
                   <button type="button" className="ai-chip ai-chip-ic" onClick={() => void settle(i, "later")} aria-label="Remind me tomorrow" title="Tomorrow, 9 am">
                     <Clock className="size-3.5" />
                   </button>
@@ -208,19 +219,12 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
                 </div>
               ) : (
                 <>
-                  <div className="ai-mailrow-acts">
-                    <button type="button" className="ai-chip is-key" disabled={r.drafting} onClick={() => void draft(i)}>
-                      {r.drafting ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />} Draft reply
-                    </button>
-                    <button type="button" className={clsx("ai-chip", r.quick && "is-on")} onClick={() => patch(i.id, { quick: !r.quick })} aria-expanded={!!r.quick}>
-                      <Zap className="size-3.5" /> Quick reply
-                    </button>
-                    <button type="button" className="ai-chip" onClick={() => onAsk(`Read the email “${i.subject}” from ${i.from.name || i.from.address} (thread ${i.id}), summarise it in two lines, and tell me what I should do about it.`)}>
-                      Summarise
-                    </button>
-                  </div>
                   {r.quick && (
                     <div className="ai-mailrow-quick">
+                      <button type="button" onClick={() => onAsk(`Read the email “${i.subject}” from ${i.from.name || i.from.address} (thread ${i.id}), summarise it in two lines, and tell me what I should do about it.`)}>
+                        <FileText className="size-3" aria-hidden />
+                        Summarise
+                      </button>
                       {QUICK.map((x) => (
                         <button key={x.label} type="button" disabled={r.sending} onClick={() => void send(i, x.body(to, myName))}>
                           <Send className="size-3" aria-hidden />
@@ -236,11 +240,17 @@ export function InboxCard({ orgId, me, onAsk }: { orgId: string; me: string; onA
           );
         })}
       </div>
-      {items.length > 6 && (
-        <Link href="/mail?view=needsreply" className="ai-link">
-          <span>{items.length - 6} more in Mail</span>
-          <ArrowUpRight className="size-4" aria-hidden />
-        </Link>
+      {items.length > 3 && !all ? (
+        <button type="button" className="ai-inbox-more" onClick={() => setAll(true)}>
+          Show {Math.min(items.length, 8) - 3} more
+        </button>
+      ) : (
+        items.length > 8 && (
+          <Link href="/mail?view=needsreply" className="ai-link">
+            <span>{items.length - 8} more in Mail</span>
+            <ArrowUpRight className="size-4" aria-hidden />
+          </Link>
+        )
       )}
     </div>
   );
