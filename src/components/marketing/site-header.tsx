@@ -50,9 +50,13 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
     on();
     window.addEventListener("scroll", on, { passive: true });
     window.addEventListener("resize", on);
+    // On phones the page sits hidden behind the intro until "Explore the website": look again when it appears.
+    const shown = new MutationObserver(() => requestAnimationFrame(on));
+    shown.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
     return () => {
       window.removeEventListener("scroll", on);
       window.removeEventListener("resize", on);
+      shown.disconnect();
     };
   }, [pathname]);
   useEffect(() => {

@@ -155,6 +155,7 @@ export function WordCycle({ words, every = 2200, delay = 0 }: { words: { text: s
   useEffect(() => {
     const el = measure.current;
     if (!el) return;
+    // Zero while the page is hidden (the phone intro); the box then just takes the word's own width.
     const read = () => setW(Array.from(el.children).map((c) => (c as HTMLElement).offsetWidth));
     read();
     // Fonts arriving (and the headline resizing) change the widths.
@@ -176,7 +177,7 @@ export function WordCycle({ words, every = 2200, delay = 0 }: { words: { text: s
     };
   }, [words.length, every, delay]);
   return (
-    <span className="mk-cycle" style={{ width: w[at] ? `${w[at]}px` : undefined, "--tone": words[at]!.tone } as CSSProperties}>
+    <span className="mk-cycle" style={{ width: w[at] ? `${w[at]}px` : "auto", "--tone": words[at]!.tone } as CSSProperties}>
       {/* The words, laid out unseen, to measure each one's width. */}
       <span ref={measure} aria-hidden className="mk-cycle-measure">{words.map((x) => <span key={x.text}>{x.text}</span>)}</span>
       <span className="sr-only">{words[0]!.text}</span>

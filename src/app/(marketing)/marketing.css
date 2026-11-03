@@ -545,9 +545,11 @@
 /* The hero's cycling word (WordCycle in components/marketing/interactive.tsx). */
 .mk-cycle { position: relative; display: inline-block; vertical-align: bottom; height: 1.22em; padding-bottom: 0.1em; margin-bottom: -0.1em; overflow: hidden; white-space: nowrap; transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
 .mk-cycle::after { content: ""; position: absolute; left: 0.04em; right: 0.12em; bottom: 0.1em; height: 0.055em; border-radius: 99px; background: linear-gradient(90deg, var(--tone), color-mix(in srgb, var(--tone) 40%, transparent)); transition: background 0.6s; opacity: 0.85; }
-.mk-cycle-measure { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; }
-.mk-cycle-measure > span { position: absolute; left: 0; top: 0; }
+/* The measuring box is as wide as its widest word, so it resizes (and re-measures) when a hidden page appears — the phone intro hides the page at first. */
+.mk-cycle-measure { position: absolute; left: 0; top: 0; display: inline-grid; visibility: hidden; pointer-events: none; white-space: nowrap; }
+.mk-cycle-measure > span { grid-area: 1 / 1; justify-self: start; }
 .mk-cycle-word { position: absolute; left: 0; top: 0; opacity: 0; transform: translateY(70%); filter: blur(8px); transition: opacity 0.5s ease, transform 0.75s cubic-bezier(0.22, 1, 0.36, 1), filter 0.6s ease; }
-.mk-cycle-word[data-on] { opacity: 1; transform: none; filter: none; }
+/* The word showing sits in the flow, so the box has its width even before anything is measured. */
+.mk-cycle-word[data-on] { position: relative; opacity: 1; transform: none; filter: none; }
 .mk-cycle-word[data-gone] { transform: translateY(-70%); }
 @media (prefers-reduced-motion: reduce) { .mk-cycle, .mk-cycle-word { transition: none; } }
