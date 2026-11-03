@@ -125,7 +125,10 @@ export function HomeHero() {
     <section className="mk-hero mk-hero-light relative isolate overflow-hidden">
       <div aria-hidden className="mk-hero-mesh absolute inset-0 -z-10" />
       <div aria-hidden className="mk-hero-grid absolute inset-0 -z-10" />
-      <div className="mx-auto w-full max-w-[1600px] px-5 pt-12 pb-0 sm:px-8 sm:pt-16 lg:px-14 lg:pt-20 xl:px-20">
+      {/* The opening on matte black (its own --fg/--bg, so every colour inside flips), fading into the page below. */}
+      <div className="mk-hero-matte relative isolate">
+        <div aria-hidden className="mk-matte-glow absolute inset-0 -z-10" />
+        <div className="mx-auto w-full max-w-[1600px] px-5 pt-12 pb-10 sm:px-8 sm:pt-16 sm:pb-14 lg:px-14 lg:pt-20 lg:pb-16 xl:px-20">
         <Link href="/features/chat" className="hero-rise group inline-flex items-center gap-2 rounded-full bg-fg/[0.04] py-1 pr-3.5 pl-1 text-[12.5px] text-fg/65 ring-1 ring-fg/[0.08] transition-colors hover:bg-fg/[0.07] hover:text-fg">
           <span className="rounded-full bg-fg px-2 py-0.5 text-[10.5px] font-medium tracking-[0.06em] text-bg uppercase">New</span>
           Chat, Calendar and Mail — one workspace for the whole team <ArrowRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
@@ -149,15 +152,19 @@ export function HomeHero() {
             </div>
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-fg/50 lg:justify-end">
               {["No card needed", "GST invoices & UPI", "Your data exports any time"].map((x) => (
-                <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-emerald-600" /> {x}</li>
+                <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-emerald-400" /> {x}</li>
               ))}
             </ul>
           </div>
         </div>
+        </div>
+      </div>
+      <div aria-hidden className="mk-matte-fade" />
 
+      <div className="mx-auto w-full max-w-[1600px] px-5 pb-0 sm:px-8 lg:px-14 xl:px-20">
         {/* The main features: a hookline and the real screens for each, moving on by itself. */}
         <div
-          className="mt-14 sm:mt-20 lg:mt-24"
+          className="mt-2 sm:mt-4"
           ref={ref}
           role="region"
           aria-roledescription="carousel"
