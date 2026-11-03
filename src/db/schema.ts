@@ -48,9 +48,15 @@ export const users = pgTable(
     /** Answers from the welcome flow: { intent, role, experience, notifyInternal }. */
     onboarding: jsonb("onboarding"),
     onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
+    /** A public handle people find you by (@kabir.shah): lowercase letters, digits, dots and underscores. */
+    username: text("username"),
+    /** A phone number people who already have it can find you by (never shown to them). */
+    phone: text("phone").notNull().default(""),
+    /** Whether people outside your workspaces can find you by username, email or phone. */
+    discoverable: boolean("discoverable").notNull().default(true),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("users_email_lower_uq").on(sql`lower(${t.email})`)],
+  (t) => [uniqueIndex("users_email_lower_uq").on(sql`lower(${t.email})`), uniqueIndex("users_username_uq").on(sql`lower(${t.username})`).where(sql`username is not null`)],
 );
 
 // The session id stored here is a SHA-256 hash of the cookie token, so a
@@ -208,6 +214,8 @@ export const invitations = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
+    /** Invited by their Cloudesk username: the account it's for (its email stays hidden from the inviter). */
+    userId: uuid("user_id").references((): AnyPgColumn => users.id, { onDelete: "cascade" }),
     role: orgRole("role").notNull(),
     tokenHash: text("token_hash").notNull(),
     invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
@@ -216,7 +224,91 @@ export const invitations = pgTable(
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex("invitations_token_uq").on(t.tokenHash), index("invitations_org_idx").on(t.orgId)],
+  (t) => [uniqueIndex("invitations_token_uq").on(t.tokenHash), index("invitations_org_idx").on(t.orgId), index("invitations_user_idx").on(t.userId)],
+);
+
+// ─── Business IDs ────────────────────────────────────────────────────────────
+
+/** What a business ID shows. Every field is optional; `links` are extra buttons. */
+export type BusinessCardData = {
+  name?: string;
+  title?: string;
+  department?: string;
+  company?: string;
+  tagline?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  website?: string;
+  address?: string;
+  bio?: string;
+  links?: { label: string; url: string }[];
+};
+/** How it looks: a design, an accent colour and the shape of the card. */
+export type BusinessCardStyle = { design?: string; accent?: string; shape?: string };
+
+/**
+ * A member's virtual business ID in a workspace: made for them the first time
+ * they open it (from their account, HR record and the workspace), editable,
+ * and shared at /id/<slug> with a QR code, a contact file and a form for the
+ * people they meet to send their details back.
+ */
+export const businessCards = pgTable(
+  "business_cards",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** The public address: /id/<slug>. */
+    slug: text("slug").notNull(),
+    data: jsonb("data").$type<BusinessCardData>().notNull().default({}),
+    style: jsonb("style").$type<BusinessCardStyle>().notNull().default({}),
+    /** Fields hidden from the public page, by name. */
+    hidden: jsonb("hidden").$type<string[]>().notNull().default([]),
+    /** Off: the link shows nothing. */
+    published: boolean("published").notNull().default(true),
+    /** Let visitors send their own details back. */
+    exchange: boolean("exchange").notNull().default(true),
+    views: integer("views").notNull().default(0),
+    saves: integer("saves").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("business_cards_member_uq").on(t.orgId, t.userId), uniqueIndex("business_cards_slug_uq").on(sql`lower(${t.slug})`)],
+);
+
+/**
+ * A workspace's house style for business IDs: the company's own details on
+ * every card, and (when locked) one design everyone uses.
+ */
+export const businessCardTemplates = pgTable("business_card_templates", {
+  orgId: uuid("org_id").primaryKey().references(() => organizations.id, { onDelete: "cascade" }),
+  style: jsonb("style").$type<BusinessCardStyle>().notNull().default({}),
+  /** company, tagline, website, address: filled in on every card. */
+  data: jsonb("data").$type<BusinessCardData>().notNull().default({}),
+  /** Members can't change the design. */
+  lockStyle: boolean("lock_style").notNull().default(false),
+  /** Members can't change the company's details. */
+  lockCompany: boolean("lock_company").notNull().default(true),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Details someone sent back from a business ID. */
+export const businessCardExchanges = pgTable(
+  "business_card_exchanges",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    cardId: uuid("card_id").notNull().references(() => businessCards.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    company: text("company").notNull().default(""),
+    note: text("note").notNull().default(""),
+    createdAt: createdAt(),
+  },
+  (t) => [index("business_card_exchanges_card_idx").on(t.cardId, t.createdAt)],
 );
 
 // ─── Projects and files ──────────────────────────────────────────────────────

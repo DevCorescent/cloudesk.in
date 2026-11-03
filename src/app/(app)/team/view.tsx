@@ -1,20 +1,21 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MailPlus, MoreHorizontal, Pencil, Plus, Trash2, UserMinus, X } from "lucide-react";
+import { AtSign, MailPlus, MoreHorizontal, Pencil, Plus, Trash2, UserMinus, X } from "lucide-react";
 import { useState } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { ConfirmDialog, Dialog, Menu, useToast } from "@/components/ui/overlays";
 import { OrgSecurityCard } from "./security";
 import { Badge, Button, Card, ErrorState, Field, IconButton, Input, PageHeader, Select, Skeleton, Textarea } from "@/components/ui/primitives";
 import { ModuleGlyph } from "@/components/shell/module-glyph";
+import { FindPeople } from "@/components/people/find-people";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
 import { timeAgo } from "@/lib/client/format";
 import { MODULE_GROUPS, MODULES, moduleById, type ModuleId } from "@/lib/workspace/modules";
 
 type Member = { userId: string; name: string; email: string; role: string; customRoleId: string | null; joinedAt: string };
 type CustomRole = { id: string; name: string; description: string; baseRole: string; modules: string[]; members: number };
-type Invitation = { id: string; email: string; role: string; expiresAt: string };
+type Invitation = { id: string; email: string; label: string; role: string; expiresAt: string };
 
 const ROLE_INFO: Record<string, string> = {
   owner: "Full control, including billing and deleting the organization",
@@ -33,7 +34,8 @@ export function TeamView() {
   const toast = useToast();
   const qc = useQueryClient();
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [invite, setInvite] = useState({ email: "", role: "editor" });
+  // Someone found by username (their email stays hidden), or an email address.
+  const [invite, setInvite] = useState<{ email: string; role: string; person: { id: string; label: string } | null }>({ email: "", role: "editor", person: null });
   const [inviteError, setInviteError] = useState<string>();
   const [removing, setRemoving] = useState<Member | null>(null);
   const members = useQuery({ queryKey: ["members", org.id], queryFn: () => api<{ members: Member[]; yourRole: string }>(`/api/v1/orgs/${org.id}/members`) });
@@ -58,11 +60,11 @@ export function TeamView() {
     qc.invalidateQueries({ queryKey: ["invitations", org.id] });
   };
   const send = useMutation({
-    mutationFn: () => api(`/api/v1/orgs/${org.id}/invitations`, { method: "POST", body: invite }),
+    mutationFn: () => api(`/api/v1/orgs/${org.id}/invitations`, { method: "POST", body: invite.person ? { userId: invite.person.id, role: invite.role } : { email: invite.email, role: invite.role } }),
     onSuccess: () => {
       refresh();
       setInviteOpen(false);
-      setInvite({ email: "", role: "editor" });
+      setInvite({ email: "", role: "editor", person: null });
       toast({ tone: "success", title: "Invitation sent" });
     },
     onError: (e) => setInviteError(e instanceof ApiClientError ? (e.fieldErrors().email?.[0] ?? e.message) : errorMessage(e)),
@@ -161,10 +163,10 @@ export function TeamView() {
             <ul className="divide-y divide-border">
               {invites.data.invitations.map((i) => (
                 <li key={i.id} className="flex items-center gap-3 px-4 py-3 text-[13px]">
-                  <span className="min-w-0 flex-1 truncate">{i.email}</span>
+                  <span className="min-w-0 flex-1 truncate">{i.label || i.email}</span>
                   <Badge className="capitalize">{i.role}</Badge>
                   <span className="text-xs text-subtle">expires {timeAgo(i.expiresAt)}</span>
-                  <IconButton label={`Revoke invitation for ${i.email}`} size="sm" icon={<X className="size-4" />} onClick={() => revoke.mutate(i.id)} />
+                  <IconButton label={`Revoke invitation for ${i.label || i.email}`} size="sm" icon={<X className="size-4" />} onClick={() => revoke.mutate(i.id)} />
                 </li>
               ))}
             </ul>
@@ -240,18 +242,41 @@ export function TeamView() {
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
         title="Invite to organization"
-        description="They will get an email with a link that expires in 7 days."
+        description="Find them by their Cloudesk username, email or phone — or type an email. They get a link that expires in 7 days."
         footer={
           <>
             <Button onClick={() => setInviteOpen(false)}>Cancel</Button>
-            <Button variant="primary" loading={send.isPending} disabled={!invite.email.includes("@")} onClick={() => send.mutate()}>
+            <Button variant="primary" loading={send.isPending} disabled={!invite.person && !invite.email.includes("@")} onClick={() => send.mutate()}>
               Send invitation
             </Button>
           </>
         }
       >
         <form className="grid gap-4" onSubmit={(e) => { e.preventDefault(); send.mutate(); }}>
-          <Field label="Email" error={inviteError}>{(p) => <Input {...p} type="email" autoFocus value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} />}</Field>
+          {invite.person ? (
+            <div className="flex items-center gap-3 rounded-[12px] border border-border px-3 py-2.5">
+              <span className="grid size-8 place-items-center rounded-full bg-fg text-bg"><AtSign className="size-4" /></span>
+              <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">{invite.person.label}</span>
+              <IconButton label="Pick someone else" size="sm" icon={<X className="size-4" />} onClick={() => setInvite({ ...invite, person: null })} />
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <FindPeople
+                orgId={org.id}
+                autoFocus
+                placeholder="Find by username, email or phone"
+                onPick={(h) => {
+                  setInviteError(undefined);
+                  if (h.kind === "account") {
+                    if (h.member) return setInviteError(`${h.name} is already in this workspace`);
+                    setInvite({ ...invite, person: { id: h.id, label: `${h.name} · @${h.username}` }, email: "" });
+                  } else setInvite({ ...invite, email: h.email, person: null });
+                }}
+              />
+              <Field label="Or an email address" error={inviteError}>{(p) => <Input {...p} type="email" value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="name@company.com" />}</Field>
+            </div>
+          )}
+          {invite.person && inviteError && <p className="text-[12.5px] text-red-600">{inviteError}</p>}
           <Field label="Role" hint={ROLE_INFO[invite.role]}>
             {(p) => (
               <Select {...p} value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>

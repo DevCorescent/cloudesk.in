@@ -20,6 +20,7 @@ import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
 import { ModuleOff } from "./module-off";
 import { PlatformNotices } from "./notices";
+import { PendingInvites } from "./pending-invites";
 import { OfflineBar } from "./offline";
 import { setTheme, signOut, switchOrg, useSession, useThemePref, type ThemePref } from "./session-context";
 import { CollapseButton, RailTip, useSidebarCollapsed, WebAppNav, WorkspaceNav } from "./sidebar";
@@ -223,6 +224,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <OfflineBar />
         <PlatformNotices />
+        <PendingInvites />
         <SubscriptionBanner />
         <PaywallDialog />
         <main id="main" className="min-w-0 flex-1 pb-[var(--dock)]">

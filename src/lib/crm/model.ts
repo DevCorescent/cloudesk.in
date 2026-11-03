@@ -24,6 +24,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   manual: "Added by hand",
   import: "Imported",
   web_form: "Website form",
+  business_card: "Business ID",
   web_to_lead: "Lead form",
   store: "Online store",
   pos: "Shop counter",
