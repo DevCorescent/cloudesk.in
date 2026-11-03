@@ -391,7 +391,7 @@ const KPI_ICON: Record<string, React.ReactNode> = {
 };
 const modOf = (m: string) => MODULE[m] ?? { label: m.charAt(0).toUpperCase() + m.slice(1), icon: <Sparkles />, tint: "lavender" as Tint };
 
-type Stat = { id: string; label: string; hint: string; icon: React.ReactNode; tint: Tint; dot?: "danger" | "accent"; title: string; href?: string; link?: string; wide?: boolean; body: React.ReactNode };
+type Stat = { id: string; label: string; value?: string; hint: string; icon: React.ReactNode; tint: Tint; dot?: "danger" | "accent"; title: string; href?: string; link?: string; wide?: boolean; body: React.ReactNode };
 
 function Glance({ d }: { d: Dash }) {
   const [sel, setSel] = useState<string | null>(null);
@@ -400,18 +400,18 @@ function Glance({ d }: { d: Dash }) {
   const stats: Stat[] = [
     ...d.kpis.map((k): Stat => {
       const m = modOf(k.module);
-      return { id: `kpi:${k.id}`, label: k.label, hint: m.label, icon: KPI_ICON[k.id] ?? m.icon, tint: m.tint, title: k.label, href: k.href, link: `Open ${m.label.toLowerCase()}`, wide: d.charts.some((c) => c.module === k.module), body: <KpiDetail k={k} d={d} /> };
+      return { id: `kpi:${k.id}`, label: k.label, value: show(k, k.value), hint: k.sub ?? m.label, icon: KPI_ICON[k.id] ?? m.icon, tint: m.tint, title: k.label, href: k.href, link: `Open ${m.label.toLowerCase()}`, wide: d.charts.some((c) => c.module === k.module), body: <KpiDetail k={k} d={d} /> };
     }),
-    { id: "attention", label: "Needs attention", hint: d.insights.length ? `${urgent ? "Urgent" : "Notes"} for you` : "All clear", icon: <AlertTriangle />, tint: "rose", dot: urgent ? "danger" : d.insights.length ? "accent" : undefined, title: "Needs attention", body: <Attention insights={d.insights} /> },
-    ...(d.waiting ? [{ id: "waiting", label: "Waiting on you", hint: "Approvals and tasks", icon: <Inbox />, tint: "butter", dot: waitingN ? "accent" : undefined, title: "Waiting on you", href: "/inbox", link: "My work", body: <Waiting w={d.waiting} /> } satisfies Stat] : []),
-    ...(d.charts.length ? [{ id: "charts", label: "Trends", hint: `${d.charts.length} chart${d.charts.length === 1 ? "" : "s"}`, icon: <ChartColumn />, tint: "sky", title: "Trends", wide: true, body: <Charts charts={d.charts} /> } satisfies Stat] : []),
+    { id: "attention", label: "Needs attention", value: String(d.insights.length), hint: d.insights.length ? `${urgent ? "Urgent" : "Notes"} for you` : "All clear", icon: <AlertTriangle />, tint: "rose", dot: urgent ? "danger" : d.insights.length ? "accent" : undefined, title: "Needs attention", body: <Attention insights={d.insights} /> },
+    ...(d.waiting ? [{ id: "waiting", label: "Waiting on you", value: String(waitingN), hint: waitingN ? "Approvals and tasks" : "Nothing pending", icon: <Inbox />, tint: "butter", dot: waitingN ? "accent" : undefined, title: "Waiting on you", href: "/inbox", link: "My work", body: <Waiting w={d.waiting} /> } satisfies Stat] : []),
+    ...(d.charts.length ? [{ id: "charts", label: "Trends", value: String(d.charts.length), hint: `chart${d.charts.length === 1 ? "" : "s"} to explore`, icon: <ChartColumn />, tint: "sky", title: "Trends", wide: true, body: <Charts charts={d.charts} /> } satisfies Stat] : []),
     ...(d.activity.length ? [{ id: "activity", label: "Recent activity", hint: "Who did what", icon: <History />, tint: "lavender", title: "Recent activity", href: "/settings/audit", link: "Audit log", body: <Activity rows={d.activity} /> } satisfies Stat] : []),
   ];
   const open = stats.find((x) => x.id === sel) ?? null;
   // Phones list the stats in groups: each area's numbers together, then your work.
   const groups: [string, Stat[]][] = [];
   for (const x of stats) {
-    const g = x.id.startsWith("kpi:") ? x.hint : "Your work";
+    const g = x.id.startsWith("kpi:") ? modOf(d.kpis.find((k) => `kpi:${k.id}` === x.id)!.module).label : "Your work";
     const at = groups.find(([name]) => name === g);
     if (at) at[1].push(x);
     else groups.push([g, [x]]);
@@ -436,12 +436,13 @@ function Glance({ d }: { d: Dash }) {
           </div>
         ))}
       </div>
-      <div role="group" aria-label="Key numbers" className="hidden gap-2 sm:grid sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+      <div role="group" aria-label="Key numbers" className="stat-row-grid hidden gap-2 sm:grid">
         {stats.map((x) => (
-          <button key={x.id} type="button" aria-haspopup="dialog" aria-expanded={sel === x.id} onClick={() => setSel(x.id)} className={clsx("stat-btn group", `tint-${x.tint}`)}>
+          <button key={x.id} type="button" aria-haspopup="dialog" aria-expanded={sel === x.id} onClick={() => setSel(x.id)} className={clsx("stat-btn group", `tint-${x.tint}`)} title={x.hint}>
             <span className="stat-chip">{x.icon}</span>
             <span className="min-w-0 flex-1 text-left">
-              <span className="line-clamp-2 block text-[13px] leading-[1.25] font-medium">{x.label}</span>
+              <span className="block truncate text-[12px] font-medium text-muted">{x.label}</span>
+              {x.value !== undefined && <span className="mt-0.5 block truncate text-[18px] leading-tight font-semibold tracking-[-0.02em] tabular-nums">{x.value}</span>}
               <span className="mt-0.5 block truncate text-[11.5px] text-subtle">{x.hint}</span>
             </span>
             {x.dot && <span aria-label={x.dot === "danger" ? "Needs a look" : "Has items"} className={clsx("absolute top-2.5 right-2.5 size-[7px] rounded-full", x.dot === "danger" ? "bg-danger" : "bg-[var(--tint-lavender-ink)]")} />}
