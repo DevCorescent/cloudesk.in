@@ -109,8 +109,9 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
   const solid = scrolled || mobile || !!menu;
   // Pages that open on a dark band: the header sits over it, transparent and light, until you scroll.
   const overDark = DARK_TOP.some((re) => re.test(pathname ?? ""));
-  // Light-on-dark while over the band with nothing open; menus always get the light bar.
-  const onDark = overDark && inBand && !mobile && !menu;
+  // Light-on-dark while over the band with nothing open; menus and search (drawn inside the
+  // header, so they'd inherit its light-on-dark colours) always get the light bar.
+  const onDark = overDark && inBand && !mobile && !menu && !search;
   const tab = "inline-flex h-9 items-center rounded-full px-3 whitespace-nowrap transition-colors duration-200";
   return (
     <header className={clsx("sticky top-0 z-40", overDark && "-mb-16", onDark && "mk-head-dark")} onMouseLeave={() => close()}>
