@@ -95,7 +95,7 @@ function Home() {
         <Box title="Report something"><p className="text-[13.5px] text-muted">Seen a security problem, a safety issue, data shared by mistake or something that doesn&apos;t look right? Report it — it goes straight to the people who look after this.</p><Link href="/compliance/incidents/new" className="inline-flex h-8 items-center rounded-full bg-fg px-4 text-[13px] font-medium text-bg">Report an incident</Link></Box>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {tile("Filings overdue", h.calendar?.overdue, "/compliance/calendar", true)}
             {tile("Filings due this week", h.calendar?.week, "/compliance/calendar")}
             {tile("Open incidents", h.incidents?.open, "/compliance/incidents", !!h.incidents?.critical)}
@@ -227,7 +227,7 @@ function RiskPage({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <PageHeader title={r.title} description={`${r.number} · ${cap(r.category)} · ${cap(r.status)} · owner ${meta.members.find((m) => m.id === r.ownerId)?.name ?? "nobody"}`} actions={meta.me.write && <Button size="sm" onClick={() => setEdit(true)}>Edit</Button>} />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Box title="Inherent"><Badge tone={RATING_TONE[r.inherentRating]}>{r.inherent} {r.inherentRating}</Badge><p className="text-[13px] text-muted">Likelihood {r.likelihood} × impact {r.impact}</p></Box>
         <Box title="Residual">{r.residual === null ? <p className="text-[13px] text-muted">Not assessed</p> : <><Badge tone={RATING_TONE[r.residualRating!]}>{r.residual} {r.residualRating}</Badge><p className="text-[13px] text-muted">Likelihood {r.residualLikelihood} × impact {r.residualImpact}</p></>}</Box>
         <Box title="Treatment"><p className="text-[13.5px]">{cap(r.treatment)} · review {date(r.reviewDate)}</p></Box>

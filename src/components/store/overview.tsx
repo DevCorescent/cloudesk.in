@@ -225,7 +225,7 @@ export function StoreOverview() {
       />
       <LaunchChecklist />
       {q.isPending ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => (
             <Skeleton key={i} className="h-24" />
           ))}
@@ -247,7 +247,7 @@ export function StoreOverview() {
               {[q.data.backlog.toFulfill && `${q.data.backlog.toFulfill} order${q.data.backlog.toFulfill === 1 ? "" : "s"} to pack and ship`, q.data.backlog.unpaid && `${q.data.backlog.unpaid} bank/UPI order${q.data.backlog.unpaid === 1 ? "" : "s"} awaiting payment`, q.data.backlog.inTransit && `${q.data.backlog.inTransit} in transit`].filter(Boolean).join(" · ")}
             </Notice>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <KpiTile tone="peach" label="Total sales" value={m(q.data.kpis.gross.value ?? 0)} change={q.data.kpis.gross.change} />
             <KpiTile tone="lavender" label="Orders" value={(q.data.kpis.orders.value ?? 0).toLocaleString()} change={q.data.kpis.orders.change} />
             <KpiTile tone="sky" label="Average order value" value={m(q.data.kpis.aov.value ?? 0)} change={q.data.kpis.aov.change} />

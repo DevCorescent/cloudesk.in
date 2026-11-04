@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ApprovalPanel } from "@/components/approvals/card";
 import { ExportMenu } from "@/components/import/buttons";
 import { Dialog, Tabs } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, PageHeader, Select, Skeleton, Switch, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, PageHeader, Select, Skeleton, Switch, cx, FormLines } from "@/components/ui/primitives";
 import { MATCH_LABEL, SUPPLIER_CHECKS, type MatchStatus } from "@/lib/inventory/model";
 import { Empty, Section, fmt, fmtQty, fromPaise, inr, short, supName, toPaise, todayIst, useInv, useInvAction, useInvQuery, whName, type Item } from "./shared";
 
@@ -252,7 +252,7 @@ function QuoteDialog({ d, supplierId, onClose }: { d: RfqDetail; supplierId: str
   const save = useInvAction(() => ({ path: `rfqs/${d.rfq.id}/quotes`, body: { supplierId, lines: rows.filter((r) => toPaise(r.rate) > 0).map((r) => ({ itemId: r.itemId, rate: toPaise(r.rate), gstRate: Number(r.gstRate) || 0, leadDays: Number(r.leadDays) || 0 })) } }), { success: "Quote saved", onDone: onClose });
   return (
     <Dialog open onClose={onClose} size="lg" title={`Quote from ${d.suppliers.find((s) => s.id === supplierId)?.name}`} description="Leave the rate empty for items they didn't quote." footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" loading={save.isPending} disabled={!rows.some((r) => toPaise(r.rate) > 0)} onClick={() => save.mutate(undefined)}>Save quote</Button></>}>
-      <table className="w-full text-[13px]">
+      <FormLines className="w-full text-[13px]">
         <thead className="text-left text-[12px] text-muted"><tr><th className="py-1 font-medium">Item</th><th className="w-28 py-1 font-medium">Rate (₹)</th><th className="w-20 py-1 font-medium">GST %</th><th className="w-24 py-1 font-medium">Days</th></tr></thead>
         <tbody>
           {rows.map((r, i) => {
@@ -268,7 +268,7 @@ function QuoteDialog({ d, supplierId, onClose }: { d: RfqDetail; supplierId: str
             );
           })}
         </tbody>
-      </table>
+      </FormLines>
     </Dialog>
   );
 }

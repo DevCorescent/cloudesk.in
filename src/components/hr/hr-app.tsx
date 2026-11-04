@@ -2,6 +2,7 @@
 
 // HR & payroll: one app for HR admins, payroll, managers and every employee.
 // The menu shows each person what applies to them.
+import { SectionSwitcher } from "@/components/shell/module-frame";
 import { useQuery } from "@tanstack/react-query";
 import { BadgeCheck, BarChart3, Briefcase, CalendarClock, CalendarDays, Clock, CreditCard, FileText, GraduationCap, Handshake, Home, Laptop, LogOut, MessageSquareWarning, Network, Plane, Receipt, Settings, Target, Timer, User, Users, Wallet } from "lucide-react";
 import Link from "next/link";
@@ -164,7 +165,9 @@ export function HrApp({ path }: { path: string[] }) {
     <HrProvider value={{ orgId: org.id, meta: meta.data, go }}>
       <div className={cx("mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-8 lg:py-8", !print && "lg:grid-cols-[200px_minmax(0,1fr)]")}>
         {!print && (
-          <aside className="lg:sticky lg:top-6 lg:self-start print:hidden">
+          <>
+          <SectionSwitcher title="HR" items={items} section={section === "payslips" ? "me" : section} href={(id) => (id ? `/hr/${id}` : "/hr")} />
+          <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start print:hidden">
             <div className="mb-3 hidden px-2 lg:block">
               <p className="text-[11px] font-semibold tracking-[0.14em] text-subtle uppercase">Cloudesk HR</p>
               <p className="mt-1 truncate text-[14px] font-semibold">{org.name}</p>
@@ -184,6 +187,7 @@ export function HrApp({ path }: { path: string[] }) {
               })}
             </nav>
           </aside>
+          </>
         )}
         <main className="min-w-0">{body}</main>
       </div>

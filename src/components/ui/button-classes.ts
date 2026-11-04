@@ -15,8 +15,9 @@ const VARIANTS: Record<Variant, string> = {
   danger: "bg-danger text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.2),0_1px_2px_rgb(0_0_0/0.12)] hover:brightness-110 disabled:opacity-40",
 };
 const SIZES: Record<Size, string> = {
-  sm: "h-7 px-3 text-[13px] gap-1.5 rounded-full",
-  md: "h-8 px-3.5 text-[13px] gap-2 rounded-full",
+  // A little taller on phones, for thumbs.
+  sm: "h-7 max-sm:h-8 px-3 text-[13px] gap-1.5 rounded-full",
+  md: "h-8 max-sm:h-9 px-3.5 text-[13px] gap-2 rounded-full",
   lg: "h-10 px-5 text-sm gap-2 rounded-full",
 };
 

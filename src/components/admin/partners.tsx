@@ -131,7 +131,7 @@ function PartnerDrawer({ id, onClose }: { id: string; onClose: () => void }) {
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat label="Customers" value={d.totals.signups} sub={`${d.totals.paying} paying · ${d.totals.trials} on trial`} />
             <Stat label="They paid" value={inr(d.totals.revenue)} sub={`${inr(d.totals.mrr)} a month now`} />
             <Stat label="Earned" value={inr(d.totals.earned)} sub={`${inr(d.totals.onHold)} on hold`} />
@@ -427,7 +427,7 @@ function ProgramForm({ program }: { program: Program }) {
             <Switch checked={f.open} disabled={disabled} onChange={(v) => setF({ ...f, open: v })} label="Taking new applications" />
             <span><b className="font-medium">Taking new applications</b><span className="block text-[12px] text-muted">{f.open ? "The apply form on /partners is open." : "The apply form says applications are closed; existing partners carry on."}</span></span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {num(f.holdDays, (v) => setF({ ...f, holdDays: v }), "Hold (days)", "Before earnings can be withdrawn")}
             {num(f.minPayout, (v) => setF({ ...f, minPayout: v }), "Smallest payout (₹)")}
             {num(f.tds, (v) => setF({ ...f, tds: v }), "Tax withheld %", "e.g. TDS u/s 194H")}

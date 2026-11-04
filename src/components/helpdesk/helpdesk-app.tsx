@@ -11,7 +11,7 @@ import { useState } from "react";
 import { ExportMenu, ImportButton } from "@/components/import/buttons";
 import { ModuleFrame, isId, useModule, useModuleAction, useModuleQuery } from "@/components/shell/module-frame";
 import { ConfirmDialog, Tabs, useToast } from "@/components/ui/overlays";
-import { Badge, Button, Field, IconButton, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Badge, Button, Field, IconButton, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { api } from "@/lib/client/api";
 import { CHANNELS, PRIORITIES, STATUSES, STATUS_LABEL, type HdSettings, type Status } from "@/lib/helpdesk/model";
 import { target } from "@/lib/import/targets";
@@ -298,7 +298,7 @@ function ReportsView() {
   return (
     <div className="space-y-5">
       <PageHeader title="Reports" description={`Tickets opened ${q.data.from} to ${q.data.to}. Times are in business hours.`} />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {tiles.map(([l, v]) => (
           <div key={l} className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">{l}</p><p className="mt-1 text-xl font-semibold tabular-nums">{v}</p></div>
         ))}
@@ -348,7 +348,7 @@ function SettingsView() {
       </section>
       <section className="space-y-3 rounded-[20px] border border-border bg-surface p-5">
         <h2 className="text-[14px] font-semibold">Response targets (business hours)</h2>
-        <table className="w-full text-[13px]">
+        <FormLines className="w-full text-[13px]">
           <thead className="text-left text-muted"><tr><th className="py-1 font-medium">Priority</th><th className="py-1 font-medium">First reply within</th><th className="py-1 font-medium">Resolve within</th></tr></thead>
           <tbody>
             {PRIORITIES.map((p) => (
@@ -359,7 +359,7 @@ function SettingsView() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </FormLines>
       </section>
       <section className="space-y-3 rounded-[20px] border border-border bg-surface p-5">
         <h2 className="text-[14px] font-semibold">Assignment and follow-up</h2>

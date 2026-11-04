@@ -81,7 +81,7 @@ export function ValetView() {
           Open
         </Button>
       </div>
-      <div className="mt-5 grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid-cols-2 mt-5 grid gap-4 lg:grid-cols-2 2xl:grid-cols-4">
         {COLS.map((c) => {
           const list = tickets.filter((t) => t.status === c.id).sort((a, b) => (c.id === "booked" ? Date.parse(a.expectedAt ?? "") - Date.parse(b.expectedAt ?? "") : 0));
           return (

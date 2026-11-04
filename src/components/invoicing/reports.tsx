@@ -332,7 +332,7 @@ export function InvoicingOverview() {
             <h2 className="text-[13px] font-semibold">Get set up</h2>
             <span className="text-xs text-muted tabular-nums">{setup.length - left.length} of {setup.length} done</span>
           </div>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <ul className="grid-cols-2 mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {setup.map((x) => (
               <li key={x.title}>
                 <Link href={x.href} className={cx("tint-card lx-card flex h-full items-start gap-3 rounded-[16px] p-3", `tint-${x.tint}`, x.done && "opacity-55")}>

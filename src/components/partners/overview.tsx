@@ -97,7 +97,7 @@ export function Overview({ d, person, go, origin: fixedOrigin, hello }: { d: Das
         </div>
       </div>
 
-      <section className="grid gap-3 rounded-[20px] bg-surface p-5 ring-1 ring-border sm:grid-cols-3">
+      <section className="grid grid-cols-2 gap-3 rounded-[20px] bg-surface p-5 ring-1 ring-border sm:grid-cols-3">
         <Figure label="Revenue you've brought" value={inr(t.revenue)} hint="What your customers paid Cloudesk, before tax" />
         <Figure label="Lifetime earnings" value={inr(t.earned)} hint={t.tdsWithheld ? `${inr(t.tdsWithheld)} tax withheld so far` : "Before any tax withheld at payout"} />
         <Figure label="In payouts" value={inr(t.pendingPayout)} hint={t.pendingPayout ? "Requested — being processed" : "No payout in progress"} />

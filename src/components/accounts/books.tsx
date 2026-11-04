@@ -11,7 +11,7 @@ import { target } from "@/lib/import/targets";
 import Link from "next/link";
 import { Fragment, useState } from "react";
 import { ConfirmDialog, Dialog } from "@/components/ui/overlays";
-import { Button, Field, Input, PageHeader, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Button, Field, Input, PageHeader, Select, Skeleton, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { ACCOUNT_TYPES, SUBTYPES } from "@/lib/accounting/model";
 import { TDS_SECTIONS } from "@/lib/accounting/tds";
 import { SliceBar, useSliceQs, AccountOptions, Empty, SOURCE_LABEL, Section, Stat, accApi, accName, fmt, inr, short, toPaise, todayIst, useAcc, useAccAction, useAccQuery, type Account } from "./shared";
@@ -309,7 +309,7 @@ function JournalDialog({ onClose }: { onClose: () => void }) {
             </Field>
           )}
         </div>
-        <table className="w-full text-[13px]">
+        <FormLines className="w-full text-[13px]">
           <thead className="text-left text-[12px] text-muted">
             <tr>
               <th className="py-1 font-medium">Account</th>
@@ -360,7 +360,7 @@ function JournalDialog({ onClose }: { onClose: () => void }) {
               <td />
             </tr>
           </tfoot>
-        </table>
+        </FormLines>
         {dr !== cr && <p className="text-[12.5px] text-warning">Off by {inr(Math.abs(dr - cr))}.</p>}
         <label className="flex items-center gap-2 text-[13px]">
           <Switch checked={f.opening} onChange={(v) => setF({ ...f, opening: v })} label="Opening balance" /> This is an opening balance (moving from another system)

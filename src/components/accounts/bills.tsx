@@ -14,7 +14,7 @@ import { useToast } from "@/components/ui/overlays";
 import { errorMessage } from "@/lib/client/api";
 import type { BillDraft } from "@/lib/accounting/extract";
 import { ConfirmDialog, Dialog, Tabs } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { billTotals } from "@/lib/accounting/model";
 import { TDS_SECTIONS } from "@/lib/accounting/tds";
 import { inrOf } from "@/lib/accounting/fx";
@@ -271,7 +271,7 @@ export function BillDialog({ expense, init, against, prefill, warnings, onClose,
             <Field label="Due">{(a) => <Input {...a} type="date" value={f.dueDate} min={f.date} onChange={(e) => setF({ ...f, dueDate: e.target.value })} />}</Field>
           )}
         </div>
-        <table className="w-full text-[13px]">
+        <FormLines className="w-full text-[13px]">
           <thead className="text-left text-[12px] text-muted">
             <tr>
               <th className="py-1 font-medium">For</th>
@@ -320,7 +320,7 @@ export function BillDialog({ expense, init, against, prefill, warnings, onClose,
               </tr>
             ))}
           </tbody>
-        </table>
+        </FormLines>
         <button type="button" className="justify-self-start text-[12.5px] font-medium text-muted hover:text-fg" onClick={() => setF({ ...f, lines: [...f.lines, { accountId: "", description: "", amount: "", gstRate: 18 }] })}>
           + Add a line
         </button>

@@ -151,7 +151,7 @@ export function InventoryView() {
     <div>
       <SubHeader title="Inventory" description="Stock levels for every product and variant. Stock goes down automatically when orders are placed and back up when they are cancelled." />
       {list.data && (
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="grid-cols-2 mb-4 grid gap-3 sm:grid-cols-3">
           <Card className="p-4">
             <p className="text-xs text-muted">Items tracked</p>
             <p className="mt-1 text-xl font-semibold tabular-nums">{list.data.items.filter((i) => i.trackInventory).length}</p>

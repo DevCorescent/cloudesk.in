@@ -7,7 +7,7 @@ import { ArrowLeft, Plus, ScanLine, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { Dialog, useToast } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, PageHeader, Select, Skeleton, Textarea, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, PageHeader, Select, Skeleton, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { AGE_BUCKETS, BIN_KINDS } from "@/lib/inventory/model";
 import { Empty, Section, Stat, fmt, fmtQty, inr, invApi, short, useInv, useInvAction, useInvQuery, whName } from "./shared";
@@ -183,7 +183,7 @@ export function WavePage({ id }: { id: string }) {
       )}
       <Section title="Pick list">
         <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-          <table className="w-full min-w-[720px] text-[13px]">
+          <FormLines className="w-full min-w-[720px] text-[13px]">
             <thead className="text-left text-[12px] text-muted"><tr><th className="py-1.5 font-medium">Item</th><th className="py-1.5 font-medium">Order</th><th className="py-1.5 font-medium">From bin</th><th className="w-24 py-1.5 font-medium">Picked</th><th className="py-1.5 font-medium">Serials</th></tr></thead>
             <tbody className="divide-y divide-border">
               {rows().map((r) => {
@@ -201,7 +201,7 @@ export function WavePage({ id }: { id: string }) {
                 );
               })}
             </tbody>
-          </table>
+          </FormLines>
         </div>
       </Section>
       {w.status === "picking" && (

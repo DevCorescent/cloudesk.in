@@ -484,7 +484,7 @@ function GstReports() {
           <ErrorState message={errorMessage(q.error)} />
         ) : (
           <div className="space-y-5 text-[13px]">
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               {[["Invoices", String(q.data.invoices)], ["Taxable value", money(q.data.totals.taxable)], ["IGST", money(q.data.totals.igst)], ["CGST + SGST", money(q.data.totals.cgst + q.data.totals.sgst)]].map(([k, v]) => (
                 <div key={k} className="rounded-[var(--radius-md)] bg-surface-2 p-3">
                   <p className="text-xs text-muted">{k}</p>

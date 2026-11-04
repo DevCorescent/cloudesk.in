@@ -12,7 +12,7 @@ import { TDS_SECTIONS } from "@/lib/accounting/tds";
 import { OnboardingDialog, RatesDialog } from "./procurement";
 import { useState } from "react";
 import { ConfirmDialog, Dialog, Tabs } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { Delta, Empty, MOVE_LABEL, Section, Stat, StatusPill, fmtQty, inr, invApi, short, useInv, useInvAction, useInvQuery, when, whName, type Item, type Warehouse } from "./shared";
 import { CustomFieldsCard } from "@/components/custom/fields-card";
 
@@ -181,7 +181,7 @@ export function CountsView() {
             <Empty>No items to count here.</Empty>
           ) : (
             <div className="overflow-x-auto rounded-[20px] border border-border bg-surface shadow-sm">
-              <table className="w-full min-w-[620px] text-[13.5px]">
+              <FormLines className="w-full min-w-[620px] text-[13.5px]">
                 <thead className="border-b border-border text-left text-[12px] text-muted">
                   <tr>
                     <th className="px-4 py-2.5 font-medium">Item</th>
@@ -209,7 +209,7 @@ export function CountsView() {
                     );
                   })}
                 </tbody>
-              </table>
+              </FormLines>
             </div>
           )}
           {meta.me.write && entered.length > 0 && (

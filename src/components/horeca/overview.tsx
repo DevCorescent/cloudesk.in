@@ -100,7 +100,7 @@ export function OverviewView() {
           )}
         </section>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid-cols-2 mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { href: "kitchen", icon: <ChefHat />, title: "Kitchen display", line: `${(floor.data?.tables ?? []).reduce((a, x) => a + (x.order?.pending ?? 0), 0)} awaiting OK` },
           { href: "rooms", icon: <BedDouble />, title: "Rooms", line: rooms.data?.stats.rooms ? `${rooms.data.stats.occupied}/${rooms.data.stats.rooms} occupied · ${rooms.data.stats.arrivals} arriving` : "Set up rooms" },

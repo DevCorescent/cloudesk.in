@@ -1,6 +1,7 @@
 "use client";
 
 // Projects & timesheets: the menu, and which screen a path opens.
+import { SectionSwitcher } from "@/components/shell/module-frame";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, CalendarRange, CheckCheck, CircleDollarSign, Clock, FolderKanban, Home, KanbanSquare, ListChecks, ReceiptText, Settings } from "lucide-react";
 import Link from "next/link";
@@ -102,7 +103,8 @@ export function WorkApp({ path }: { path: string[] }) {
   return (
     <WorkProvider value={{ orgId: org.id, meta: m, go }}>
       <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[210px_minmax(0,1fr)] lg:py-8">
-        <aside className="lg:sticky lg:top-6 lg:self-start print:hidden">
+        <SectionSwitcher title="Projects & time" items={items} section={section} href={(id) => (id ? `/work/${id}` : "/work")} />
+        <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start print:hidden">
           <div className="mb-3 hidden px-2 lg:block">
             <p className="text-[11px] font-semibold tracking-[0.14em] text-subtle uppercase">Projects & time</p>
             <p className="mt-1 truncate text-[14px] font-semibold">{org.name}</p>

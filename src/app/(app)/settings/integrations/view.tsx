@@ -190,7 +190,7 @@ function Work({ manage }: { manage: boolean }) {
   const c = q.data.counts;
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-5">{([["Waiting", c.queued], ["Running", c.running], ["Retrying", c.retrying], ["Gave up", c.dead], ["Done (24 h)", c.done]] as const).map(([l, v]) => <Card key={l} className="p-4"><p className="text-[12px] text-muted">{l}</p><p className="text-xl font-semibold tabular-nums">{v}</p></Card>)}</div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">{([["Waiting", c.queued], ["Running", c.running], ["Retrying", c.retrying], ["Gave up", c.dead], ["Done (24 h)", c.done]] as const).map(([l, v]) => <Card key={l} className="p-4"><p className="text-[12px] text-muted">{l}</p><p className="text-xl font-semibold tabular-nums">{v}</p></Card>)}</div>
       <p className="text-[13px] text-muted">Webhook deliveries in the last 7 days: {q.data.webhooks.failing} retrying, {q.data.webhooks.dead} gave up.</p>
       {!q.data.problems.length ? <Card className="p-6 text-center text-[13px] text-muted">Nothing has failed.</Card> : (
         <Card className="divide-y divide-border">

@@ -35,7 +35,7 @@ export function AllowancesSection({ orgId, write }: { orgId: string; write: bool
     <Section title="Allowances & overrides" sub="What the workspace has used of each allowance, and anything the platform team set on top of its plan." actions={write && d && <Button size="sm" onClick={() => setOpen(true)}>{has ? "Edit overrides" : "Override"}</Button>}>
       {!d ? <Skeleton className="h-40" /> : (
         <>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="allowances">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4" data-testid="allowances">
             {d.quotas.map((x) => {
               const pct = x.limit ? Math.min(100, (x.used / x.limit) * 100) : 0;
               const changed = o.quotas && x.key in o.quotas;

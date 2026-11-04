@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ConfirmDialog, Dialog, Tabs } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Textarea, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { GST_RATES, isInterState, purchaseTotals } from "@/lib/inventory/model";
 import { Empty, Section, StatusPill, fmt, fmtQty, fromPaise, inr, short, toPaise, todayIst, useInv, useInvAction, useInvQuery, type Item } from "./shared";
 import { ApprovalPanel } from "@/components/approvals/card";
@@ -170,7 +170,7 @@ export function OrderEditor({ id }: { id?: string }) {
               <Empty>Add the items you&apos;re ordering below.</Empty>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[620px] text-[13px]">
+                <FormLines className="w-full min-w-[620px] text-[13px]">
                   <thead className="text-left text-[12px] text-muted">
                     <tr>
                       <th className="py-1.5 font-medium">Item</th>
@@ -214,7 +214,7 @@ export function OrderEditor({ id }: { id?: string }) {
                       );
                     })}
                   </tbody>
-                </table>
+                </FormLines>
               </div>
             )}
             <div className="mt-3">
@@ -498,7 +498,7 @@ export function ReceiveDialog({ order, onClose }: { order?: OrderDetail; onClose
           <Field label="Supplier's invoice no.">{(a) => <Input {...a} value={f.supplierInvoice} onChange={(e) => setF({ ...f, supplierInvoice: e.target.value })} maxLength={60} />}</Field>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[13px]">
+          <FormLines className="w-full min-w-[560px] text-[13px]">
             <thead className="text-left text-[12px] text-muted">
               <tr>
                 <th className="py-1.5 font-medium">Item</th>
@@ -547,7 +547,7 @@ export function ReceiveDialog({ order, onClose }: { order?: OrderDetail; onClose
                 );
               })}
             </tbody>
-          </table>
+          </FormLines>
         </div>
         {!order && (
           <Select
@@ -649,7 +649,7 @@ export function ReorderView() {
       ) : (
         <>
           <div className="overflow-x-auto rounded-[20px] border border-border bg-surface shadow-sm">
-            <table className="w-full min-w-[760px] text-[13.5px]">
+            <FormLines className="w-full min-w-[760px] text-[13.5px]">
               <thead className="border-b border-border text-left text-[12px] text-muted">
                 <tr>
                   <th className="w-10 px-4 py-2.5" />
@@ -697,7 +697,7 @@ export function ReorderView() {
                   );
                 })}
               </tbody>
-            </table>
+            </FormLines>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-end gap-3">
             {meta.warehouses.length > 1 && (

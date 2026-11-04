@@ -1,13 +1,13 @@
 "use client";
 
 // Settings navigation, grouped by what each page is about. On wide screens a
-// menu beside the page; on narrow ones a strip of tabs that scrolls sideways
-// on its own (the page never does), with the current tab kept in view.
+// menu beside the page; on narrow ones the current section in a bar that opens
+// every section, grouped the same way.
 import clsx from "clsx";
 import { Bell, Blocks, Building2, CreditCard, Database, GitBranch, IdCard, KeyRound, LayoutGrid, Monitor, ScrollText, Settings2, ShieldCheck, Sparkles, User, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { SectionSwitcher } from "@/components/shell/module-frame";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 export const GROUPS: { label: string; items: Item[] }[] = [
@@ -39,11 +39,6 @@ const ALL = GROUPS.flatMap((g) => g.items);
 
 export function SettingsNav() {
   const path = usePathname();
-  const strip = useRef<HTMLDivElement>(null);
-  // Keep the current tab in view on narrow screens.
-  useEffect(() => {
-    strip.current?.querySelector('[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
-  }, [path]);
   return (
     <>
       <nav aria-label="Settings" className="hidden lg:block">
@@ -64,18 +59,9 @@ export function SettingsNav() {
           ))}
         </div>
       </nav>
-      <div ref={strip} className="-mx-4 min-w-0 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 lg:hidden [&::-webkit-scrollbar]:hidden">
-        <nav aria-label="Settings sections" className="flex w-max gap-1.5 pb-1">
-          {ALL.map((i) => {
-            const on = path === i.href;
-            return (
-              <Link key={i.href} href={i.href} aria-current={on ? "page" : undefined} className={clsx("inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[12.5px] font-medium whitespace-nowrap transition-colors", on ? "border-transparent bg-fg text-bg" : "border-border bg-surface text-muted hover:text-fg")}>
-                <i.icon className="size-3.5" aria-hidden />
-                {i.label}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Narrow screens: where you are, and a sheet with every section grouped as on desktop. */}
+      <div className="lg:hidden">
+        <SectionSwitcher title="Settings" items={GROUPS.flatMap((g) => g.items.map((i, k) => ({ id: i.href, label: i.label, icon: <i.icon />, group: k === 0 ? g.label : undefined })))} section={ALL.find((i) => i.href === path)?.href ?? "/settings"} href={(id) => id} />
       </div>
     </>
   );

@@ -216,7 +216,7 @@ function CatalogTab({ projectId, data, goto }: { projectId: string; data: Data; 
       </section>
       <section>
         <h2 className="mb-3 text-[13px] font-semibold text-muted">Automation platforms</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {["Zapier", "Make", "n8n"].map((n) => (
             <Card key={n} className="flex items-center gap-3 p-4">
               <Tile label={n} />

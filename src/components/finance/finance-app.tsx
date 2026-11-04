@@ -161,7 +161,7 @@ function FirstBooks({ orgName, userName }: { orgName: string; userName: string }
           </Button>
         </form>
       </section>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid-cols-2 mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {features.map(([icon, title, sub, tint], i) => (
           <div key={title} className={cx("tint-card lx-rise rounded-[20px] p-4", `tint-${tint}`)} style={{ animationDelay: `${i * 70}ms` }}>
             <span className="tint-chip grid size-9 place-items-center rounded-[12px]">{icon}</span>

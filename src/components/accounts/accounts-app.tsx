@@ -1,6 +1,7 @@
 "use client";
 
 // Accounting & GST: the menu, and which screen a path opens.
+import { SectionSwitcher } from "@/components/shell/module-frame";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, BookOpenCheck, Building, Building2, FileText, HandCoins, Home, Landmark, ListTree, Percent, Receipt, Repeat, ScrollText, Send, Settings, Target } from "lucide-react";
 import Link from "next/link";
@@ -123,7 +124,8 @@ export function AccountsApp({ path }: { path: string[] }) {
   return (
     <AccProvider value={{ orgId: org.id, meta: m, go, slice, setSlice }}>
       <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[210px_minmax(0,1fr)] lg:py-8">
-        <aside className="lg:sticky lg:top-6 lg:self-start print:hidden">
+        <SectionSwitcher title="Accounts" items={items} section={section} href={(id) => (id ? `/accounts/${id}` : "/accounts")} />
+        <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start print:hidden">
           <div className="mb-3 hidden px-2 lg:block">
             <p className="text-[11px] font-semibold tracking-[0.14em] text-subtle uppercase">Cloudesk Accounts</p>
             <p className="mt-1 truncate text-[14px] font-semibold">{org.name}</p>

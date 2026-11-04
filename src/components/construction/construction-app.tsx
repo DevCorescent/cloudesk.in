@@ -95,7 +95,7 @@ function ContractPage({ id }: { id: string }) {
       <Link href="/construction" className="text-[13px] text-muted hover:text-fg">← Contracts</Link>
       <PageHeader title={c.name} description={`${c.client}${c.workOrderNo ? ` · ${c.workOrderNo}` : ""} · retention ${c.retentionPct}% · advance recovery ${c.advancePct}% · GST ${c.gstRate}% · TDS ${c.tdsPct}%`} actions={meta.me.manage && <Button size="sm" onClick={() => setEdit(true)}>Edit</Button>} />
       <CustomFieldsCard entity="construction.contract" id={id} />
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {([["Contract value", inr(c.boqValue)], ["Certified", `${inr(c.certified)} (${c.progress}%)`], ["To receive", inr(c.receivable)], ["Advance to recover", inr(q.data.advanceLeft)]] as const).map(([l, v]) => <div key={l} className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">{l}</p><p className="text-[17px] font-semibold tabular-nums">{v}</p></div>)}
       </div>
       <Tabs value={tab} onChange={setTab} tabs={[{ value: "boq", label: "BOQ" }, { value: "mb", label: "Measurements" }, { value: "bills", label: "RA bills" }, { value: "money", label: "Money received" }, { value: "diary", label: "Site diary" }]} />

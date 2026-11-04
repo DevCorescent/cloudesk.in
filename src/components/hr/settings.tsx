@@ -6,7 +6,7 @@
 import { Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { Dialog, Tabs } from "@/components/ui/overlays";
-import { Button, Field, Input, PageHeader, Select, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Button, Field, Input, PageHeader, Select, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { CLAIM_CATEGORIES, type HrSettings } from "@/lib/hr/model";
 import { Section, useHr, useHrAction, type LeaveType } from "./shared";
 
@@ -307,7 +307,7 @@ function Expenses() {
       <Section title="Limits by category">
         <p className="mb-3 text-[12.5px] text-muted">Claims over a limit, or without a receipt above the amount set, need a reason the approver sees. Leave a box empty for no limit.</p>
         {x.limits.length > 0 && (
-          <table className="mb-3 w-full text-[13px]">
+          <FormLines className="mb-3 w-full text-[13px]">
             <thead>
               <tr className="text-left text-[12px] text-muted">
                 <th className="py-1.5 pr-2 font-medium">Category</th>
@@ -328,7 +328,7 @@ function Expenses() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </FormLines>
         )}
         {unused.length > 0 && (
           <Select aria-label="Add a limit" value="" onChange={(e) => e.target.value && setX({ ...x, limits: [...x.limits, { category: e.target.value, perClaim: 0, perDay: 0, receiptAbove: 0 }] })} className="h-8 max-w-xs text-[13px]">

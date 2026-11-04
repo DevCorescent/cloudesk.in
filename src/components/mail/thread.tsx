@@ -570,7 +570,7 @@ function DetailsDialog({ id, base, onClose }: { id: string; base: string; onClos
         <div className="grid gap-4">
           <div>
             <p className="mb-2 text-[12px] font-semibold text-muted">Sender checks</p>
-            <div className="grid gap-1.5 sm:grid-cols-3">{check("SPF", d.auth.spf)}{check("DKIM", d.auth.dkim)}{check("DMARC", d.auth.dmarc)}</div>
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{check("SPF", d.auth.spf)}{check("DKIM", d.auth.dkim)}{check("DMARC", d.auth.dmarc)}</div>
             <p className="mt-2 text-[12px] text-muted">These say whether the sender&apos;s domain vouched for this email. A failure doesn&apos;t always mean fraud, but be careful with links and payments.</p>
           </div>
           <div>

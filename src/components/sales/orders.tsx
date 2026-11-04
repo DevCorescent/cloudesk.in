@@ -13,7 +13,7 @@ import { useState } from "react";
 import { ApprovalPanel } from "@/components/approvals/card";
 import { ExportMenu } from "@/components/import/buttons";
 import { ConfirmDialog, Dialog, Tabs, useToast } from "@/components/ui/overlays";
-import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
+import { Button, EmptyState, Field, Input, Notice, PageHeader, Select, Skeleton, Switch, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { RETURN_REASONS, orderTotals, toInvoice } from "@/lib/sales/model";
 import { useQuery } from "@tanstack/react-query";
@@ -186,7 +186,7 @@ export function OrderEditor({ init, onDone }: { init?: Order; onDone?: () => voi
         </Section>
         <Section title="Lines">
           <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5">
-            <table className="w-full min-w-[820px] text-[13px]">
+            <FormLines className="w-full min-w-[820px] text-[13px]">
               <thead className="text-left text-[12px] text-muted">
                 <tr>
                   {meta.links.inventory && <th className="w-48 py-1 font-medium">Item</th>}
@@ -227,7 +227,7 @@ export function OrderEditor({ init, onDone }: { init?: Order; onDone?: () => voi
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </FormLines>
           </div>
           <button type="button" className="mt-2 text-[12.5px] font-medium text-muted hover:text-fg" onClick={() => setF({ ...f, lines: [...f.lines, blank()] })}>+ Add a line</button>
           {meta.settings.maxDiscountPct > 0 && lines.some((l) => l.n.discountPct > meta.settings.maxDiscountPct) && <p className="mt-2 text-[12.5px] text-warning">Discounts over {meta.settings.maxDiscountPct}% need approval when the order is confirmed.</p>}

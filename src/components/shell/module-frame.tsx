@@ -6,9 +6,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createContext, useContext, type ReactNode } from "react";
+import { ChevronDown } from "lucide-react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
-import { useToast } from "@/components/ui/overlays";
+import { Dialog, useToast } from "@/components/ui/overlays";
 import { ErrorState, Skeleton, cx } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { sendOrQueue } from "@/lib/client/outbox";
@@ -114,18 +115,20 @@ export function ModuleFrame<M>({ api: base, base: path, title, icon, nav, sectio
     .map((n, i, all) => ({ ...n, group: n.group !== all[i - 1]?.group ? n.group : undefined }));
   return (
     <FrameCtx.Provider value={{ orgId: org.id, meta: m, go, base: path, api: base }}>
-      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-8 lg:grid-cols-[210px_minmax(0,1fr)] lg:py-8">
-        <aside className="lg:sticky lg:top-6 lg:self-start print:hidden">
-          <div className="mb-3 hidden px-2 lg:block">
+      <div className="mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-4 px-4 pt-3 pb-6 sm:gap-6 sm:px-8 sm:py-6 lg:grid-cols-[210px_minmax(0,1fr)] lg:py-8">
+        {/* Phones: the current section, tapping opens every section grouped as on desktop. */}
+        <SectionSwitcher title={title} icon={icon} items={items} section={section} href={(id) => (id ? `/${path}/${id}` : `/${path}`)} />
+        <aside className="hidden lg:sticky lg:top-6 lg:block lg:self-start print:hidden">
+          <div className="mb-3 px-2">
             <p className="text-[11px] font-semibold tracking-[0.14em] text-subtle uppercase">{title}</p>
             <p className="mt-1 truncate text-[14px] font-semibold">{org.name}</p>
           </div>
-          <nav aria-label={title} className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 lg:flex-col lg:overflow-visible">
+          <nav aria-label={title} className="flex flex-col gap-1">
             {items.map((n) => {
               const on = section === n.id;
               return (
                 <div key={n.id} className="contents">
-                  {n.group && <p className="hidden px-3 pt-3 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase lg:block">{n.group}</p>}
+                  {n.group && <p className="px-3 pt-3 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase">{n.group}</p>}
                   <Link href={n.id ? `/${path}/${n.id}` : `/${path}`} aria-current={on ? "page" : undefined} className={cx("flex shrink-0 items-center gap-2.5 rounded-[12px] px-3 py-2 text-[13.5px] font-medium whitespace-nowrap transition-colors [&_svg]:size-4", on ? "bg-fg text-bg" : "text-muted hover:bg-surface-2 hover:text-fg")}>
                     {n.icon}
                     {n.label}
@@ -142,3 +145,40 @@ export function ModuleFrame<M>({ api: base, base: path, title, icon, nav, sectio
 }
 
 export const isId = (x?: string) => !!x && /^[0-9a-f-]{36}$/.test(x);
+
+/** The module's sections on a phone: one bar with where you are, and a sheet with everywhere you can go. */
+export function SectionSwitcher({ title, icon, items, section, href }: { title: string; icon?: ReactNode; items: NavItem[]; section: string; href: (id: string) => string }) {
+  const [open, setOpen] = useState(false);
+  const current = items.find((n) => n.id === section) ?? items[0];
+  if (items.length < 2) return null;
+  return (
+    <div className="lg:hidden print:hidden">
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className="flex h-12 w-full items-center gap-3 rounded-[16px] border border-border bg-[var(--surface-solid)] px-3.5 text-left shadow-[0_1px_2px_rgb(0_0_0/0.04)] active:scale-[0.99]">
+        <span className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-surface-2 text-fg [&_svg]:size-4">{current?.icon ?? icon}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10.5px] font-semibold tracking-[0.12em] text-subtle uppercase">{title}</span>
+          <span className="block truncate text-[15px] leading-tight font-semibold">{current?.label}</span>
+        </span>
+        <span className="flex items-center gap-1 text-[12px] text-muted">{items.length} sections <ChevronDown className="size-4" /></span>
+      </button>
+      {open && (
+        <Dialog open onClose={() => setOpen(false)} title={title} size="sm">
+          <nav aria-label={title} className="-mx-1 grid gap-0.5 pb-2">
+            {items.map((n) => {
+              const on = n.id === section;
+              return (
+                <div key={n.id} className="contents">
+                  {n.group && <p className="px-3 pt-3 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase">{n.group}</p>}
+                  <Link href={href(n.id)} onClick={() => setOpen(false)} aria-current={on ? "page" : undefined} className={cx("flex min-h-11 items-center gap-3 rounded-[12px] px-3 text-[15px] font-medium [&_svg]:size-[18px]", on ? "bg-fg text-bg" : "text-fg active:bg-surface-2")}>
+                    <span className={on ? "text-bg" : "text-muted"}>{n.icon}</span>
+                    {n.label}
+                  </Link>
+                </div>
+              );
+            })}
+          </nav>
+        </Dialog>
+      )}
+    </div>
+  );
+}

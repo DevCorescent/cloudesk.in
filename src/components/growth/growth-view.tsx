@@ -130,7 +130,7 @@ export function GrowthView({ projectId }: { projectId: string }) {
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3">
+      <div className="grid-cols-2 mt-5 grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs text-muted">Tests running</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{running.length}</p>

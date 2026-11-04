@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { forwardRef, useId, useLayoutEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 export { clsx as cx };
 
@@ -59,7 +59,7 @@ export function IconButton({ label, className, size = "md", ...rest }: Omit<Butt
       variant="ghost"
       aria-label={label}
       title={label}
-      className={clsx(size === "sm" ? "!w-7 !px-0" : "!w-8 !px-0", className)}
+      className={clsx(size === "sm" ? "!w-7 max-sm:!w-8 !px-0" : "!w-8 max-sm:!w-9 !px-0", className)}
       size={size}
       {...rest}
     />
@@ -68,11 +68,12 @@ export function IconButton({ label, className, size = "md", ...rest }: Omit<Butt
 
 // ─── Form controls ───────────────────────────────────────────────────────────
 
+// On phones: 16px text (smaller makes iOS zoom in when a field is tapped) and thumb-sized height.
 const control =
-  "w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-[13px] text-fg placeholder:text-subtle shadow-[inset_0_1px_2px_rgb(0_0_0/0.03)] transition-[border,box-shadow,background] duration-[var(--dur)] hover:border-border-strong focus:border-accent focus:bg-surface-solid focus:outline-none focus:ring-4 focus:ring-accent/20 disabled:opacity-60 aria-[invalid=true]:border-danger";
+  "w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-[13px] max-sm:text-[16px] text-fg placeholder:text-subtle shadow-[inset_0_1px_2px_rgb(0_0_0/0.03)] transition-[border,box-shadow,background] duration-[var(--dur)] hover:border-border-strong focus:border-accent focus:bg-surface-solid focus:outline-none focus:ring-4 focus:ring-accent/20 disabled:opacity-60 aria-[invalid=true]:border-danger";
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
-  return <input ref={ref} className={clsx(control, "h-9", className)} {...rest} />;
+  return <input ref={ref} className={clsx(control, "h-9 max-sm:h-11", className)} {...rest} />;
 });
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
@@ -81,11 +82,44 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
 
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(function Select({ className, children, ...rest }, ref) {
   return (
-    <select ref={ref} className={clsx(control, "h-9 appearance-none bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7", className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8b92' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }} {...rest}>
+    <select ref={ref} className={clsx(control, "h-9 max-sm:h-11 appearance-none bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-7", className)} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b8b92' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")" }} {...rest}>
       {children}
     </select>
   );
 });
+
+/**
+ * For a table of editable lines (an invoice's items, a journal's entries): give
+ * it `className="form-lines"` and this ref. Each cell is labelled with its
+ * column's heading, so on a phone (where the CSS turns each row into a card,
+ * globals.css) every field still says what it is.
+ */
+export function useColumnLabels<T extends HTMLTableElement>() {
+  const ref = useRef<T>(null);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    if (!t) return;
+    const heads = [...t.querySelectorAll("thead th")].map((th) => th.textContent?.trim() ?? "");
+    for (const row of t.querySelectorAll("tbody tr")) {
+      [...row.children].forEach((td, i) => {
+        const label = heads[i];
+        if (label) td.setAttribute("data-label", label);
+        else td.removeAttribute("data-label");
+      });
+    }
+  });
+  return ref;
+}
+
+/** A table of editable lines that becomes a stack of cards on phones (see useColumnLabels). */
+export function FormLines({ className, children }: { className?: string; children: ReactNode }) {
+  const ref = useColumnLabels<HTMLTableElement>();
+  return (
+    <table ref={ref} className={clsx("form-lines", className)}>
+      {children}
+    </table>
+  );
+}
 
 /** Label + control + hint/error with correct aria wiring. */
 export function Field({ label, hint, error, children, className }: { label: string; hint?: ReactNode; error?: string; children: (props: { id: string; "aria-invalid"?: boolean; "aria-describedby"?: string }) => ReactNode; className?: string }) {
@@ -202,12 +236,13 @@ export function Kbd({ children }: { children: ReactNode }) {
 
 export function PageHeader({ title, description, actions }: { title: string; description?: ReactNode; actions?: ReactNode }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-7 sm:gap-4">
       <div className="min-w-0">
-        <h1 className="title-xl text-fg">{title}</h1>
-        {description && <p className="mt-1.5 max-w-2xl text-[14px] text-muted">{description}</p>}
+        <h1 className="title-xl text-fg max-sm:text-[23px]">{title}</h1>
+        {description && <p className="mt-1 max-w-2xl text-[13.5px] text-muted sm:mt-1.5 sm:text-[14px]">{description}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {/* Phones: the actions get their own row under the title, wrapping if there are many. */}
+      {actions && <div className="flex flex-wrap items-center gap-2 max-sm:w-full">{actions}</div>}
     </div>
   );
 }

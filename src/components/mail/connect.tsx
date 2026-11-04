@@ -384,7 +384,7 @@ export function MailWelcome({ onConnect, canOauth }: { onConnect: () => void; ca
         </div>
         <p className="mt-3 text-[12.5px] text-muted">About two minutes{canOauth ? " — or one click with Google or Microsoft" : ""}. We guide you through every step.</p>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((x) => (
           <div key={x.title} className="rounded-[20px] border border-border bg-surface p-5">
             <span className="grid size-10 place-items-center rounded-[12px] bg-accent/10 text-accent">{x.icon}</span>

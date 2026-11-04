@@ -66,7 +66,7 @@ function HomeView() {
   return (
     <div className="space-y-5">
       <PageHeader title="Education" />
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {tile("Students", String(h.students), "/school/students")}
         {tile("Fees to collect", inr(h.due), "/school/fees")}
         {tile("Overdue", inr(h.overdue), "/school/fees", h.overdue > 0)}
@@ -139,7 +139,7 @@ function StudentPage({ id }: { id: string }) {
     <div className="space-y-4">
       <PageHeader title={s.name} description={`${s.admissionNo} · ${q.data.class ? `${q.data.class.name}${q.data.class.section ? ` – ${q.data.class.section}` : ""}` : "No class"}${s.rollNo !== null ? ` · roll ${s.rollNo}` : ""} · ${s.guardianName || "no guardian"} ${s.guardianPhone}`} actions={meta.me.write && <Button size="sm" onClick={() => setEdit(true)}>Edit</Button>} />
       <CustomFieldsCard entity="education.student" id={id} />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">Fees due</p><p className="text-xl font-semibold">{inr(fees.filter((f) => ["due", "partial"].includes(f.status)).reduce((n, f) => n + f.amount + f.tax - f.paid, 0))}</p></div>
         <div className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">Attendance</p><p className="text-xl font-semibold">{attendance.pct === null ? "—" : `${attendance.pct}%`}</p><p className="text-[12px] text-muted">{attendance.days} day(s) marked</p></div>
         <div className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">Concession</p><p className="text-xl font-semibold">{s.concessionPct ? `${s.concessionPct}%` : "None"}</p><p className="text-[12px] text-muted">{s.concessionNote}</p></div>

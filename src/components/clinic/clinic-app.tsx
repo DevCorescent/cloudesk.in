@@ -62,7 +62,7 @@ function TodayView() {
       <PageHeader title="Today" />
       {!meta.doctors.length && <Notice tone="warning" title="No doctors yet">Choose the clinicians in Settings — only they can be booked and see clinical notes.</Notice>}
       {h.data && (
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {([["Booked", h.data.today.booked], ["Waiting", h.data.today.waiting], ["With doctor", h.data.today.inRoom], ["Seen", h.data.today.done]] as const).map(([l, v]) => <div key={l} className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">{l}</p><p className="text-xl font-semibold tabular-nums">{v}</p></div>)}
           <div className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">Billed this month</p><p className="text-xl font-semibold tabular-nums">{inr(h.data.month.billed)}</p></div>
           <div className="rounded-[18px] border border-border bg-surface p-4"><p className="text-[12px] text-muted">Still to collect</p><p className="text-xl font-semibold tabular-nums">{inr(h.data.month.due)}</p></div>

@@ -70,7 +70,7 @@ export function TemplatesView() {
       </button>
 
       <h2 className="mb-3 text-[13px] font-semibold">Your templates</h2>
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid-cols-2 mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {boot.templates.map((t) => (
           <Thumb key={t.id} config={t.config} boot={boot} label={t.name} onClick={() => router.push(`${base}/templates/${t.id}`)} active={t.id === def} badge={t.id === def ? <Badge tone="accent">Default</Badge> : t.source === "uploaded" ? <Badge>From your file</Badge> : null} />
         ))}
@@ -78,7 +78,7 @@ export function TemplatesView() {
 
       <h2 className="mb-1 text-[13px] font-semibold">Professional designs</h2>
       <p className="mb-3 text-[12px] text-muted">Add one to your templates, then make it yours — colours, fonts, columns, wording, everything.</p>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {boot.prebuilt.map((p) => (
           <Thumb
             key={p.id}

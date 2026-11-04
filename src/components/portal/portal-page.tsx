@@ -9,7 +9,7 @@ import { LogOut } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Tabs } from "@/components/ui/overlays";
-import { Badge, Button, Field, Input, Notice, Select, Skeleton, Textarea, cx } from "@/components/ui/primitives";
+import { Badge, Button, Field, Input, Notice, Select, Skeleton, Textarea, cx, FormLines } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 
 type Kind = "customer" | "supplier";
@@ -248,7 +248,7 @@ function Supplier({ base, slug }: { base: string; slug: string }) {
         <div className="space-y-4">
           <p className="text-[14px]">Signed in for <b className="font-medium">{h.supplier.name}</b>{h.supplier.gstin && ` (${h.supplier.gstin})`}</p>
           {h.welcome && <Notice>{h.welcome}</Notice>}
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {s.rfqs && <Card label="RFQs to quote" value={String(h.toQuote)} />}
             {s.orders && <Card label="Orders to acknowledge" value={String(h.toAcknowledge)} />}
             {s.orders && <Card label="Open orders" value={String(h.openOrders)} />}
@@ -283,7 +283,7 @@ function RfqCard({ r, slug, base }: { r: Rfq; slug: string; base: string }) {
       <div className="flex flex-wrap justify-between gap-2"><h2 className="text-[15px] font-semibold">{r.number}</h2><span className="text-[13px] text-muted">{r.dueDate ? `Quote by ${date(r.dueDate)}` : ""}{r.quote && <Badge tone="success">Quoted</Badge>}</span></div>
       {r.notes && <p className="text-[13px] text-muted">{r.notes}</p>}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-[13px]">
+        <FormLines className="w-full min-w-[560px] text-[13px]">
           <thead className="text-left text-muted"><tr><th className="py-1 font-medium">Item</th><th className="py-1 font-medium">Qty</th><th className="py-1 font-medium">Rate per unit (₹, before GST)</th><th className="py-1 font-medium">GST %</th><th className="py-1 font-medium">Days to deliver</th></tr></thead>
           <tbody>
             {r.lines.map((l, i) => (
@@ -296,7 +296,7 @@ function RfqCard({ r, slug, base }: { r: Rfq; slug: string; base: string }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </FormLines>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Valid till">{(a) => <Input {...a} type="date" value={validTill} onChange={(e) => setValidTill(e.target.value)} />}</Field>

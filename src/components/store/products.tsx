@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { LabelsCard } from "./labels";
 import { MediaPicker } from "@/components/builder/media";
 import { ConfirmDialog, Dialog, Segmented, useToast } from "@/components/ui/overlays";
-import { Badge, Button, ButtonLink, cx, EmptyState, ErrorState, Field, IconButton, Input, Notice, Select, Skeleton, Switch, Textarea } from "@/components/ui/primitives";
+import { Badge, Button, ButtonLink, cx, EmptyState, ErrorState, Field, IconButton, Input, Notice, Select, Skeleton, Switch, Textarea, FormLines } from "@/components/ui/primitives";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
 import { MoneyInput, Panel, pct, storeApi, SubHeader, Table, td, useMoney, useStoreCtx, useStoreQuery } from "./shared";
 import { useShortcuts } from "../ui/shortcut";
@@ -722,7 +722,7 @@ function VariantTable({ variants, currency, onChange, onApplyAll }: { variants: 
         </Button>
       </div>
       <div className="-mx-4 overflow-x-auto">
-        <table className="w-full min-w-[640px] text-[13px]">
+        <FormLines className="w-full min-w-[640px] text-[13px]">
           <thead>
             <tr className="border-y border-border text-left text-xs text-muted">
               <th className="px-4 py-2 font-medium">Variant</th>
@@ -762,7 +762,7 @@ function VariantTable({ variants, currency, onChange, onApplyAll }: { variants: 
               );
             })}
           </tbody>
-        </table>
+        </FormLines>
       </div>
       {variants.length >= 100 && <p className="mt-2 text-xs text-warning">Products can have up to 100 variants; extra combinations were left out.</p>}
     </div>

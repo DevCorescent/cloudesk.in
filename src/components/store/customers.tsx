@@ -76,7 +76,7 @@ export function CustomerDetail({ id }: { id: string }) {
   return (
     <div>
       <SubHeader back={{ href: `${base}/customers`, label: "Customers" }} title={c.name || c.email} description={`Customer since ${dateTime(c.createdAt).split(",")[0]}`} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+      <div className="grid-cols-2 mb-4 grid gap-3 sm:grid-cols-3">
         <Card className="p-4">
           <p className="text-xs text-muted">Total spent</p>
           <p className="mt-1 text-xl font-semibold tabular-nums">{money(spent)}</p>

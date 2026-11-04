@@ -2,6 +2,7 @@
 
 // CRM: one place for every customer and lead in the workspace. The shell holds
 // the navigation, global search and "New" menu; each section is its own view.
+import { SectionSwitcher } from "@/components/shell/module-frame";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Briefcase, Building2, CheckSquare, Contact as ContactIcon, Home, Plus, Repeat, Search, Settings, Users } from "lucide-react";
 import Link from "next/link";
@@ -104,7 +105,8 @@ export function CrmApp({ path }: { path: string[] }) {
   return (
     <CrmProvider value={ctx}>
       <div className={cx("mx-auto grid max-w-[1500px] grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 sm:px-8 lg:py-8", wide ? "max-w-none lg:gap-4" : "lg:grid-cols-[200px_minmax(0,1fr)]")}>
-        <aside className={cx(!wide && "lg:sticky lg:top-6 lg:self-start")}>
+        <SectionSwitcher title="CRM" items={NAV.filter((n) => !n.part || part(n.part))} section={section} href={(id) => (id ? `${base}/${id}` : base)} />
+        <aside className={cx("hidden lg:block", !wide && "lg:sticky lg:top-6 lg:self-start")}>
           <div className={cx("mb-3 hidden px-2", !wide && "lg:block")}>
             <p className="text-[11px] font-semibold tracking-[0.14em] text-subtle uppercase">Cloudesk CRM</p>
             <p className="mt-1 truncate text-[14px] font-semibold">{org.name}</p>
