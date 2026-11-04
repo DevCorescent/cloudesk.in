@@ -510,7 +510,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             ))}
           </div>
         )}
-        <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
+        <div className="flex flex-wrap items-center gap-0.5 px-1.5 pb-1.5">
           {!editing && (
             <Menu
               label="Add"
@@ -528,8 +528,9 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             />
           )}
           <span className="mx-1 h-4 w-px bg-border" />
-          <button type="button" aria-label="Formatting" aria-pressed={fmt} title={fmt ? "Hide formatting" : "Show formatting"} onMouseDown={(e) => e.preventDefault()} onClick={toggleFmt} className={cx("chat-press hidden size-7 shrink-0 place-items-center rounded-[8px] @md/chat:grid [&>svg]:size-[15px]", fmt ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg")}><Type /></button>
-          <span className={cx("chat-toolbar-in hidden items-center gap-0.5", fmt && "@md/chat:flex")}>
+          <button type="button" aria-label="Formatting" aria-pressed={fmt} title={fmt ? "Hide formatting" : "Show formatting"} onMouseDown={(e) => e.preventDefault()} onClick={toggleFmt} className={cx("chat-press grid size-7 shrink-0 place-items-center rounded-[8px] [&>svg]:size-[15px]", fmt ? "bg-surface-2 text-fg" : "text-muted hover:bg-surface-2 hover:text-fg")}><Type /></button>
+          {/* On phones the formatting tools get their own row above, swiping sideways. */}
+          <span className={cx("chat-toolbar-in items-center gap-0.5", fmt ? "flex @max-md/chat:order-first @max-md/chat:mb-1 @max-md/chat:w-full @max-md/chat:overflow-x-auto @max-md/chat:border-b @max-md/chat:border-border @max-md/chat:pb-1 @max-md/chat:[scrollbar-width:none]" : "hidden")}>
             {tool("Bold", <Bold />, () => wrap("**"), "mod+b")}
             {tool("Italic", <Italic />, () => wrap("_"), "mod+i")}
             {tool("Strikethrough", <Strikethrough />, () => wrap("~~"), "mod+shift+x")}
@@ -539,7 +540,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             {tool("Bulleted list", <List />, () => linePrefix("- "))}
             {tool("Numbered list", <ListOrdered />, () => linePrefix("1. "))}
             {tool("Link", <Link2 />, () => setLinkDlg(true))}
-            <span className="mx-1 h-4 w-px bg-border" />
+            <span className="mx-1 h-4 w-px bg-border @max-md/chat:hidden" />
           </span>
           {tool("Emoji", <Smile />, () => setEmoji((ta.current?.getBoundingClientRect() ?? null)))}
           {!editing && (
@@ -549,7 +550,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
             </label>
           )}
           {!editing && (
-            <span className="hidden @md/chat:contents">
+            <span className="contents">
             <Menu
               label="Priority"
               trigger={(p) => <button {...p} type="button" aria-label="Priority" title="Priority" className={cx("grid size-7 shrink-0 place-items-center rounded-[8px] hover:bg-surface-2", priority === "urgent" ? "text-red-600" : priority === "important" ? "text-amber-600" : "text-muted hover:text-fg")}><TriangleAlert className="size-[15px]" /></button>}
@@ -589,7 +590,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer({ ch
                 {newLine && <span className="hidden text-[11px] whitespace-nowrap text-subtle @3xl/chat:inline">{newLine} new line</span>}
                 <span className={cx("flex overflow-hidden rounded-full transition-[box-shadow,transform] duration-200", (text.trim() || files.some((f) => f.id)) && "shadow-[0_6px_16px_-6px_rgba(0,0,0,0.45)]")}>
                   <button type="button" aria-label={schedule ? "Schedule" : "Send"} disabled={sending || (!text.trim() && !files.some((f) => f.id))} onClick={() => void send()} className="chat-press grid h-8 w-9 place-items-center bg-fg text-bg transition-opacity disabled:opacity-35">{sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}</button>
-                  <button type="button" aria-label="Schedule send" title="Schedule send" onClick={() => setScheduling(true)} className="chat-press hidden h-8 w-7 place-items-center border-l border-bg/20 bg-fg text-bg @md/chat:grid"><CalendarClock className="size-3.5" /></button>
+                  <button type="button" aria-label="Schedule send" title="Schedule send" onClick={() => setScheduling(true)} className="chat-press grid h-8 w-7 place-items-center border-l border-bg/20 bg-fg text-bg"><CalendarClock className="size-3.5" /></button>
                 </span>
               </>
             )}

@@ -185,6 +185,7 @@ export async function meta(s: ChatScope): Promise<MetaOut> {
       visibility: r.visibility as ChannelOut["visibility"],
       emoji: r.emoji as string,
       color: r.color as string,
+      avatar: (r.avatar_file_id as string | null) ?? null,
       posting: st.posting ?? "everyone",
       ai: st.ai !== false,
       archived: !!r.archived,
@@ -253,11 +254,21 @@ export async function updateChannel(s: ChatScope, id: string, raw: unknown) {
     if (dup) throw new ApiError("conflict", `There's already a #${nm}`, { name: ["Already used"] });
   }
   const settings = { ...c.settings, ...(v.posting ? { posting: v.posting } : {}), ...(v.ai !== undefined ? { ai: v.ai } : {}) };
+  // A picture: an image uploaded to this conversation. Direct messages show the other person instead.
+  if (v.avatarFileId !== undefined) {
+    if (c.kind === "dm") throw new ApiError("validation_failed", "Direct messages show the other person's picture");
+    if (v.avatarFileId) {
+      const [f] = await db.select({ mime: F.mime }).from(F).where(and(eq(F.id, v.avatarFileId), eq(F.channelId, c.id)));
+      if (!f) throw notFound("File");
+      if (!/^image\/(png|jpeg|gif|webp)$/.test(f.mime)) throw new ApiError("validation_failed", "Use a PNG, JPG, GIF or WebP image", { avatarFileId: ["Not an image"] });
+    }
+  }
   await db
     .update(C)
-    .set({ ...(nm ? { name: c.kind === "channel" ? nm : v.name! } : {}), ...(v.topic !== undefined ? { topic: v.topic } : {}), ...(v.description !== undefined ? { description: v.description } : {}), ...(v.visibility && c.kind === "channel" ? { visibility: v.visibility } : {}), ...(v.emoji !== undefined ? { emoji: v.emoji } : {}), ...(v.color ? { color: v.color } : {}), ...(v.archived !== undefined ? { archived: v.archived } : {}), settings })
+    .set({ ...(nm ? { name: c.kind === "channel" ? nm : v.name! } : {}), ...(v.topic !== undefined ? { topic: v.topic } : {}), ...(v.description !== undefined ? { description: v.description } : {}), ...(v.visibility && c.kind === "channel" ? { visibility: v.visibility } : {}), ...(v.emoji !== undefined ? { emoji: v.emoji } : {}), ...(v.color ? { color: v.color } : {}), ...(v.archived !== undefined ? { archived: v.archived } : {}), ...(v.avatarFileId !== undefined ? { avatarFileId: v.avatarFileId } : {}), settings })
     .where(eq(C.id, c.id));
-  const said = v.archived === true ? "archived the channel" : v.archived === false ? "brought the channel back" : nm && nm !== c.name ? `renamed it to ${c.kind === "channel" ? "#" : ""}${nm}` : v.topic !== undefined && v.topic !== c.topic ? `set the topic: ${v.topic || "(none)"}` : null;
+  const what = c.kind === "group" ? "group" : "channel";
+  const said = v.avatarFileId !== undefined && v.avatarFileId !== c.avatarFileId ? (v.avatarFileId ? `changed the ${what} picture` : `removed the ${what} picture`) : v.archived === true ? "archived the channel" : v.archived === false ? "brought the channel back" : nm && nm !== c.name ? `renamed it to ${c.kind === "channel" ? "#" : ""}${nm}` : v.topic !== undefined && v.topic !== c.topic ? `set the topic: ${v.topic || "(none)"}` : null;
   if (said) await system(c, s.userId, `${s.userName} ${said}`);
   await publish({ o: s.orgId, t: "c", ch: c.id });
   return { ok: true };
@@ -859,9 +870,9 @@ export async function download(s: ChatScope, id: string) {
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw notFound("File");
   const [f] = await db.select().from(F).where(and(eq(F.id, id), eq(F.orgId, s.orgId)));
   if (!f) throw notFound("File");
-  await channelFor(s, f.channelId, "read");
-  // Unsent uploads are only their uploader's.
-  if (!f.messageId && f.uploadedBy !== s.userId) throw notFound("File");
+  const { c } = await channelFor(s, f.channelId, "read");
+  // Unsent uploads are only their uploader's — except the conversation's picture.
+  if (!f.messageId && f.uploadedBy !== s.userId && c.avatarFileId !== f.id) throw notFound("File");
   // Guests without history don't get files from before they joined.
   if (s.guest && !s.guest.history && f.messageId) {
     const [x] = await db.select({ seq: X.seq }).from(X).where(eq(X.id, f.messageId));

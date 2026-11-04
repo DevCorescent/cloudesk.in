@@ -343,6 +343,7 @@ export async function guestState(channelId: string, token: string | undefined | 
     visibility: c.visibility as ChannelOut["visibility"],
     emoji: c.emoji,
     color: c.color,
+    avatar: c.avatarFileId,
     posting: c.settings.posting ?? "everyone",
     ai: false,
     archived: c.archived,

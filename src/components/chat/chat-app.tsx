@@ -4,7 +4,7 @@
 // messages — unread first in bold, with presence), and on the right a
 // conversation, or Home (what needs you), Activity, Saved, Search or Browse.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Bell, BellOff, Bookmark, BookmarkCheck, CheckCheck, ChevronDown, CircleCheck, Clock3, Compass, Hash, Home, Inbox, Lock, MessageSquarePlus, MoreHorizontal, Plus, Search, Sparkles, Star, Users, X } from "lucide-react";
+import { AtSign, Bell, BellOff, Bookmark, BookmarkCheck, CheckCheck, ChevronDown, CircleCheck, Clock3, Compass, Hash, Home, Inbox, MessageSquarePlus, MoreHorizontal, Plus, Search, Sparkles, Star, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -22,7 +22,7 @@ import "./chat.css";
 import { Conversation } from "./conversation";
 import { NewChannelDialog, NewChatDialog, StatusDialog } from "./dialogs";
 import { Message, type Ops } from "./message";
-import { Avatar, channelTitle, chatKey, presenceOf, shortWhen, useChatApi, useChatLive, useChatMeta, usePeopleMap } from "./shared";
+import { Avatar, ConvIcon, channelTitle, chatKey, presenceOf, shortWhen, useChatApi, useChatLive, useChatMeta, usePeopleMap } from "./shared";
 
 export function ChatApp() {
   const pathname = usePathname();
@@ -85,7 +85,8 @@ export function ChatApp() {
       refreshMeta={refreshMeta}
     />
   );
-  const showRail = !channelId && view === "home";
+  // Phones show the list at /chat; Home (what needs you) has its own address there.
+  const showRail = !channelId && path.length === 0;
 
   return (
     <div className="@container/chat relative h-[var(--app-h)] min-h-[480px] overflow-hidden">
@@ -107,7 +108,7 @@ export function ChatApp() {
           ) : view === "browse" ? (
             <BrowseView meta={m} onBack={() => go("/chat")} onOpen={(id) => go(`/chat/${id}`)} refreshMeta={refreshMeta} />
           ) : (
-            <HomeView meta={m} people={people} onOpen={(id) => go(`/chat/${id}`)} onNew={(k) => setDlg(k)} />
+            <HomeView meta={m} people={people} onOpen={(id) => go(`/chat/${id}`)} onNew={(k) => setDlg(k)} onBack={() => go("/chat")} />
           )}
         </main>
       </div>
@@ -130,14 +131,8 @@ const usePhone = () => useSyncExternalStore(onPhoneChange, () => window.matchMed
 
 // ── The rail ────────────────────────────────────────────────────────────────
 
-function ConvIcon({ c, people, size = 22 }: { c: ChannelOut; people: Map<string, PersonOut>; size?: number }) {
-  if (c.kind === "dm") return <Avatar id={c.people[0] ?? c.id} name={channelTitle(c, people)} person={people.get(c.people[0] ?? "")} size={size} />;
-  // Larger icons (phone rows) scale their emoji, glyph and corners with them.
-  const glyph = { width: Math.round(size * 0.55), height: Math.round(size * 0.55) };
-  const radius = size > 28 ? 11 : 7;
-  if (c.kind === "group") return <span className="grid shrink-0 place-items-center bg-gradient-to-br from-violet-500 to-sky-500 text-white" style={{ width: size, height: size, borderRadius: radius }}><Users style={glyph} /></span>;
-  return <span className="grid shrink-0 place-items-center text-white" style={{ width: size, height: size, borderRadius: radius, background: c.color, fontSize: Math.max(12, Math.round(size * 0.5)) }}>{c.emoji || (c.visibility === "private" ? <Lock style={glyph} /> : <Hash style={glyph} />)}</span>;
-}
+const EMPTY = new Map<string, PersonOut>();
+
 
 function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus, onSearch, onPrefs, onRead, onReadAll, refreshMeta }: { meta: MetaOut; people: Map<string, PersonOut>; active: string; onlyUnread: boolean; setOnlyUnread: (v: boolean) => void; onNew: (k: "channel" | "chat") => void; onStatus: () => void; onSearch: (q: string) => void; onPrefs: (c: ChannelOut, body: unknown, done?: string) => void; onRead: (c: ChannelOut) => void; onReadAll: () => void; refreshMeta: () => void }) {
   const [q, setQ] = useState("");
@@ -218,7 +213,7 @@ function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus
         </div>
       </form>
       <nav className="chat-railnav mt-2 grid gap-px px-2" aria-label="Chat">
-        <RailLink href="/chat" icon={<Home />} active={active === "home"} label="Home" />
+        <RailLink href={phone ? "/chat/home" : "/chat"} icon={<Home />} active={active === "home"} label="Home" />
         <RailLink href="/chat/activity" icon={<AtSign />} active={active === "activity"} label="Activity" count={meta.counts.mentions} hot />
         <RailLink href="/chat/saved" icon={<Bookmark />} active={active === "saved"} label="Saved" count={meta.counts.saved} />
         <RailLink href="/chat/browse" icon={<Compass />} active={active === "browse"} label={phone ? "Browse" : "Browse channels"} />
@@ -231,7 +226,7 @@ function Rail({ meta, people, active, onlyUnread, setOnlyUnread, onNew, onStatus
       <div className="chat-railfoot flex items-center gap-1 border-t border-border px-2 py-1.5">
         <button type="button" onClick={() => setOnlyUnread(!onlyUnread)} aria-pressed={onlyUnread} className={cx("chat-press h-7 rounded-full px-2.5 text-[12px] transition-colors", onlyUnread ? "bg-fg font-medium text-bg" : "text-muted hover:bg-surface-2")}>Unread only</button>
         <button type="button" onClick={onReadAll} disabled={!meta.counts.unread} className="h-7 rounded-full px-2.5 text-[12px] text-muted hover:bg-surface-2 disabled:opacity-40">Mark all read</button>
-        {meta.me.admin && <span className="ml-auto @max-4xl/chat:hidden"><ImportButton target={target("chat.channels")} label="Import" onImport={(rows, mode) => call<ImportResult>("channels/import", "POST", { rows, mode })} onDone={refreshMeta} /></span>}
+        {meta.me.admin && <span className="ml-auto"><ImportButton target={target("chat.channels")} label="Import" onImport={(rows, mode) => call<ImportResult>("channels/import", "POST", { rows, mode })} onDone={refreshMeta} /></span>}
       </div>
     </div>
   );
@@ -302,13 +297,15 @@ function Hit({ m, ops, where, onOpen, note }: { m: MessageOut; ops: Ops; where: 
 
 const whereOf = (c: { kind: string; name: string } | undefined, people: Map<string, PersonOut>, ch?: ChannelOut) => (ch ? (ch.kind === "channel" ? `#${ch.name}` : channelTitle(ch, people)) : c?.kind === "channel" ? `#${c.name}` : c?.name || "Direct message");
 
-function HomeView({ meta, people, onOpen, onNew }: { meta: MetaOut; people: Map<string, PersonOut>; onOpen: (id: string) => void; onNew: (k: "channel" | "chat") => void }) {
+function HomeView({ meta, people, onOpen, onNew, onBack }: { meta: MetaOut; people: Map<string, PersonOut>; onOpen: (id: string) => void; onNew: (k: "channel" | "chat") => void; onBack: () => void }) {
   const unread = meta.channels.filter((c) => c.member && c.unread > 0 && c.notify !== "none").sort((a, b) => b.mentions - a.mentions || (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""));
   const online = meta.people.filter((p) => p.id !== meta.me.id && (p.online || p.inMeeting));
   const hour = new Date().getHours();
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-4xl px-5 py-8">
+      {/* Phones reach Home from the list, so it gets a way back. */}
+      <div className="@4xl/chat:hidden"><PageHead title="Home" sub="What needs you" onBack={onBack} /></div>
+      <div className="mx-auto max-w-4xl px-5 py-6 @4xl/chat:py-8">
         <p className="text-[13px] text-muted">{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
         <h1 className="mt-0.5 text-[26px] font-semibold tracking-tight">{hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening"}, {meta.me.name.split(" ")[0]}</h1>
         <p className="mt-1 text-[14px] text-muted">{unread.length ? `${meta.counts.unread} unread in ${unread.length} ${unread.length === 1 ? "conversation" : "conversations"}${meta.counts.mentions ? ` · ${meta.counts.mentions} need${meta.counts.mentions === 1 ? "s" : ""} you` : ""}.` : "You're all caught up."}</p>
@@ -416,7 +413,7 @@ function SavedView({ meta, people, onBack }: { meta: MetaOut; people: Map<string
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
         {r.isLoading ? <div className="p-5"><Skeleton className="h-20" /></div> : !list.length ? (
-          <div className="grid h-full place-items-center p-8 text-center"><div><Bookmark className="mx-auto size-8 text-subtle" /><p className="mt-2 text-[15px] font-semibold">{tab === "open" ? "Nothing saved" : "Nothing done yet"}</p><p className="text-[13px] text-muted">Hover a message and press the bookmark — or “Remind me about this” in its ⋯ menu.</p></div></div>
+          <div className="grid h-full place-items-center p-8 text-center"><div><Bookmark className="mx-auto size-8 text-subtle" /><p className="mt-2 text-[15px] font-semibold">{tab === "open" ? "Nothing saved" : "Nothing done yet"}</p><p className="text-[13px] text-muted">Save a message from its menu — or set “Remind me about this” — and it waits here.</p></div></div>
         ) : list.map((s) => (
           <Hit
             key={s.message.id}
@@ -478,7 +475,7 @@ function BrowseView({ meta, onBack, onOpen, refreshMeta }: { meta: MetaOut; onBa
       <ul className="min-h-0 flex-1 overflow-y-auto p-3">
         {list.map((c) => (
           <li key={c.id} className="flex items-center gap-3 rounded-[14px] px-3 py-2.5 hover:bg-surface-2">
-            <span className="grid size-10 place-items-center rounded-[12px] text-[17px] text-white" style={{ background: c.color }}>{c.emoji || (c.visibility === "private" ? <Lock className="size-4" /> : <Hash className="size-4" />)}</span>
+            <ConvIcon c={c} people={EMPTY} size={40} />
             <button type="button" onClick={() => onOpen(c.id)} className="min-w-0 flex-1 text-left"><span className="flex items-center gap-1.5 text-[14px] font-semibold">#{c.name}{c.archived && <span className="rounded-full bg-surface-2 px-1.5 text-[10.5px] text-muted">Archived</span>}</span><span className="block truncate text-[12.5px] text-muted">{c.memberCount} members{c.topic ? ` · ${c.topic}` : ""}</span></button>
             {c.member ? <span className="text-[12px] font-medium text-muted">Joined</span> : <Button size="sm" onClick={() => void call(`channels/${c.id}/join`, "POST").then(() => { refreshMeta(); onOpen(c.id); }).catch((e) => toast({ tone: "error", title: errorMessage(e) }))}>Join</Button>}
           </li>

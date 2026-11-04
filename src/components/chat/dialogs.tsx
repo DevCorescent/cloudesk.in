@@ -4,7 +4,7 @@
 // builders for interactive messages (poll, checklist, decision, approval,
 // meeting), plus tasks, forwarding, reminders and your status.
 import { useQuery } from "@tanstack/react-query";
-import { Check, Crown, GripVertical, Hash, Lock, Plus, Search, Trash2, UserMinus, X } from "lucide-react";
+import { Check, Crown, GripVertical, Hash, ImagePlus, Loader2, Lock, Plus, Search, Trash2, UserMinus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Dialog, useToast } from "@/components/ui/overlays";
 import { Button, Field, Input, Select, Switch, Textarea, cx } from "@/components/ui/primitives";
@@ -13,7 +13,7 @@ import type { ChannelOut, MessageOut, MetaOut, PersonOut } from "@/lib/chat/api"
 import { CHANNEL_COLORS, parseWhen, STATUS_LABEL, STATUSES, type PostIn, type Status } from "@/lib/chat/model";
 import { plain } from "@/lib/chat/text";
 import { FindPeople } from "@/components/people/find-people";
-import { Avatar, channelTitle, chatKey, presenceOf, useChatApi } from "./shared";
+import { Avatar, ConvIcon, channelTitle, chatKey, presenceOf, useChatApi } from "./shared";
 
 const rid = () => Math.random().toString(36).slice(2, 10);
 const localInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
@@ -173,6 +173,7 @@ export function ChannelSettings({ c, meta, onClose, onChanged, onLeft }: { c: Ch
       </div>
       {tab === "about" && (
         <div className="grid gap-4">
+          <ChannelPicture c={c} admin={admin} people={people} onChanged={onChanged} />
           <Field label="Name">{(p) => <Input {...p} value={v.name} disabled={!admin} onChange={(e) => setV({ ...v, name: e.target.value })} maxLength={60} />}</Field>
           <Field label="Topic">{(p) => <Input {...p} value={v.topic} disabled={!admin && c.kind === "channel"} onChange={(e) => setV({ ...v, topic: e.target.value })} maxLength={250} />}</Field>
           <Field label="Description">{(p) => <Textarea {...p} rows={3} value={v.description} disabled={!admin && c.kind === "channel"} onChange={(e) => setV({ ...v, description: e.target.value })} maxLength={1000} />}</Field>
@@ -195,7 +196,7 @@ export function ChannelSettings({ c, meta, onClose, onChanged, onLeft }: { c: Ch
                   <Avatar id={m.userId} name={p?.name ?? "?"} person={p} size={30} />
                   <span className="min-w-0 flex-1"><span className="flex items-center gap-1.5 text-[13.5px] font-medium">{p?.name ?? "Former member"}{m.role === "owner" && <Crown className="size-3.5 text-amber-500" />}{m.role === "admin" && <span className="rounded-full bg-surface-2 px-1.5 text-[10.5px] font-semibold text-muted">Admin</span>}{m.role === "guest" && <span className="rounded-full bg-teal-500/12 px-1.5 text-[10.5px] font-semibold text-teal-700 dark:text-teal-300">Guest</span>}</span><span className="block truncate text-[11.5px] text-muted">{p ? `${presenceOf(p).label}${p.note ? ` · ${p.emoji} ${p.note}` : ""}` : ""}</span></span>
                   {admin && m.role === "guest" && <Button size="sm" variant="ghost" icon={<UserMinus className="size-3.5" />} onClick={() => void run(() => call(`channels/${c.id}/members/${m.userId}`, "DELETE"), "Removed")}>Remove</Button>}
-                  {admin && m.role !== "owner" && m.role !== "guest" && m.userId !== meta.me.id && c.kind === "channel" && (
+                  {admin && m.role !== "owner" && m.role !== "guest" && m.userId !== meta.me.id && c.kind !== "dm" && (
                     <>
                       <Button size="sm" variant="ghost" onClick={() => void run(() => call(`channels/${c.id}/members/${m.userId}`, "PATCH", { role: m.role === "admin" ? "member" : "admin" }))}>{m.role === "admin" ? "Make member" : "Make admin"}</Button>
                       <Button size="sm" variant="ghost" icon={<UserMinus className="size-3.5" />} onClick={() => void run(() => call(`channels/${c.id}/members/${m.userId}`, "DELETE"), "Removed")}>Remove</Button>
@@ -509,4 +510,77 @@ export function StatusDialog({ meta, onClose, onDone }: { meta: MetaOut; onClose
       </div>
     </Dialog>
   );
+}
+
+/** A group's or channel's picture: its admins upload one (cropped square in the browser) or remove it. */
+function ChannelPicture({ c, admin, people, onChanged }: { c: ChannelOut; admin: boolean; people: Map<string, PersonOut>; onChanged: () => void }) {
+  const { base, call } = useChatApi();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [shown, setShown] = useState(c.avatar);
+  const pick = async (file: File) => {
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(file.type)) return toast({ tone: "error", title: "Use a PNG, JPG, GIF or WebP image" });
+    if (file.size > 15 * 1024 * 1024) return toast({ tone: "error", title: "That image is over 15 MB" });
+    setBusy(true);
+    try {
+      const square = await squareImage(file, 512);
+      const res = await fetch(`${base}/channels/${c.id}/files?name=${encodeURIComponent("picture.jpg")}`, { method: "POST", headers: { "Content-Type": square.type }, body: square });
+      const up = (await res.json()) as { file?: { id: string }; error?: { message?: string } };
+      if (!res.ok || !up.file) throw new Error(up.error?.message ?? "Couldn't upload the picture");
+      await call(`channels/${c.id}`, "PATCH", { avatarFileId: up.file.id });
+      setShown(up.file.id);
+      toast({ tone: "success", title: c.kind === "group" ? "Group picture updated" : "Channel picture updated" });
+      onChanged();
+    } catch (e) {
+      toast({ tone: "error", title: errorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await call(`channels/${c.id}`, "PATCH", { avatarFileId: null });
+      setShown(null);
+      onChanged();
+    } catch (e) {
+      toast({ tone: "error", title: errorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex items-center gap-4">
+      <span className="relative">
+        <ConvIcon c={{ ...c, avatar: shown }} people={people} size={72} />
+        {busy && <span className="absolute inset-0 grid place-items-center rounded-[22px] bg-black/35 text-white"><Loader2 className="size-5 animate-spin" /></span>}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[13px] font-medium">{c.kind === "group" ? "Group picture" : "Channel picture"}</p>
+        {admin ? (
+          <div className="mt-2 flex flex-wrap gap-2">
+            <label className={cx("inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border border-border px-3 text-[12.5px] font-medium hover:bg-surface-2", busy && "pointer-events-none opacity-50")}>
+              <ImagePlus className="size-3.5" />{shown ? "Change picture" : "Add a picture"}
+              <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void pick(f); }} />
+            </label>
+            {shown && <Button size="sm" variant="ghost" disabled={busy} onClick={() => void remove()}>Remove</Button>}
+          </div>
+        ) : (
+          <p className="mt-0.5 text-[12px] text-muted">Its admins can change it.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Crops an image to its centre square and scales it to `size` px, as a JPEG. */
+async function squareImage(file: File, size: number): Promise<Blob> {
+  const img = await createImageBitmap(file);
+  const side = Math.min(img.width, img.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = Math.min(size, side);
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, canvas.width, canvas.height);
+  img.close();
+  return new Promise((ok, fail) => canvas.toBlob((b) => (b ? ok(b) : fail(new Error("Couldn't read that image"))), "image/jpeg", 0.88));
 }

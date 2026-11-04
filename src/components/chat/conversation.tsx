@@ -4,7 +4,7 @@
 // links), the live message list, the composer, and side panels for a thread
 // and for AI (catch me up, ask the conversation).
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowLeft, AtSign, BarChart3, Bot, Check, ChevronDown, FileText, Gavel, Hash, Link2, Loader2, Lock, Maximize2, MessagesSquare, Minimize2, Phone, Pin, Search, Settings2, Sparkles, Star, UserPlus, Users, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, AtSign, BarChart3, Bot, Check, ChevronDown, FileText, Gavel, Link2, Loader2, Lock, Maximize2, MessagesSquare, Minimize2, MoreHorizontal, Phone, Pin, Search, Settings2, Sparkles, Star, UserPlus, Users, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCompose } from "@/components/mail/compose-provider";
@@ -20,7 +20,7 @@ import { Composer, EmojiPicker, type ComposerHandle } from "./composer";
 import { GuestsDialog } from "./guests";
 import { ApprovalDialog, ChannelSettings, ChecklistDialog, DecisionDialog, ForwardDialog, MeetingDialog, PollDialog, RemindDialog, TaskDialog } from "./dialogs";
 import { Message, RichText, type Ops } from "./message";
-import { Avatar, channelTitle, chatKey, dayLabel, fileSize, presenceOf, shortWhen, useChatApi, useChatLive } from "./shared";
+import { Avatar, ConvIcon, channelTitle, chatKey, dayLabel, fileSize, presenceOf, shortWhen, useChatApi, useChatLive } from "./shared";
 
 type Tab = "messages" | "pinned" | "files" | "decisions" | "polls" | "links";
 
@@ -401,10 +401,8 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
       <button type="button" aria-label="Back" onClick={onBack} className="chat-press grid size-9 place-items-center rounded-full hover:bg-surface-2 @4xl/chat:hidden"><ArrowLeft className="size-4" /></button>
       {channel.kind === "dm" ? (
         <Avatar id={channel.people[0] ?? ""} name={title} person={dmPerson} size={38} />
-      ) : channel.kind === "group" ? (
-        <span className="grid size-[38px] place-items-center rounded-[12px] bg-gradient-to-br from-violet-500 to-sky-500 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_-6px_rgba(124,58,237,0.6)]"><Users className="size-4" /></span>
       ) : (
-        <span className="grid size-[38px] place-items-center rounded-[12px] text-[17px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_-6px_rgba(0,0,0,0.35)]" style={{ background: channel.color }}>{channel.emoji || (channel.visibility === "private" ? <Lock className="size-4" /> : <Hash className="size-4" />)}</span>
+        <button type="button" onClick={() => setDlg({ kind: "settings" })} aria-label="Conversation details" className="shrink-0 rounded-[12px]"><ConvIcon c={channel} people={people} size={38} className="shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_4px_12px_-6px_rgba(0,0,0,0.35)]" /></button>
       )}
       <button type="button" onClick={() => setDlg({ kind: "settings" })} className="group/title min-w-0 flex-1 rounded-[10px] px-1 py-0.5 text-left">
         <p className="flex items-center gap-1.5 truncate text-[15.5px] font-semibold tracking-[-0.01em]">
@@ -434,22 +432,41 @@ export function Conversation({ channel: liveChannel, meta, people, focus, onBack
             {liveChannel.requests > 0 && <span className="@2xl/chat:hidden">{liveChannel.requests}</span>}
           </button>
         )}
-        <Menu
-          label="Views"
-          trigger={(p) => (
-            <button {...p} type="button" aria-label={`View: ${current.label}`} title="Messages, pinned, files and more" className="chat-press mx-0.5 inline-flex h-8 items-center gap-1 rounded-full border border-border bg-[var(--surface-solid)] pr-2 pl-3 text-[12.5px] font-medium hover:bg-surface-2">
-              <span className="max-w-[6.5rem] truncate">{current.label}</span>
-              <ChevronDown className="size-3.5 text-muted" />
-            </button>
-          )}
-          items={tabs.map((t) => ({ label: t.label, icon: t.id === tab ? <Check /> : t.icon, onSelect: () => setTab(t.id) }))}
-        />
-        {channel.member && <span className="hidden @md/chat:contents"><HeaderBtn label="Start a video call" onClick={() => void post({ call: { title: "" } })}><Phone /></HeaderBtn></span>}
+        {/* Views: in the header from tablets up; on phones only while one other than Messages is open. */}
+        <span className={tab === "messages" ? "hidden @2xl/chat:contents" : "contents"}>
+          <Menu
+            label="Views"
+            trigger={(p) => (
+              <button {...p} type="button" aria-label={`View: ${current.label}`} title="Messages, pinned, files and more" className="chat-press mx-0.5 inline-flex h-8 items-center gap-1 rounded-full border border-border bg-[var(--surface-solid)] pr-2 pl-3 text-[12.5px] font-medium hover:bg-surface-2">
+                <span className="max-w-[6.5rem] truncate">{current.label}</span>
+                <ChevronDown className="size-3.5 text-muted" />
+              </button>
+            )}
+            items={tabs.map((t) => ({ label: t.label, icon: t.id === tab ? <Check /> : t.icon, onSelect: () => setTab(t.id) }))}
+          />
+        </span>
+        {channel.member && <span className="hidden @2xl/chat:contents"><HeaderBtn label="Start a video call" onClick={() => void post({ call: { title: "" } })}><Phone /></HeaderBtn></span>}
         <HeaderBtn label="Find in this conversation" onClick={() => setFindOpen((x) => !x)} active={findOpen}><Search /></HeaderBtn>
-        {meta.ai && channel.ai && <HeaderBtn label="Catch me up (AI)" onClick={() => setSide(side?.kind === "ai" ? null : { kind: "ai" })} active={side?.kind === "ai"} tone="text-violet-600"><Sparkles /></HeaderBtn>}
+        {meta.ai && channel.ai && <span className="hidden @2xl/chat:contents"><HeaderBtn label="Catch me up (AI)" onClick={() => setSide(side?.kind === "ai" ? null : { kind: "ai" })} active={side?.kind === "ai"} tone="text-violet-600"><Sparkles /></HeaderBtn></span>}
         {channel.member && <span className="hidden @2xl/chat:contents"><HeaderBtn label={channel.starred ? "Unstar" : "Star"} onClick={() => void act(`channels/${channel.id}/prefs`, "PATCH", { starred: !channel.starred }).then(refreshMeta)}><Star className={cx(channel.starred && "fill-amber-400 text-amber-400")} /></HeaderBtn></span>}
         <span className="hidden lg:contents"><HeaderBtn label={full ? "Exit full screen (Esc)" : "Full screen"} onClick={() => setChatFull(!full)} active={full}>{full ? <Minimize2 /> : <Maximize2 />}</HeaderBtn></span>
-        <HeaderBtn label="Settings and people" onClick={() => setDlg({ kind: "settings" })}><Settings2 /></HeaderBtn>
+        <span className="hidden @2xl/chat:contents"><HeaderBtn label="Settings and people" onClick={() => setDlg({ kind: "settings" })}><Settings2 /></HeaderBtn></span>
+        {/* Phones: everything else in one menu, so nothing on the desktop is out of reach. */}
+        <span className="@2xl/chat:hidden">
+          <Menu
+            label="Conversation"
+            trigger={(p) => <button {...p} type="button" aria-label="More" className="chat-press grid size-9 place-items-center rounded-full text-muted hover:bg-surface-2 hover:text-fg"><MoreHorizontal className="size-[18px]" /></button>}
+            items={[
+              ...tabs.map((t) => ({ label: t.label, icon: t.id === tab ? <Check /> : t.icon, onSelect: () => setTab(t.id) })),
+              "separator" as const,
+              ...(meta.ai && channel.ai ? [{ label: "Catch me up (AI)", icon: <Sparkles className="text-violet-600" />, onSelect: () => setSide(side?.kind === "ai" ? null : { kind: "ai" }) }] : []),
+              ...(channel.member ? [{ label: "Start a video call", icon: <Phone />, onSelect: () => void post({ call: { title: "" } }) }] : []),
+              ...(canInvite ? [{ label: liveChannel.requests ? `${liveChannel.requests} waiting to be let in` : "Invite people from outside", icon: <UserPlus />, onSelect: () => setDlg({ kind: "guests" }) }] : []),
+              ...(channel.member ? [{ label: channel.starred ? "Unstar" : "Star", icon: <Star />, onSelect: () => void act(`channels/${channel.id}/prefs`, "PATCH", { starred: !channel.starred }).then(refreshMeta) }] : []),
+              { label: channel.kind === "dm" ? "Settings" : "Details, people & settings", icon: <Settings2 />, onSelect: () => setDlg({ kind: "settings" }) },
+            ]}
+          />
+        </span>
       </div>
     </header>
   );
@@ -585,7 +602,7 @@ function Intro({ channel, title, people, meta }: { channel: ChannelOut; title: s
   const search = useShortcuts().keys("mod+k");
   return (
     <div className="px-5 pt-10 pb-4">
-      {channel.kind === "dm" && p ? <Avatar id={p.id} name={p.name} person={p} size={64} /> : <span className="grid size-16 place-items-center rounded-[20px] text-[28px] text-white" style={{ background: channel.kind === "group" ? "linear-gradient(135deg,#7c3aed,#0ea5e9)" : channel.color }}>{channel.emoji || (channel.kind === "group" ? <Users className="size-7" /> : <Hash className="size-7" />)}</span>}
+      {channel.kind === "dm" && p ? <Avatar id={p.id} name={p.name} person={p} size={64} /> : <ConvIcon c={channel} people={people} size={64} />}
       <h2 className="mt-3 text-[22px] font-semibold tracking-tight">{channel.kind === "channel" ? `Welcome to #${channel.name}` : title}</h2>
       <p className="mt-1 max-w-xl text-[13.5px] text-muted">
         {channel.kind === "dm" ? `This is the start of your conversation with ${p?.name ?? "them"}. ${p?.email ?? ""}` : channel.description || channel.topic || (channel.kind === "group" ? `The start of your group chat with ${channel.people.map((u) => people.get(u)?.name.split(" ")[0]).filter(Boolean).join(", ")}.` : "The start of this channel.")}
@@ -734,7 +751,7 @@ function Thread({ channel, meta, people, rootId, ops, base, post, onClose, onOpe
             onOpen={onOpen}
             onStatus={onStatus}
             onRemind={onRemind}
-            extra={channel.member ? <label className="ml-1 hidden items-center gap-1.5 text-[11.5px] text-muted @sm/chat:flex"><input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} className="size-3.5 rounded" />Also send to {channel.kind === "channel" ? `#${channel.name}` : "the chat"}</label> : undefined}
+            extra={channel.member ? <label className="ml-1 flex min-w-0 items-center gap-1.5 text-[11.5px] text-muted @max-md/chat:order-last @max-md/chat:ml-0 @max-md/chat:w-full @max-md/chat:px-1 @max-md/chat:pt-1"><input type="checkbox" checked={also} onChange={(e) => setAlso(e.target.checked)} className="size-3.5 rounded" />Also send to {channel.kind === "channel" ? `#${channel.name}` : "the chat"}</label> : undefined}
           />
         )}
       </div>

@@ -24,7 +24,7 @@ export const channelSchema = z.object({
   ai: z.boolean().default(true),
   members: z.array(z.uuid()).max(500).default([]),
 });
-export const channelPatchSchema = channelSchema.omit({ members: true }).partial().extend({ archived: z.boolean().optional() });
+export const channelPatchSchema = channelSchema.omit({ members: true }).partial().extend({ archived: z.boolean().optional(), /** An uploaded image to use as its picture, or null to remove it. */ avatarFileId: z.uuid().nullable().optional() });
 export const groupSchema = z.object({ users: z.array(z.uuid()).min(1, "Pick someone").max(49), name: z.string().trim().max(60).default("") });
 
 const recordRef = z.object({ kind: z.string().regex(/^[a-z0-9_-]{1,40}$/), id: z.string().regex(/^[\w-]{1,80}$/), label: z.string().trim().min(1).max(120), link: z.string().max(400) });

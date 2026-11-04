@@ -5,11 +5,12 @@
 // everywhere and tells open conversations what changed), presence, avatars
 // and time formats.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Hash, Lock, Users } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { cx } from "@/components/ui/primitives";
 import { api } from "@/lib/client/api";
-import type { MetaOut, PersonOut } from "@/lib/chat/api";
+import type { ChannelOut, MetaOut, PersonOut } from "@/lib/chat/api";
 import { STATUS_LABEL, type Status } from "@/lib/chat/model";
 import { visibleTo } from "@/lib/workspace/modules";
 
@@ -208,4 +209,21 @@ export function channelTitle(c: { kind: string; name: string; people: string[] }
   const names = c.people.map((u) => people.get(u)?.name ?? "Someone");
   if (c.kind === "dm") return names[0] ?? "Just you";
   return names.length > 3 ? `${names.slice(0, 3).map((n) => n.split(" ")[0]).join(", ")} +${names.length - 3}` : names.map((n) => n.split(" ")[0]).join(", ");
+}
+
+/**
+ * A conversation's icon: the other person for a direct message; otherwise its
+ * picture when its admins have set one, or its colour and emoji (a channel) or
+ * the group glyph. Corners and glyphs scale with the size.
+ */
+export function ConvIcon({ c, people, size = 22, className }: { c: ChannelOut; people: Map<string, PersonOut>; size?: number; className?: string }) {
+  const { base } = useChatApi();
+  if (c.kind === "dm") return <Avatar id={c.people[0] ?? c.id} name={channelTitle(c, people)} person={people.get(c.people[0] ?? "")} size={size} />;
+  const radius = size >= 56 ? Math.round(size * 0.3) : size > 28 ? Math.round(size * 0.3) : 7;
+  const box = { width: size, height: size, borderRadius: radius };
+  // eslint-disable-next-line @next/next/no-img-element -- a private chat file, served by the chat API with the session cookie
+  if (c.avatar) return <img src={`${base}/files/${c.avatar}`} alt="" className={cx("shrink-0 bg-surface-2 object-cover shadow-[inset_0_0_0_1px_rgba(0,0,0,0.06)]", className)} style={box} />;
+  const glyph = { width: Math.round(size * 0.5), height: Math.round(size * 0.5) };
+  if (c.kind === "group") return <span className={cx("grid shrink-0 place-items-center bg-gradient-to-br from-violet-500 to-sky-500 text-white", className)} style={box}><Users style={glyph} /></span>;
+  return <span className={cx("grid shrink-0 place-items-center text-white", className)} style={{ ...box, background: c.color, fontSize: Math.max(12, Math.round(size * 0.5)) }}>{c.emoji || (c.visibility === "private" ? <Lock style={glyph} /> : <Hash style={glyph} />)}</span>;
 }

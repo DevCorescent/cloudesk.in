@@ -12,6 +12,8 @@ export type ChannelOut = {
   visibility: "public" | "private";
   emoji: string;
   color: string;
+  /** Its picture (a chat file id), set by its admins; groups and channels only. */
+  avatar: string | null;
   posting: "everyone" | "admins";
   ai: boolean;
   archived: boolean;

@@ -447,11 +447,13 @@ export const Message = memo(function Message({ m, ops, compact, base, inThread, 
   const closeSheet = useCallback(() => setSheet(false), []);
   if (m.kind === "system") {
     return (
-      <div id={`m-${m.id}`} className={cx("flex items-center justify-center gap-2 px-4 py-2 text-center text-[12px] text-muted", isNew && "chat-msg-in")}>
-        <span className="h-px w-8 bg-gradient-to-r from-transparent to-border" />
-        <span className="max-w-[80%] rounded-full bg-surface-2/70 px-3 py-0.5"><RichText body={m.body} ops={ops} /></span>
-        <span className="shrink-0 text-[11px] text-subtle tabular-nums">{clock(m.createdAt)}</span>
-        <span className="h-px w-8 bg-gradient-to-l from-transparent to-border" />
+      <div id={`m-${m.id}`} className={cx("flex items-center justify-center gap-3 px-4 py-2.5 text-[12px] text-muted", isNew && "chat-msg-in")}>
+        <span className="hidden h-px max-w-12 flex-1 bg-gradient-to-r from-transparent to-border @md/chat:block" />
+        {/* The time sits inside the pill, so a wrapped line stays centred. */}
+        <span className="max-w-[min(92%,36rem)] rounded-[14px] bg-surface-2/70 px-3 py-1 text-center leading-snug">
+          <RichText body={m.body} ops={ops} /><span className="ml-1.5 text-[11px] whitespace-nowrap text-subtle tabular-nums">{clock(m.createdAt)}</span>
+        </span>
+        <span className="hidden h-px max-w-12 flex-1 bg-gradient-to-l from-transparent to-border @md/chat:block" />
       </div>
     );
   }

@@ -1,0 +1,1 @@
+ALTER TABLE "team_channels" ADD COLUMN "avatar_file_id" uuid;

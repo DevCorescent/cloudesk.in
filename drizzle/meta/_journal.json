@@ -750,6 +750,13 @@
       "when": 1793727424254,
       "tag": "0106_subscription_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793791872116,
+      "tag": "0107_chat_avatars",
+      "breakpoints": true
     }
   ]
 }

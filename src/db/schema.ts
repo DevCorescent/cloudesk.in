@@ -7469,6 +7469,8 @@ export const teamChannels = pgTable("team_channels", {
   visibility: text("visibility").notNull().default("public"),
   emoji: text("emoji").notNull().default(""),
   color: text("color").notNull().default("#2563eb"),
+  /** A picture for a group or channel (an image in team_files), set by its admins. */
+  avatarFileId: uuid("avatar_file_id"),
   /** DMs: the two user ids, sorted and joined — one DM per pair. */
   dmKey: text("dm_key"),
   /** { posting: "everyone" | "admins", ai: boolean } */
