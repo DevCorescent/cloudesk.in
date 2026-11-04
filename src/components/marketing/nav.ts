@@ -64,6 +64,7 @@ export function searchIndex(): SearchEntry[] {
     ...FEATURES.map((f) => ({ kind: "Feature" as const, title: f.name, line: f.short, href: `/features/${f.slug}`, group: groupOf.get(f.slug), words: [f.name, f.short, f.title, f.lede, ...f.highlights.map((h) => h.title)].join(" ").toLowerCase() })),
     ...BUSINESSES.map((b) => ({ kind: "Industry" as const, title: b.name, line: b.line, href: `/for/${b.slug}`, words: [b.name, b.slug, b.industry, b.line].join(" ").toLowerCase() })),
     { kind: "Page", title: "All features", line: "Everything Cloudesk does, by category", href: "/features", words: "features modules all products" },
+    { kind: "Page", title: "Cloudesk AI", line: "Every AI power in one place", href: "/intelligence", words: "ai artificial intelligence copilot assistant gpt claude gemini smart automation" },
     { kind: "Page", title: "Pricing", line: "Plans, the free trial and building your own", href: "/pricing", words: "pricing price plans cost trial subscription billing" },
     { kind: "Page", title: "Become a partner", line: "Earn a recurring share of what the customers you bring pay", href: "/partners", words: "partner partners affiliate referral reseller agency freelancer influencer commission earn program" },
     { kind: "Page", title: "All industries", line: "Set up for your kind of business", href: "/for", words: "industries businesses solutions" },

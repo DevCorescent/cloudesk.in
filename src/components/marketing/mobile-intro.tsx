@@ -4,20 +4,19 @@
 // story — too many apps, then one: the store, every inbox and chat, the
 // calendar and getting paid, all on Cloudesk — ending on the right sign-up
 // for what they came to do. Each screen shows the real app (a browser window
-// with a phone in front) in the homepage's light pastel look, after a short
-// logo splash on every load. "Explore the website" lets them through to the
+// with a phone in front) on the pages' matte black lit by each screen's tone,
+// after a short logo splash on every load. "Setup with AI" opens the sign-up
+// conversation from any screen. "Explore the website" lets them through to the
 // full page for the rest of the visit.
 import "./mobile-intro.css";
 import clsx from "clsx";
-import { ArrowRight, ChevronRight, X, BellRing, CalendarCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, RefreshCw, ScanBarcode, Sparkles, Store, TrendingUp, Video, Zap, type LucideIcon } from "lucide-react";
+import { ArrowRight, BellRing, CalendarCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, RefreshCw, ScanBarcode, ScanSearch, Sparkles, Wand2, Store, TrendingUp, Video, Zap, type LucideIcon } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 import { IPhone17, type IPhoneColor } from "@/components/marketing/iphone";
-import { ModuleGlyph } from "@/components/shell/module-glyph";
-import { MODULE_GROUPS, MODULES, type Tint } from "@/lib/workspace/modules";
 
 // AI mode loads only when it's opened.
 const PublicAiMode = dynamic(() => import("@/components/ai-mode/public-ai").then((m) => m.PublicAiMode), { ssr: false });
@@ -74,6 +73,19 @@ const SLIDES: Slide[] = [
       { icon: LayoutGrid, text: "35+ apps, one login", at: { top: "0", left: "0" }, from: "l" },
       { icon: Zap, text: "Set up in minutes", at: { top: "52%", left: "-2%" }, from: "l" },
       { icon: Gift, text: "Free for 30 days", at: { bottom: "6%", left: "2%" }, from: "l" },
+    ],
+  },
+  {
+    id: "ai",
+    tone: "#8b6cff",
+    title: <>AI that <em>runs with you</em>.</>,
+    sub: "Ask your books. It drafts, checks and builds.",
+    screen: "copilot/checks",
+    phones: ["phones/chatbot", "phones/ai-ide"],
+    badges: [
+      { icon: Sparkles, text: "Ask in plain words", at: { top: "0", left: "0" }, from: "l" },
+      { icon: ScanSearch, text: "Catches duplicate bills", at: { top: "52%", left: "-2%" }, from: "l" },
+      { icon: Wand2, text: "Nothing changes till you confirm", at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {
@@ -141,7 +153,6 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   const stage = useRef<HTMLDivElement>(null);
   // The logo splash plays first; nothing on the screens animates until it clears.
   const [splash, setSplash] = useState<"on" | "leaving" | "off">("on");
-  const [features, setFeatures] = useState(false);
   const [aiMode, setAiMode] = useState(false);
   const ready = splash !== "on";
 
@@ -186,10 +197,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
   // Moves on by itself until they take over.
   useEffect(() => {
-    if (!ready || !auto || dragging || features || aiMode || at >= LAST) return;
+    if (!ready || !auto || dragging || aiMode || at >= LAST) return;
     const t = setTimeout(() => go(at + 1, false), AUTO_MS);
     return () => clearTimeout(t);
-  }, [ready, auto, dragging, features, aiMode, at, go]);
+  }, [ready, auto, dragging, aiMode, at, go]);
 
   // The status bar matches the intro on phones; the page's own colour comes back when it goes.
   useEffect(() => {
@@ -198,7 +209,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
     const mq = window.matchMedia(PHONE);
     const apply = () => {
       const on = mq.matches && !document.documentElement.classList.contains("intro-off");
-      metas.forEach((m, i) => (m.content = on ? "#f7f4fb" : before[i]!));
+      metas.forEach((m, i) => (m.content = on ? "#0b0b0c" : before[i]!));
     };
     apply();
     mq.addEventListener("change", apply);
@@ -214,13 +225,13 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   // Arrow keys for anyone with a keyboard.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off") || features || aiMode) return;
+      if (!window.matchMedia(PHONE).matches || document.documentElement.classList.contains("intro-off") || aiMode) return;
       if (e.key === "ArrowRight") go(at + 1);
       if (e.key === "ArrowLeft") go(at - 1);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [at, go, features, aiMode]);
+  }, [at, go, aiMode]);
 
   const explore = () => {
     try {
@@ -293,7 +304,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
         <Wordmark className="text-[20px]" />
         <button type="button" className="mi-ai" onClick={() => setAiMode(true)} aria-haspopup="dialog">
           <Sparkles className="size-3.5" aria-hidden />
-          AI mode
+          <span>AI mode</span>
         </button>
         {last ? (
           <Link href={signedIn ? "/home" : "/login"} className="mi-link">
@@ -362,9 +373,9 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
       </div>
 
       <div className="mi-bar" data-hide={last || undefined}>
-        <button type="button" className="mi-all" onClick={() => setFeatures(true)} tabIndex={last ? -1 : undefined} aria-haspopup="dialog">
-          <LayoutGrid className="size-[15px]" aria-hidden />
-          All features
+        <button type="button" className="mi-setup" onClick={() => setAiMode(true)} tabIndex={last ? -1 : undefined} aria-haspopup="dialog">
+          <Sparkles className="size-[15px]" aria-hidden />
+          <span>Setup with AI</span>
         </button>
         <button type="button" className="mi-next" onClick={() => go(at + 1)} tabIndex={last ? -1 : undefined}>
           <span>{at === LAST - 1 ? "Get started" : "Continue"}</span>
@@ -374,122 +385,6 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
         </button>
       </div>
       {aiMode && <PublicAiMode onClose={() => setAiMode(false)} />}
-      <FeatureSheet open={features} onClose={() => setFeatures(false)} startHref={signedIn ? "/home" : "/start"} startLabel={signedIn ? "Open my workspace" : "Start free"} />
-    </div>
-  );
-}
-
-// ─── Every feature, in a sheet from below ──────────────────────────────────
-
-/** Each tint as a colour that reads on the light sheet. */
-const TINT: Record<Tint, string> = { peach: "#c2562c", lavender: "#5b48b0", mint: "#1f7a55", sky: "#2d6db5", butter: "#9a6b00", rose: "#b03a6b" };
-const GROUPS = MODULE_GROUPS.map((g) => ({ ...g, items: MODULES.filter((m) => m.group === g.id) })).filter((g) => g.items.length);
-
-function FeatureSheet({ open, onClose, startHref, startLabel }: { open: boolean; onClose: () => void; startHref: string; startLabel: string }) {
-  const list = useRef<HTMLDivElement>(null);
-  const sheet = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ y: number; t: number } | null>(null);
-  const [pull, setPull] = useState(0);
-  const [group, setGroup] = useState(GROUPS[0]!.id);
-
-  // Esc closes; each opening starts at the top.
-  useEffect(() => {
-    if (!open) return;
-    list.current?.scrollTo({ top: 0 });
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  // The category strip follows the list as it scrolls.
-  const onScroll = () => {
-    const el = list.current;
-    if (!el) return;
-    const top = el.scrollTop + 8;
-    let current = GROUPS[0]!.id;
-    for (const g of GROUPS) {
-      const sec = el.querySelector<HTMLElement>(`[data-group="${g.id}"]`);
-      if (sec && sec.offsetTop <= top) current = g.id;
-    }
-    if (current !== group) setGroup(current);
-  };
-  const jump = (id: string) => {
-    const el = list.current;
-    const sec = el?.querySelector<HTMLElement>(`[data-group="${id}"]`);
-    if (el && sec) el.scrollTo({ top: sec.offsetTop, behavior: "smooth" });
-  };
-
-  // Drag the handle down to dismiss.
-  const onDown = (e: React.PointerEvent) => {
-    drag.current = { y: e.clientY, t: performance.now() };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const onMove = (e: React.PointerEvent) => drag.current && setPull(Math.max(0, e.clientY - drag.current.y));
-  const onUp = () => {
-    const d = drag.current;
-    drag.current = null;
-    if (!d) return;
-    const v = pull / Math.max(1, performance.now() - d.t);
-    if (pull > 110 || v > 0.6) onClose();
-    setPull(0);
-  };
-
-  return (
-    <div className="mi-sheet-wrap" data-open={open || undefined} inert={!open}>
-      <button type="button" className="mi-sheet-scrim" aria-label="Close" tabIndex={-1} onClick={onClose} />
-      <div ref={sheet} className={clsx("mi-sheet", pull > 0 && "is-pulling")} role="dialog" aria-modal="true" aria-label="All features" style={pull ? { transform: `translate3d(0,${pull}px,0)` } : undefined}>
-        <div className="mi-sheet-grab" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
-          <span className="mi-sheet-handle" />
-          <div className="mi-sheet-head">
-            <div>
-              <h2>All features</h2>
-              <p>{MODULES.length} apps · switch on what you need</p>
-            </div>
-            <button type="button" className="mi-sheet-x" onClick={onClose} aria-label="Close">
-              <X className="size-4" />
-            </button>
-          </div>
-        </div>
-        <nav className="mi-sheet-tabs" aria-label="Categories">
-          {GROUPS.map((g) => (
-            <button key={g.id} type="button" aria-current={group === g.id || undefined} onClick={() => jump(g.id)}>
-              {g.label.replace(/ — .*/, "")}
-              <span>{g.items.length}</span>
-            </button>
-          ))}
-        </nav>
-        <div ref={list} className="mi-sheet-list" onScroll={onScroll}>
-          {GROUPS.map((g, gi) => (
-            <section key={g.id} data-group={g.id} className="mi-sheet-group" style={{ "--g": gi } as CSSProperties}>
-              <h3>{g.label.replace(/ — .*/, "")}</h3>
-              <ul>
-                {g.items.map((m) => (
-                  <li key={m.id} style={{ "--c": TINT[m.tint] } as CSSProperties}>
-                    <Link href={`/features/${m.feature}`} tabIndex={open ? undefined : -1}>
-                      <span className="mi-sheet-ic">
-                        <ModuleGlyph id={m.id} className="size-[17px]" />
-                      </span>
-                      <span className="mi-sheet-tx">
-                        <b>{m.name}</b>
-                        {/* One line: the feature's first two highlights. */}
-                        <small>{m.adds.slice(0, 2).join(" · ")}</small>
-                      </span>
-                      <ChevronRight className="mi-sheet-go size-4" aria-hidden />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
-        <div className="mi-sheet-foot">
-          <Link href={startHref} className="mi-sheet-cta" tabIndex={open ? undefined : -1}>
-            {startLabel}
-            <ArrowRight className="size-4" aria-hidden />
-          </Link>
-
-        </div>
-      </div>
     </div>
   );
 }

@@ -128,6 +128,10 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
         <nav aria-label="Main" className="hidden items-center gap-0.5 text-[14px] lg:flex">
           {trigger("products", "Products")}
           {trigger("industries", "Industries")}
+          {/* Cloudesk AI: its own glowing tab. */}
+          <Link href="/intelligence" onMouseEnter={() => close(60)} aria-current={pathname === "/intelligence" ? "page" : undefined} className="mk-ai-tab">
+            <Sparkles className="size-3.5" /><span>AI</span>
+          </Link>
           <span aria-hidden className="mx-2 hidden h-4 w-px bg-fg/10 min-[1400px]:block" />
           {WORKDAY_TABS.map((t) => {
             const on = pathname === `/features/${t.slug}`;
@@ -194,7 +198,7 @@ export function SiteHeader({ signedIn }: { signedIn: boolean }) {
 }
 
 /** Pages whose first band is matte black (the homepage hero, components/marketing/dark-hero.tsx). */
-const DARK_TOP = [/^\/$/, /^\/features(\/[^/]+)?$/, /^\/for(\/[^/]+)?$/, /^\/pricing$/, /^\/partners$/];
+const DARK_TOP = [/^\/$/, /^\/intelligence$/, /^\/features(\/[^/]+)?$/, /^\/for(\/[^/]+)?$/, /^\/pricing$/, /^\/partners$/];
 
 /** The header's frame: the same width and gutters as the page below it. */
 const BAR = "mx-auto w-full max-w-[1600px] px-5 sm:px-8 lg:px-14 xl:px-20";
@@ -314,6 +318,9 @@ function MobileMenu({ onPick, onSearch }: { onPick: () => void; onSearch: () => 
       <button type="button" onClick={onSearch} className="mb-3 flex h-11 w-full items-center gap-2.5 rounded-full bg-fg/[0.05] px-4 text-[14px] text-fg/50">
         <Search className="size-4" /> Search features, industries…
       </button>
+      <Link href="/intelligence" onClick={onPick} className="mk-ai-tab !mx-0 mb-4 !flex !h-12 justify-center text-[15px]">
+        <Sparkles className="size-4" /><span>Cloudesk AI</span>
+      </Link>
       <p className="pt-1 text-[11px] font-semibold tracking-[0.14em] text-fg/40 uppercase">Your workday</p>
       <div className="flex flex-wrap gap-1.5 border-b border-fg/[0.06] py-3">
         {WORKDAY_TABS.map((t) => <Link key={t.slug} href={`/features/${t.slug}`} onClick={onPick} className="rounded-full bg-fg/[0.05] px-3.5 py-1.5 text-[13.5px] text-fg/80">{t.label}</Link>)}

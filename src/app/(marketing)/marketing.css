@@ -553,3 +553,182 @@
 .mk-cycle-word[data-on] { position: relative; opacity: 1; transform: none; filter: none; }
 .mk-cycle-word[data-gone] { transform: translateY(-70%); }
 @media (prefers-reduced-motion: reduce) { .mk-cycle, .mk-cycle-word { transition: none; } }
+
+/* ───────── Cloudesk AI (/intelligence, components/marketing/ai-page.tsx) ───────── */
+.aix-eyebrow { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: color-mix(in srgb, var(--fg) 48%, transparent); }
+.aix-eyebrow::before { content: ""; width: 22px; height: 1.5px; background: linear-gradient(90deg, #7c5cff, #f5474e); border-radius: 2px; }
+.aix-shine { background: linear-gradient(100deg, #b9a8ff 0%, #ff8fa3 40%, #fdba5a 70%, #b9a8ff 100%) 0 0 / 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: aix-shine 7s linear infinite; }
+@keyframes aix-shine { to { background-position: -220% 0; } }
+
+
+.aix-cta { position: relative; display: inline-flex; align-items: center; gap: 8px; height: 50px; padding: 0 26px; border-radius: 999px; font-size: 15px; font-weight: 500; color: #fff; background: linear-gradient(100deg, #6a4ee0, #d8416e 55%, #e98a1f); background-size: 200% 100%; box-shadow: 0 18px 50px -18px rgb(216 65 110 / 0.8), inset 0 1px 0 rgb(255 255 255 / 0.25); transition: transform 0.3s cubic-bezier(.2,.8,.2,1), background-position 0.8s, box-shadow 0.3s; }
+.aix-cta:hover:not(:disabled) { transform: translateY(-2px); background-position: 100% 0; box-shadow: 0 24px 60px -18px rgb(216 65 110 / 0.95), inset 0 1px 0 rgb(255 255 255 / 0.25); }
+.aix-cta:disabled { opacity: 0.6; }
+.aix-ghost { display: inline-flex; align-items: center; gap: 8px; height: 50px; padding: 0 22px; border-radius: 999px; font-size: 15px; color: var(--fg); background: rgb(255 255 255 / 0.06); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14); backdrop-filter: blur(12px); transition: background 0.3s; }
+.aix-ghost:hover { background: rgb(255 255 255 / 0.12); }
+
+/* The core: an aurora that turns, three rings, the apps in orbit, a beating heart. */
+.aix-core { position: relative; width: min(100%, 560px); aspect-ratio: 1; margin-inline: auto; }
+.aix-aurora { position: absolute; inset: 14%; border-radius: 50%; background: conic-gradient(from 0deg, #7c5cff, #f5474e, #fdba5a, #38bdf8, #7c5cff); filter: blur(60px); opacity: 0.55; animation: aix-spin 18s linear infinite; }
+.aix-ring { position: absolute; border-radius: 50%; border: 1px solid rgb(255 255 255 / 0.12); }
+.aix-ring-1 { inset: 30%; border-color: rgb(255 255 255 / 0.22); animation: aix-spin 30s linear infinite; border-top-color: rgb(255 255 255 / 0.6); }
+.aix-ring-2 { inset: 16%; border-style: dashed; animation: aix-spin 60s linear infinite reverse; }
+.aix-ring-3 { inset: 2%; border-color: rgb(255 255 255 / 0.07); }
+.aix-orbit { position: absolute; inset: 0; }
+.aix-sat { position: absolute; left: 50%; top: 50%; width: 0; height: 0; animation: aix-orbit 48s linear infinite; }
+.aix-sat-in { position: absolute; display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 999px; font-size: 12.5px; white-space: nowrap; color: rgb(255 255 255 / 0.88); background: rgb(20 20 26 / 0.72); box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.14), 0 10px 30px -12px rgb(0 0 0 / 0.8); backdrop-filter: blur(10px); transform: translate(-50%, -50%); animation: aix-orbit-in 48s linear infinite; }
+@keyframes aix-orbit { from { transform: rotate(0deg) translateX(min(36vw, 240px)); } to { transform: rotate(360deg) translateX(min(36vw, 240px)); } }
+@keyframes aix-orbit-in { from { transform: translate(-50%, -50%) rotate(0deg); } to { transform: translate(-50%, -50%) rotate(-360deg); } }
+@keyframes aix-spin { to { transform: rotate(360deg); } }
+.aix-heart { position: absolute; inset: 39%; display: grid; place-items: center; border-radius: 50%; color: #fff; background: radial-gradient(circle at 35% 30%, #9d86ff, #5b3fd6 55%, #2a1c6e); box-shadow: 0 0 80px rgb(124 92 255 / 0.7), inset 0 2px 0 rgb(255 255 255 / 0.3); animation: aix-beat 2.8s ease-in-out infinite; }
+.aix-pulse { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 1.5px rgb(185 168 255 / 0.8); animation: aix-wave 2.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+@keyframes aix-beat { 0%, 100% { transform: scale(1); } 15% { transform: scale(1.06); } 30% { transform: scale(0.98); } }
+@keyframes aix-wave { from { transform: scale(1); opacity: 0.9; } to { transform: scale(2.6); opacity: 0; } }
+
+/* Four powers. */
+.aix-power { position: relative; padding: 28px 0 28px 28px; border-left: 1.5px solid color-mix(in srgb, var(--fg) 10%, transparent); transition: opacity 0.5s; }
+@media (min-width: 1024px) { .aix-power { min-height: 62vh; display: flex; flex-direction: column; justify-content: center; opacity: 0.32; } .aix-power-on { opacity: 1; } }
+.aix-power::before { content: ""; position: absolute; left: -1.5px; top: 28px; width: 1.5px; height: 0; background: linear-gradient(#7c5cff, #f5474e); transition: height 0.7s cubic-bezier(.2,.8,.2,1); }
+.aix-power-on::before { height: calc(100% - 56px); }
+@media (max-width: 1023px) { .aix-power::before { height: calc(100% - 56px); } }
+.aix-power-n { font-size: 13px; letter-spacing: 0.2em; color: color-mix(in srgb, var(--fg) 40%, transparent); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+.aix-stage { height: min(72vh, 620px); }
+.aix-stage-glow { position: absolute; inset: 6% 4%; border-radius: 40px; filter: blur(70px); opacity: 0.5; transition: background 1s; background: radial-gradient(60% 60% at 50% 50%, var(--g, #c9bcff), transparent 70%); }
+.aix-stage-slot { position: absolute; inset: 0; display: grid; place-items: center; opacity: 0; transform: translateY(24px) scale(0.98); filter: blur(8px); transition: opacity 0.6s, transform 0.8s cubic-bezier(.2,.8,.2,1), filter 0.6s; pointer-events: none; }
+.aix-stage-slot[data-on] { opacity: 1; transform: none; filter: none; pointer-events: auto; }
+.aix-stage-card { position: relative; width: 100%; max-width: 600px; padding: 26px; border-radius: 28px; background: rgb(255 255 255 / 0.82); box-shadow: 0 40px 90px -40px rgb(40 30 90 / 0.45), inset 0 0 0 1px rgb(20 20 40 / 0.06); backdrop-filter: blur(20px); font-size: 14px; }
+.aix-stage-card .grid { grid-template-columns: minmax(0, 1fr); }
+.aix-sample { position: absolute; right: 18px; bottom: 12px; font-size: 10.5px; letter-spacing: 0.08em; color: color-mix(in srgb, var(--fg) 32%, transparent); }
+.aix-q { margin-left: auto; width: fit-content; max-width: 90%; padding: 12px 18px; border-radius: 20px 20px 6px 20px; background: #1d1d1f; color: #fff; font-size: 15px; }
+.aix-type { display: inline-block; overflow: hidden; white-space: nowrap; vertical-align: bottom; max-width: 100%; animation: aix-type 1.6s steps(44) both; }
+@keyframes aix-type { from { max-width: 0; } }
+.aix-a { margin-top: 18px; padding: 18px; border-radius: 20px; background: rgb(124 92 255 / 0.05); box-shadow: inset 0 0 0 1px rgb(124 92 255 / 0.12); }
+.aix-row { display: flex; align-items: center; gap: 12px; opacity: 0; animation: aix-up 0.6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(1.7s + var(--i) * 0.18s); }
+.aix-bar { position: absolute; inset: 0 auto 0 0; width: var(--w); border-radius: 9px; background: linear-gradient(90deg, #7c5cff, #d8416e); transform-origin: left; animation: aix-grow 1s cubic-bezier(.2,.8,.2,1) both; animation-delay: inherit; }
+@keyframes aix-grow { from { transform: scaleX(0); } }
+@keyframes aix-up { from { opacity: 0; transform: translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.aix-propose { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 18px; background: #fff; box-shadow: inset 0 0 0 1px rgb(20 20 40 / 0.07), 0 14px 30px -22px rgb(20 20 40 / 0.4); animation: aix-up 0.6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(0.2s + var(--i) * 0.2s); }
+.aix-confirm { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 84px; height: 32px; padding: 0 14px; border-radius: 999px; font-size: 12.5px; font-weight: 500; color: #fff; background: #1d1d1f; overflow: hidden; }
+.aix-confirm svg { position: absolute; opacity: 0; }
+.aix-propose-done .aix-confirm { animation: aix-confirmed 0.3s 2.4s both; }
+.aix-propose-done .aix-confirm span { animation: aix-gone 0.2s 2.4s both; }
+.aix-propose-done .aix-confirm svg { animation: aix-up 0.4s 2.5s both; }
+.aix-propose-done { animation: aix-up 0.6s cubic-bezier(.2,.8,.2,1) both, aix-done-ring 1.2s 2.4s both; }
+@keyframes aix-confirmed { to { background: #16a34a; } }
+@keyframes aix-gone { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes aix-done-ring { 0% { box-shadow: inset 0 0 0 1px rgb(22 163 74 / 0.6), 0 0 0 0 rgb(22 163 74 / 0.4); } 100% { box-shadow: inset 0 0 0 1px rgb(22 163 74 / 0.5), 0 0 0 14px rgb(22 163 74 / 0); } }
+.aix-scan { padding: 6px; background: rgb(20 20 40 / 0.025); }
+.aix-scanline { position: absolute; left: 0; right: 0; height: 60px; top: -60px; background: linear-gradient(180deg, transparent, rgb(124 92 255 / 0.14), transparent); animation: aix-scan 2.6s 0.3s cubic-bezier(.4,0,.2,1) 2; z-index: 1; pointer-events: none; }
+@keyframes aix-scan { to { top: 100%; } }
+.aix-ledger { position: relative; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 11px 12px; border-radius: 12px; background: #fff; font-size: 13.5px; animation: aix-up 0.5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i) * 0.12s); }
+.aix-flag { box-shadow: inset 0 0 0 1px rgb(234 88 12 / 0); animation: aix-up 0.5s cubic-bezier(.2,.8,.2,1) both, aix-flagged 0.6s 2.2s both; animation-delay: calc(var(--i) * 0.12s), calc(1.6s + var(--i) * 0.25s); }
+@keyframes aix-flagged { to { box-shadow: inset 0 0 0 1.5px rgb(234 88 12 / 0.55); background: #fff7ed; } }
+.aix-flag-tag { display: inline-flex; align-items: center; gap: 5px; width: 100%; font-size: 12px; color: #c2410c; opacity: 0; animation: aix-up 0.5s both; animation-delay: calc(1.8s + var(--i) * 0.25s); }
+.aix-build-shot { animation: aix-up 0.8s both; }
+.aix-build-prompt { display: flex; align-items: center; gap: 10px; margin: 12px 4px 0; padding: 12px 16px; border-radius: 16px; background: #1d1d1f; color: #fff; font-size: 14px; }
+.aix-diff { padding: 6px 12px; border-radius: 999px; font-size: 12.5px; background: rgb(124 92 255 / 0.08); color: #4b36b5; box-shadow: inset 0 0 0 1px rgb(124 92 255 / 0.16); opacity: 0; animation: aix-up 0.5s both; animation-delay: calc(1.8s + var(--i) * 0.25s); }
+
+/* Ask anything. */
+.aix-askbar { display: flex; align-items: center; gap: 16px; height: 76px; padding: 0 12px 0 26px; border-radius: 999px; background: var(--p-glass, #fff); box-shadow: 0 30px 80px -36px rgb(80 60 180 / 0.55), inset 0 0 0 1px rgb(124 92 255 / 0.18); position: relative; }
+.aix-askbar::before { content: ""; position: absolute; inset: -1.5px; border-radius: inherit; padding: 1.5px; background: conic-gradient(from var(--aix-a, 0deg), #7c5cff, #f5474e, #fdba5a, #38bdf8, #7c5cff); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: aix-turn 5s linear infinite; opacity: 0.8; }
+@property --aix-a { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+@keyframes aix-turn { to { --aix-a: 360deg; } }
+.aix-caret { display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -0.15em; background: #7c5cff; animation: aix-blink 1s steps(2) infinite; }
+@keyframes aix-blink { 50% { opacity: 0; } }
+.aix-ask-go { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #6a4ee0, #d8416e); flex: none; }
+.aix-marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+.aix-marquee-track { display: flex; gap: 12px; width: max-content; animation: aix-marquee 50s linear infinite; }
+.aix-marquee[data-rev] .aix-marquee-track { animation-direction: reverse; }
+@keyframes aix-marquee { to { transform: translateX(-50%); } }
+.aix-pill { padding: 12px 20px; border-radius: 999px; font-size: 14px; white-space: nowrap; color: color-mix(in srgb, var(--fg) 70%, transparent); background: color-mix(in srgb, var(--fg) 3.5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent); }
+
+/* Every AI feature. */
+.aix-tile { position: relative; overflow: hidden; padding: 26px; border-radius: 26px; background: #fff; box-shadow: inset 0 0 0 1px rgb(20 20 40 / 0.06), 0 24px 60px -44px rgb(20 20 40 / 0.4); transition: transform 0.5s cubic-bezier(.2,.8,.2,1), box-shadow 0.5s; isolation: isolate; }
+.aix-tile::after { content: ""; position: absolute; inset: auto -30% -60% -30%; height: 80%; z-index: -1; background: radial-gradient(50% 50% at 50% 50%, var(--t, #e9e4fc), transparent 70%); opacity: 0.6; transition: opacity 0.5s, transform 0.8s; }
+.aix-tile:hover { transform: translateY(-4px); box-shadow: inset 0 0 0 1px rgb(20 20 40 / 0.08), 0 34px 70px -40px rgb(20 20 40 / 0.5); }
+.aix-tile:hover::after { opacity: 1; transform: translateY(-12%); }
+.aix-tile-key { background: linear-gradient(160deg, #15131f, #221a3d); color: #f5f5f7; --fg: #f5f5f7; }
+.aix-tile-key::after { background: radial-gradient(50% 50% at 50% 50%, rgb(124 92 255 / 0.55), transparent 70%); }
+.aix-tile-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; background: var(--t, #e9e4fc); color: var(--t-ink, #5b48b0); }
+.aix-tile-key .aix-tile-icon { background: rgb(255 255 255 / 0.1); color: #c9bcff; }
+.aix-chip { padding: 5px 11px; border-radius: 999px; font-size: 12px; background: color-mix(in srgb, var(--t, #e9e4fc) 70%, transparent); color: var(--t-ink, #5b48b0); }
+.aix-lines { display: grid; gap: 8px; }
+.aix-lines i { display: block; height: 8px; border-radius: 9px; background: linear-gradient(90deg, color-mix(in srgb, var(--t-ink, #5b48b0) 18%, transparent), color-mix(in srgb, var(--t-ink, #5b48b0) 6%, transparent)); width: calc(92% - var(--i) * 13%); transform-origin: left; animation: aix-write 3.2s cubic-bezier(.2,.8,.2,1) infinite; animation-delay: calc(var(--i) * 0.25s); }
+@keyframes aix-write { 0% { transform: scaleX(0); opacity: 0.3; } 40%, 85% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+.aix-doc { position: relative; padding: 16px; border-radius: 14px; background: color-mix(in srgb, var(--t, #fde3d4) 40%, #fff); box-shadow: inset 0 0 0 1px rgb(20 20 40 / 0.06); overflow: hidden; }
+.aix-doc-scan { position: absolute; left: 0; right: 0; height: 2px; top: 0; background: var(--t-ink, #b4542d); box-shadow: 0 0 18px 4px color-mix(in srgb, var(--t-ink, #b4542d) 40%, transparent); animation: aix-docscan 2.6s ease-in-out infinite alternate; }
+@keyframes aix-docscan { to { top: 100%; } }
+.aix-cycle { height: 44px; overflow: hidden; border-radius: 14px; background: color-mix(in srgb, var(--fg) 6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent); }
+.aix-cycle-track { display: grid; animation: aix-cycle calc(var(--n) * 1.8s) steps(var(--n), end) infinite; }
+.aix-cycle-track span { height: 44px; display: flex; align-items: center; padding: 0 16px; font-size: 14px; font-weight: 500; }
+@keyframes aix-cycle { to { transform: translateY(calc(var(--n) * -44px)); } }
+.aix-code { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; background: #15131f; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+.aix-code i { font-style: normal; color: #86efac; opacity: 0; animation: aix-up 0.5s both, aix-fadeout 6s infinite; animation-delay: calc(var(--i, 0) * 0.3s); }
+.aix-code i:nth-child(2) { color: #fca5a5; --i: 1; } .aix-code i:nth-child(3) { --i: 2; }
+@keyframes aix-fadeout { 0%, 90% { opacity: 1; } 100% { opacity: 0; } }
+.aix-chat { display: grid; gap: 8px; font-size: 13px; }
+.aix-chat i { font-style: normal; width: fit-content; max-width: 88%; padding: 9px 14px; border-radius: 16px; animation: aix-up 0.6s both; }
+.aix-chat i:first-child { margin-left: auto; background: #1d1d1f; color: #fff; border-bottom-right-radius: 5px; }
+.aix-chat i:last-child { background: color-mix(in srgb, var(--t, #fbdfe8) 70%, #fff); border-bottom-left-radius: 5px; animation-delay: 0.9s; }
+
+/* Real screens. */
+.aix-screen-tab { position: relative; display: block; width: 100%; overflow: hidden; padding: 18px 20px; border-radius: 18px; text-align: left; transition: background 0.4s; }
+.aix-screen-tab:hover { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+.aix-screen-on { background: #fff; box-shadow: inset 0 0 0 1px rgb(20 20 40 / 0.06), 0 20px 40px -30px rgb(20 20 40 / 0.4); }
+.aix-screen-bar { position: absolute; left: 20px; right: 20px; bottom: 0; height: 2px; border-radius: 2px; background: linear-gradient(90deg, #7c5cff, #f5474e); transform: scaleX(0); transform-origin: left; }
+.aix-screen-on .aix-screen-bar { animation: aix-fill 4.2s linear both; }
+@keyframes aix-fill { to { transform: scaleX(1); } }
+
+/* The films band rises out of the light page. */
+.aix-fade-in { height: clamp(90px, 12vw, 200px); background: linear-gradient(to bottom, transparent, #0b0b0c); position: relative; z-index: 1; pointer-events: none; }
+
+/* The guard rails. */
+.aix-rail { padding: 30px; background: #fff; transition: background 0.4s; }
+.aix-rail:hover { background: #fbfaff; }
+.aix-rail svg { color: #6a4ee0; }
+
+/* The closing call to start: a dark glowing panel. */
+.aix-pre { --fg: #f7f7f8; position: relative; overflow: hidden; isolation: isolate; padding: clamp(28px, 5vw, 72px); border-radius: clamp(28px, 3vw, 44px); background: #0c0b12; color: var(--fg); box-shadow: 0 60px 120px -60px rgb(60 40 160 / 0.7); }
+.aix-pre-glow { position: absolute; inset: 0; z-index: -1; background: radial-gradient(50% 70% at 0% 0%, rgb(124 92 255 / 0.45), transparent 70%), radial-gradient(45% 60% at 100% 100%, rgb(245 71 78 / 0.35), transparent 70%), radial-gradient(40% 50% at 70% 10%, rgb(253 186 90 / 0.18), transparent 70%); animation: mk-dark-breathe 8s ease-in-out infinite alternate; }
+.aix-plus { position: relative; width: 14px; height: 14px; flex: none; }
+.aix-plus::before, .aix-plus::after { content: ""; position: absolute; left: 0; right: 0; top: 6px; height: 1.5px; background: currentColor; transition: transform 0.4s cubic-bezier(.2,.8,.2,1); }
+.aix-plus::after { transform: rotate(90deg); }
+.aix-plus-on::after { transform: rotate(0deg); }
+
+/* The AI tab in the header: a hairline gradient ring that turns slowly, and a faint halo. */
+.mk-ai-tab { position: relative; display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 13px; margin: 0 4px; border-radius: 999px; font-weight: 500; color: color-mix(in srgb, var(--fg) 82%, transparent); isolation: isolate; transition: color 0.2s, background 0.2s; }
+.mk-ai-tab:hover, .mk-ai-tab[aria-current] { color: var(--fg); background: color-mix(in srgb, var(--fg) 4%, transparent); }
+.mk-ai-tab::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; background: conic-gradient(from var(--aix-a, 0deg), #8b6cff, #e8677a, #f0b066, #7cc4f0, #8b6cff); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; opacity: 0.55; animation: aix-turn 9s linear infinite; }
+.mk-ai-tab::after { content: ""; position: absolute; inset: -3px; z-index: -1; border-radius: inherit; background: radial-gradient(60% 80% at 50% 50%, rgb(139 108 255 / 0.35), transparent 75%); filter: blur(8px); opacity: 0.35; }
+.mk-ai-tab svg { color: #7c5cff; }
+.mk-head-dark .mk-ai-tab svg { color: #c9bcff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .aix-aurora, .aix-ring, .aix-sat, .aix-sat-in, .aix-heart, .aix-pulse, .aix-shine, .aix-marquee-track, .aix-lines i, .aix-doc-scan, .aix-cycle-track, .aix-askbar::before, .mk-ai-tab::before, .mk-ai-tab::after, .aix-pre-glow { animation: none !important; }
+}
+
+/* Cloudesk AI on phones: tighter, thumb-sized, nothing wider than the screen. */
+@media (max-width: 639.98px) {
+  .aix-core { width: min(100%, 380px); }
+  .aix-sat-in { height: 30px; padding: 0 10px; font-size: 11.5px; gap: 5px; }
+  .aix-power { padding: 18px 0 18px 18px; }
+  .aix-power::before { top: 18px; }
+  .aix-stage-card { padding: 16px; border-radius: 22px; font-size: 13px; }
+  .aix-q { font-size: 13.5px; padding: 10px 14px; }
+  .aix-type { white-space: normal; animation: aix-up 0.8s both; }
+  .aix-a { padding: 14px; }
+  .aix-row > span:first-child { width: 6.5rem; }
+  .aix-propose { padding: 11px; gap: 10px; }
+  .aix-confirm { min-width: 72px; padding: 0 10px; }
+  .aix-ledger { padding: 9px 10px; font-size: 12.5px; }
+  .aix-build-prompt { font-size: 12.5px; padding: 10px 12px; }
+  .aix-askbar { height: 60px; gap: 12px; padding: 0 8px 0 18px; }
+  .aix-ask-go { width: 44px; height: 44px; }
+  .aix-pill { padding: 9px 15px; font-size: 13px; }
+  .aix-tile { padding: 20px; border-radius: 22px; }
+  .aix-screen-tab { padding: 14px 16px; }
+  .aix-rail { padding: 22px; }
+  .aix-rail h3 { margin-top: 18px; }
+  .aix-pre { padding: 26px 18px; border-radius: 28px; }
+    .aix-cta, .aix-ghost { height: 52px; }
+  }
