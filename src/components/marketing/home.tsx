@@ -5,7 +5,7 @@
 // an iPhone, moving on by itself until someone picks one. Pauses on hover;
 // still for reduced motion.
 import clsx from "clsx";
-import { ArrowRight, BadgeIndianRupee, CalendarDays, Check, ChevronLeft, ChevronRight, Globe, Inbox, LayoutDashboard, Mail, MessagesSquare, NotebookPen, ReceiptText, ShoppingBag, SlidersHorizontal, Sparkles, Store, Users, Zap } from "lucide-react";
+import { ArrowRight, BadgeIndianRupee, CalendarDays, Check, ChevronLeft, ChevronRight, Globe, Hammer, Inbox, LayoutDashboard, Mail, MessagesSquare, NotebookPen, ReceiptText, ShoppingBag, SlidersHorizontal, Sparkles, Store, Users, Zap } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import Image from "next/image";
@@ -106,10 +106,10 @@ const TRACKS = [
 ] as const;
 
 const signup = (next: string, extra = "") => `/start?${extra}${extra ? "&" : ""}next=${encodeURIComponent(next)}`;
-/** The two quick ways in above the headline. */
+/** The two quick ways in above the headline: build (a website or a store, picked first) and the AI page. */
 const QUICK = [
-  { label: "Open a store", icon: ShoppingBag, tone: "#fdba74", href: signup("/launch?kind=store", "build=store") },
-  { label: "Create a website", icon: Globe, tone: "#a5b4fc", href: signup("/launch?kind=website") },
+  { label: "Build now", icon: Hammer, href: signup("/launch") },
+  { label: "Cloudesk AI", icon: Sparkles, href: "/intelligence" },
 ] as const;
 
 /** What “Run your whole …” cycles through, each with its colour. */
@@ -156,7 +156,7 @@ export function HomeHero() {
         <nav aria-label="Get started" className="hero-rise grid grid-cols-2 gap-2 max-[380px]:gap-1.5 sm:flex sm:flex-wrap">
           {QUICK.map((q) => (
             <Link key={q.label} href={q.href} className="hero-quick group inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-full py-1 pr-3.5 pl-1 text-[13px] font-medium max-[380px]:gap-1.5 max-[380px]:pr-2.5 max-[380px]:text-[12.5px] sm:h-9 sm:justify-start">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full max-[380px]:size-6" style={{ background: `color-mix(in srgb, ${q.tone} 22%, transparent)`, color: q.tone }}><q.icon className="size-3.5" /></span>
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-fg/[0.08] text-fg/75 max-[380px]:size-6"><q.icon className="size-3.5" /></span>
               <span className="truncate">{q.label}</span>
               <ArrowRight className="size-3.5 shrink-0 text-fg/40 transition-transform group-hover:translate-x-0.5 group-hover:text-fg max-[380px]:hidden" />
             </Link>
