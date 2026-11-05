@@ -4,27 +4,24 @@
 // own" from features. The browser prices a choice live with the same arithmetic
 // as the server, but what's confirmed is always the server's preview.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Minus, Plus, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, Segmented, useToast } from "@/components/ui/overlays";
 import { Badge, Button, Card, cx, Notice, Skeleton } from "@/components/ui/primitives";
-import { money, quote, QuoteError, taxOf, type CatalogPlan, type Pricing, type Quote } from "@/lib/billing/catalog";
+import { isAddonLine, money, taxOf, type Addons, type CatalogPlan } from "@/lib/billing/catalog";
 import { api, errorMessage } from "@/lib/client/api";
 import { MODULE_GROUPS, MODULES, moduleById, withRequirements, type ModuleId } from "@/lib/workspace/modules";
 import { day, intervalWord, isFuture, lineName, limitText, perWord, subKey, subPath, type ChangeResult, type Choice, type Interval, type Limit, type Overview, type Preview } from "./types";
 
-const asPricing = (o: Overview) => ({ ...o.pricing, enforce: true, renewalNoticeDays: 0 }) as unknown as Pricing;
-
-function priceQuote(choice: Choice, o: Overview): Quote | string {
-  try {
-    return quote(choice, o.plans, asPricing(o));
-  } catch (e) {
-    return e instanceof QuoteError ? e.message : "This can't be priced right now.";
-  }
-}
+import { currentAddons, priceQuote, takesAddons } from "./addons";
 
 export function ChangePlan({ o, orgId, add, onPay, onDone }: { o: Overview; orgId: string; add: ModuleId | null; onPay: (invoiceId: string, overview: Overview) => void; onDone?: () => void }) {
   const sub = o.subscription;
+  // Add-ons go with the workspace to whichever plan it picks (those a plan already includes drop off).
+  const carry = useMemo<Addons>(() => (takesAddons(o) ? currentAddons(sub) : {}), [o, sub]);
+  const carried = (sub?.lines ?? []).filter(isAddonLine).length > 0 && takesAddons(o);
+  // On a paid plan the plans fold away, so the page leads with the bill; they're one tap away.
+  const [open, setOpen] = useState(() => !takesAddons(o) || (!!add && sub?.planId === "custom"));
   const [interval, setInterval] = useState<Interval>(sub && sub.planId !== "trial" ? sub.interval : "month");
   const [choice, setChoice] = useState<Choice | null>(null);
   const [builder, setBuilder] = useState(!!add || sub?.planId === "custom");
@@ -37,6 +34,21 @@ export function ChangePlan({ o, orgId, add, onPay, onDone }: { o: Overview; orgI
   const isCurrent = (planId: string) => !!sub && o.state !== "expired" && sub.planId === planId && sub.interval === interval;
   const yearlySaving = o.pricing.yearlyMonths < 12 ? 12 - o.pricing.yearlyMonths : 0;
 
+  if (!open)
+    return (
+      <section id="plans" aria-labelledby="change-plan">
+        <button type="button" onClick={() => setOpen(true)} className="flex w-full items-center gap-3 rounded-[18px] border border-border bg-surface px-4 py-3.5 text-left transition-colors hover:bg-surface-2 sm:px-5">
+          <span className="min-w-0 flex-1">
+            <span id="change-plan" className="block text-[14px] font-semibold">
+              Change plan
+            </span>
+            <span className="block text-[12.5px] text-muted">Compare plans, switch monthly or yearly, or build your own from features.{carried ? " Your add-ons come with you." : ""}</span>
+          </span>
+          <ChevronDown className="size-4 shrink-0 text-muted" aria-hidden />
+        </button>
+      </section>
+    );
+
   return (
     <section aria-labelledby="change-plan" className="grid gap-4" id="plans">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -47,6 +59,7 @@ export function ChangePlan({ o, orgId, add, onPay, onDone }: { o: Overview; orgI
           <p className="mt-0.5 text-[13px] text-muted">
             Prices before {o.pricing.taxLabel} ({o.pricing.taxBps / 100}%).{" "}
             {inTrial ? `Nothing is charged before your trial ends on ${day(sub?.trialEndsAt)}.` : "Upgrades start once paid, with unused time credited; smaller plans start at your next renewal."}
+            {carried ? " Prices include your add-ons." : ""}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -58,15 +71,15 @@ export function ChangePlan({ o, orgId, add, onPay, onDone }: { o: Overview; orgI
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {presets.map((p) => (
-          <PlanCard key={p.id} p={p} o={o} interval={interval} current={isCurrent(p.id)} disabled={locked} onChoose={() => setChoice({ kind: "plan", planId: p.id, interval })} />
+          <PlanCard key={p.id} p={p} o={o} interval={interval} carry={carry} current={isCurrent(p.id)} disabled={locked} onChoose={() => setChoice({ kind: "plan", planId: p.id, interval, addons: carry })} />
         ))}
       </div>
       {basics.map((p) => (
-        <BasicCard key={p.id} p={p} o={o} interval={interval} current={isCurrent(p.id)} disabled={locked} onChoose={() => setChoice({ kind: "plan", planId: p.id, interval })} />
+        <BasicCard key={p.id} p={p} o={o} interval={interval} carry={carry} current={isCurrent(p.id)} disabled={locked} onChoose={() => setChoice({ kind: "plan", planId: p.id, interval, addons: carry })} />
       ))}
 
       {builder ? (
-        <Builder o={o} interval={interval} add={add} disabled={locked} current={isCurrent("custom")} onReview={(c) => setChoice(c)} />
+        <Builder o={o} interval={interval} add={add} carry={carry} disabled={locked} current={isCurrent("custom")} onReview={(c) => setChoice(c)} />
       ) : (
         <button type="button" onClick={() => setBuilder(true)} className="flex items-center gap-3 rounded-[18px] border border-dashed border-border-strong bg-surface/60 px-5 py-4 text-left transition-colors hover:bg-surface">
           <span className="grid size-10 place-items-center rounded-[12px] bg-fg text-bg">
@@ -111,8 +124,18 @@ function limitsLine(l: CatalogPlan["limits"]) {
   ].filter(Boolean) as string[];
 }
 
-function PlanCard({ p, o, interval, current, disabled, onChoose }: { p: CatalogPlan; o: Overview; interval: Interval; current: boolean; disabled: boolean; onChoose: () => void }) {
+/** A plan's price with the add-ons that would come along, or null when there are none. */
+function withCarry(p: CatalogPlan, o: Overview, interval: Interval, carry: Addons) {
+  if (!carry.modules?.length && !Object.keys(carry.packs ?? {}).length) return null;
+  const q = priceQuote({ kind: "plan", planId: p.id, interval, addons: carry }, o);
+  if (typeof q === "string") return null;
+  const extra = q.amount - (interval === "year" ? p.yearly : p.monthly);
+  return extra > 0 ? { extra, perMonth: q.monthly, amount: q.amount } : null;
+}
+
+function PlanCard({ p, o, interval, carry, current, disabled, onChoose }: { p: CatalogPlan; o: Overview; interval: Interval; carry: Addons; current: boolean; disabled: boolean; onChoose: () => void }) {
   const { amount, perMonth } = priceFor(p, interval);
+  const w = withCarry(p, o, interval, carry);
   const inTrial = o.state === "trial";
   const names = (p.modules ?? []).map((m) => moduleById(m)?.name).filter(Boolean) as string[];
   const otherInterval = o.state !== "expired" && o.subscription?.planId === p.id && !current;
@@ -128,6 +151,7 @@ function PlanCard({ p, o, interval, current, disabled, onChoose }: { p: CatalogP
         <span className="text-[12.5px] text-muted">/month</span>
       </p>
       <p className="text-[12px] text-subtle">{interval === "year" ? `${money(amount, p.currency)} billed yearly` : "Billed monthly"} · + {o.pricing.taxLabel}</p>
+      {w && <p className="mt-1 text-[12px] font-medium tabular-nums">{money(w.perMonth, p.currency)}/month with your add-ons (+{money(w.extra, p.currency)}{perWord(interval)})</p>}
       <ul className="mt-4 grid flex-1 content-start gap-1.5 text-[13px]">
         <li className="flex items-start gap-2">
           <Check className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
@@ -146,8 +170,9 @@ function PlanCard({ p, o, interval, current, disabled, onChoose }: { p: CatalogP
   );
 }
 
-function BasicCard({ p, o, interval, current, disabled, onChoose }: { p: CatalogPlan; o: Overview; interval: Interval; current: boolean; disabled: boolean; onChoose: () => void }) {
+function BasicCard({ p, o, interval, carry, current, disabled, onChoose }: { p: CatalogPlan; o: Overview; interval: Interval; carry: Addons; current: boolean; disabled: boolean; onChoose: () => void }) {
   const { amount, perMonth } = priceFor(p, interval);
+  const w = withCarry(p, o, interval, carry);
   return (
     <Card className={cx("flex flex-wrap items-center gap-x-5 gap-y-3 p-4 sm:px-5", current && "ring-2 ring-success/70")}>
       <div className="min-w-0 flex-1 basis-60">
@@ -162,6 +187,7 @@ function BasicCard({ p, o, interval, current, disabled, onChoose }: { p: Catalog
         <span className="text-[18px] font-semibold tabular-nums">{money(perMonth, p.currency)}</span>
         <span className="text-[12px] text-muted">/month</span>
         <span className="block text-[11.5px] text-subtle">{interval === "year" ? `${money(amount, p.currency)} yearly` : "billed monthly"}</span>
+        {w && <span className="block text-[11.5px] font-medium">{money(w.perMonth, p.currency)}/month with add-ons</span>}
       </p>
       <Button disabled={current || disabled} onClick={onChoose}>
         {current ? "Your plan" : `Choose ${p.name}`}
@@ -172,7 +198,7 @@ function BasicCard({ p, o, interval, current, disabled, onChoose }: { p: Catalog
 
 // ─── Build your own ─────────────────────────────────────────────────────────
 
-function Builder({ o, interval, add, disabled, current, onReview }: { o: Overview; interval: Interval; add: ModuleId | null; disabled: boolean; current: boolean; onReview: (c: Choice) => void }) {
+function Builder({ o, interval, add, carry, disabled, current, onReview }: { o: Overview; interval: Interval; add: ModuleId | null; carry: Addons; disabled: boolean; current: boolean; onReview: (c: Choice) => void }) {
   const pr = o.pricing;
   const sub = o.subscription;
   const base = pr.customBaseModules;
@@ -190,7 +216,10 @@ function Builder({ o, interval, add, disabled, current, onReview }: { o: Overvie
   }, []);
 
   const effective = useMemo(() => withRequirements([...base, ...picked]), [base, picked]);
-  const choice: Choice = { kind: "custom", modules: picked, seats, interval };
+  // Packs come along; seats are chosen here, and features are the plan itself.
+  const packs = { ...(carry.packs ?? {}) };
+  delete packs.seats;
+  const choice: Choice = { kind: "custom", modules: picked, seats, interval, ...(Object.keys(packs).length ? { addons: { packs } } : {}) };
   const q = priceQuote(choice, o);
   const tax = typeof q === "string" ? 0 : taxOf(q.amount, pr.taxBps);
   const sellable = MODULES.filter((m) => !base.includes(m.id) && typeof pr.modulePrices[m.id] === "number");
@@ -283,7 +312,7 @@ function Builder({ o, interval, add, disabled, current, onReview }: { o: Overvie
           </div>
         </div>
         {/* Always in view while picking: the total and the next step. */}
-        <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-b-[var(--radius-xl)] border-t border-border bg-surface/95 px-5 py-3 backdrop-blur">
+        <div className="sticky bottom-[var(--dock)] z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-b-[var(--radius-xl)] border-t border-border bg-surface/95 px-5 py-3 backdrop-blur">
           <div className="min-w-0 flex-1">
             {typeof q === "string" ? (
               <p className="text-[12.5px] text-danger">{q}</p>
@@ -312,7 +341,7 @@ const plural2 = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 // ─── Preview and confirm ────────────────────────────────────────────────────
 
-function PreviewDialog({ o, orgId, choice, onClose, onDone }: { o: Overview; orgId: string; choice: Choice; onClose: () => void; onDone: (r: ChangeResult) => void }) {
+export function PreviewDialog({ o, orgId, choice, onClose, onDone }: { o: Overview; orgId: string; choice: Choice; onClose: () => void; onDone: (r: ChangeResult) => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const preview = useMutation({ mutationFn: () => api<Preview>(subPath(orgId, "/preview"), { method: "POST", body: choice }) });
@@ -345,7 +374,9 @@ function PreviewDialog({ o, orgId, choice, onClose, onDone }: { o: Overview; org
           : p.total > 0
             ? `Confirm and pay ${m(p.total)}`
             : "Confirm change";
-  const title = p ? (p.mode === "trial" ? `${p.quote.name} after your trial` : p.mode === "downgrade" ? `Move to ${p.quote.name}` : p.mode === "upgrade" ? `Upgrade to ${p.quote.name}` : `Start ${p.quote.name}`) : "Checking the price…";
+  // Same plan and period, different add-ons.
+  const tweak = !!p && o.subscription?.planId === p.quote.planId && o.subscription?.interval === p.quote.interval;
+  const title = p ? (p.mode === "trial" ? `${p.quote.name} after your trial` : tweak && (p.mode === "upgrade" || p.mode === "downgrade") ? "Update your add-ons" : p.mode === "downgrade" ? `Move to ${p.quote.name}` : p.mode === "upgrade" ? `Upgrade to ${p.quote.name}` : `Start ${p.quote.name}`) : "Checking the price…";
   const pct = o.pricing.taxBps / 100;
   const subName = o.subscription?.planName ?? "your current plan";
 
@@ -407,21 +438,25 @@ function PreviewDialog({ o, orgId, choice, onClose, onDone }: { o: Overview; org
                 <>
                   <li className="flex justify-between gap-3">
                     <span>
-                      {p.quote.name}, {intervalWord(p.quote.interval)} — {day(p.chargeFrom ?? p.periodStart)} to {day(p.periodEnd)}
+                      {p.quote.name}
+                      {p.quote.lines.some(isAddonLine) ? " with add-ons" : ""}, {intervalWord(p.quote.interval)} — {day(p.chargeFrom ?? p.periodStart)} to {day(p.periodEnd)}
                     </span>
-                    <span>{m(p.charge)}</span>
+                    <span className="shrink-0 whitespace-nowrap">{m(p.charge)}</span>
                   </li>
                   {p.credit > 0 && (
                     <li className="flex justify-between gap-3 text-muted">
                       <span>Unused time on {subName}</span>
-                      <span className="text-success">−{m(p.credit)}</span>
+                      <span className="shrink-0 whitespace-nowrap text-success">−{m(p.credit)}</span>
                     </li>
                   )}
                 </>
               ) : (
                 p.quote.lines.map((l, i) => (
                   <li key={i} className="flex justify-between gap-3">
-                    <span className="text-muted">{lineName(l)}</span>
+                    <span className="min-w-0 truncate text-muted">
+                      {lineName(l)}
+                      {isAddonLine(l) ? " · add-on" : ""}
+                    </span>
                     <span>{m(l.amount)}</span>
                   </li>
                 ))
@@ -440,6 +475,38 @@ function PreviewDialog({ o, orgId, choice, onClose, onDone }: { o: Overview; org
               )}
             </ul>
           </div>
+          {(p.mode === "upgrade" || p.mode === "downgrade") && (
+            <details className="group rounded-[12px] border border-border px-3.5 py-2.5" open={p.mode === "downgrade"}>
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[12.5px] font-medium">
+                <span>
+                  Your bill from then on: {m(p.quote.amount)}
+                  {perWord(p.quote.interval)} + {o.pricing.taxLabel}
+                </span>
+                <ChevronDown className="size-3.5 shrink-0 text-muted transition-transform group-open:rotate-180" aria-hidden />
+              </summary>
+              <ul className="mt-2 grid gap-1 text-[12.5px] tabular-nums">
+                {p.quote.lines.map((l, i) => (
+                  <li key={i} className="flex justify-between gap-3">
+                    <span className="min-w-0 truncate text-muted">
+                      {lineName(l)}
+                      {isAddonLine(l) ? " · add-on" : ""}
+                    </span>
+                    <span>{m(l.amount)}</span>
+                  </li>
+                ))}
+                <li className="flex justify-between gap-3 border-t border-border pt-1">
+                  <span className="text-muted">
+                    {o.pricing.taxLabel} {pct}%
+                  </span>
+                  <span>{m(taxOf(p.quote.amount, o.pricing.taxBps))}</span>
+                </li>
+                <li className="flex justify-between gap-3 font-semibold">
+                  <span>Each {p.quote.interval}</span>
+                  <span>{m(p.quote.amount + taxOf(p.quote.amount, o.pricing.taxBps))}</span>
+                </li>
+              </ul>
+            </details>
+          )}
           {p.mode !== "downgrade" && p.mode !== "same" && (
             <dl className="grid gap-1 border-t border-border pt-3 tabular-nums">
               <div className="flex justify-between">

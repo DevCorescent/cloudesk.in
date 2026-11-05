@@ -6,7 +6,7 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { DEFAULT_PRICING } from "@/lib/billing/catalog";
+import { DEFAULT_PRICING, PACK_KEYS, type PackKey } from "@/lib/billing/catalog";
 import { quotasSchema } from "@/lib/billing/schema";
 import { DEFAULT_PROGRAM, PARTNER_TYPES } from "@/lib/partners/program";
 import { PLAN_IDS } from "@/lib/platform/plans";
@@ -83,6 +83,11 @@ export const SECTIONS = {
     /** The most of a plan's price its AI may cost (basis points; 2000 = 20%). */
     aiCostShareBps: z.number().int().min(100).max(9000).default(DEFAULT_PRICING.aiCostShareBps),
     usdInr: z.number().min(1).max(1000).default(DEFAULT_PRICING.usdInr),
+    /** Add-ons on any paid plan: each pack's size and monthly price; one left out keeps its default. */
+    packs: z
+      .partialRecord(z.enum(PACK_KEYS as [PackKey, ...PackKey[]]), z.object({ size: z.number().int().min(1).max(100_000_000), price: money }))
+      .default({})
+      .transform((v) => ({ ...DEFAULT_PRICING.packs, ...v })),
   }),
   /** The company behind the service, shown on the legal pages (Terms, Privacy, Grievance…). Empty fields are left out, never invented. */
   legal: z.object({

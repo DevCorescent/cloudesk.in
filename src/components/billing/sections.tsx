@@ -292,10 +292,15 @@ export function Stats({ o }: { o: Overview }) {
 export function Invoices({ o, onPay, paying, onView }: { o: Overview; onPay: (inv: Invoice) => void; paying: string | null; onView: (inv: Invoice) => void }) {
   return (
     <Card>
-      <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 sm:px-5">
         <FileText className="size-4" aria-hidden />
         <h2 className="text-[14px] font-semibold">Invoices</h2>
         {o.stats.due > 0 && <Badge tone="warning">{money(o.stats.due, o.pricing.currency)} due</Badge>}
+        {o.stats.paidInvoices > 0 && (
+          <span className="ml-auto text-right text-[12px] text-muted tabular-nums">
+            {money(o.stats.paidTotal, o.subscription?.currency ?? o.pricing.currency)} paid{o.stats.customerSince ? ` since ${shortDay(o.stats.customerSince)}` : ""}
+          </span>
+        )}
       </div>
       {o.invoices.length === 0 ? (
         <EmptyState className="py-10" title="No invoices yet" description="Choose a plan and its invoice appears here — every one can be printed or saved as a PDF." />

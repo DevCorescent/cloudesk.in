@@ -310,6 +310,12 @@ export async function portalUrl(orgId: string) {
 // ─── Webhooks ────────────────────────────────────────────────────────────────
 
 const hmacHex = (secret: string, payload: string) => createHmac("sha256", secret).update(payload).digest("hex");
+/** A webhook's signing secret. Without one nothing is accepted: an HMAC under an empty key is one anybody can make. */
+const webhookSecret = (k: "STRIPE_WEBHOOK_SECRET" | "RAZORPAY_WEBHOOK_SECRET") => {
+  const s = env(k);
+  if (!s) throw new ApiError("forbidden", "Webhooks aren't set up on this platform");
+  return s;
+};
 const safeEq = (a: string, b: string) => {
   const x = Buffer.from(a);
   const y = Buffer.from(b);
@@ -340,10 +346,11 @@ async function orgForStripe(obj: Record<string, unknown>) {
 }
 
 export async function handleStripeWebhook(raw: string, signature: string | null, now = Date.now()) {
+  const secret = webhookSecret("STRIPE_WEBHOOK_SECRET");
   const parts = (signature ?? "").split(",");
   const t = Number(parts.find((p) => p.startsWith("t="))?.slice(2));
   const v1 = parts.filter((p) => p.startsWith("v1=")).map((p) => p.slice(3));
-  if (!t || !v1.length || Math.abs(now / 1000 - t) > 300 || !v1.some((v) => safeEq(v, hmacHex(env("STRIPE_WEBHOOK_SECRET"), `${t}.${raw}`)))) throw new ApiError("forbidden", "Invalid signature");
+  if (!t || !v1.length || Math.abs(now / 1000 - t) > 300 || !v1.some((v) => safeEq(v, hmacHex(secret, `${t}.${raw}`)))) throw new ApiError("forbidden", "Invalid signature");
   const evt = JSON.parse(raw) as { id: string; type: string; data: { object: Record<string, unknown> } };
   const obj = evt.data.object;
   // A subscription invoice paid through Checkout (Settings → Billing).
@@ -373,7 +380,8 @@ export async function handleStripeWebhook(raw: string, signature: string | null,
 }
 
 export async function handleRazorpayWebhook(raw: string, signature: string | null, eventIdHeader: string | null) {
-  if (!signature || !safeEq(signature, hmacHex(env("RAZORPAY_WEBHOOK_SECRET"), raw))) throw new ApiError("forbidden", "Invalid signature");
+  const secret = webhookSecret("RAZORPAY_WEBHOOK_SECRET");
+  if (!signature || !safeEq(signature, hmacHex(secret, raw))) throw new ApiError("forbidden", "Invalid signature");
   const evt = JSON.parse(raw) as { event: string; created_at?: number; payload: { subscription?: { entity: Record<string, unknown> }; payment?: { entity: Record<string, unknown> } } };
   // A subscription invoice paid through Razorpay Checkout: matched by its order.
   const paid = evt.payload.payment?.entity;

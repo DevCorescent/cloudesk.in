@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addInterval, aiBudgetFor, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, QUOTA_KEYS, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
+import { addInterval, addonsOf, aiBudgetFor, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, QUOTA_KEYS, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
 import { MODULE_IDS } from "@/lib/workspace/modules";
 
 const P = DEFAULT_PRICING;
@@ -142,5 +142,71 @@ describe("plans that never lose money", () => {
 
   it("knows every allowance", () => {
     expect(QUOTA_KEYS).toEqual(["invoicesPerMonth", "contacts", "aiPerMonth", "aiBudgetUsd", "campaignEmailsPerMonth", "signaturesPerMonth", "storageMb", "chatGuests"]);
+  });
+});
+
+describe("add-ons", () => {
+  const growth = (interval: "month" | "year", addons: Parameters<typeof quote>[0] extends infer C ? (C extends { kind: "plan"; addons?: infer A } ? A : never) : never) => quote({ kind: "plan", planId: "growth", interval, addons }, DEFAULT_PLANS, P);
+
+  it("adds a feature and packs to a plan's bill, line by line", () => {
+    const q = growth("month", { modules: ["quality"], packs: { invoicesPerMonth: 2, seats: 1 } });
+    expect(q.lines.map((l) => [l.label, l.amount, l.addon ?? null, l.qty ?? null])).toEqual([
+      ["Growth plan, monthly", 299900, null, null],
+      ["quality", 29900, "module", null],
+      ["+1 seat", 9900, "seats", 1],
+      ["+1,000 invoices a month", 19800, "invoicesPerMonth", 2],
+    ]);
+    expect(q.amount).toBe(299900 + 29900 + 9900 + 19800);
+    expect(q.monthly).toBe(q.amount);
+    expect(q.amount).toBe(q.lines.reduce((s, l) => s + l.amount, 0));
+    expect(q.modules).toContain("quality");
+    expect(q).toMatchObject({ seats: 26, limits: { seats: 26 }, quotas: { invoicesPerMonth: 4000 } });
+  });
+
+  it("bills a yearly plan's add-ons at the yearly rate (yearlyMonths of them)", () => {
+    const q = growth("year", { modules: ["quality"], packs: { invoicesPerMonth: 2, seats: 1 } });
+    expect(q.amount).toBe(2999000 + (29900 + 9900 + 19800) * P.yearlyMonths);
+    expect(q.monthly).toBe(Math.round(q.amount / 12));
+    expect(q.amount).toBe(q.lines.reduce((s, l) => s + l.amount, 0));
+  });
+
+  it("leaves out what the plan already has, so add-ons carry over between plans", () => {
+    // Business includes Quality; Enterprise has every feature and unlimited contacts.
+    const b = quote({ kind: "plan", planId: "business", interval: "month", addons: { modules: ["quality"] } }, DEFAULT_PLANS, P);
+    expect(b.amount).toBe(499900);
+    const e = quote({ kind: "plan", planId: "enterprise", interval: "month", addons: { modules: ["quality"], packs: { contacts: 3, storageMb: 1 } } }, DEFAULT_PLANS, P);
+    expect(e.lines.map((l) => l.addon)).toEqual([undefined, "storageMb"]);
+    expect(e.amount).toBe(799900 + 9900);
+    expect(e.quotas.contacts).toBeUndefined();
+  });
+
+  it("brings the features an add-on needs, each at its price", () => {
+    const q = quote({ kind: "plan", planId: "workday", interval: "month", addons: { modules: ["accounting"] } }, DEFAULT_PLANS, P);
+    expect(q.lines.map((l) => [l.module, l.amount])).toEqual([[undefined, 19900], ["invoicing", 29900], ["accounting", 49900]]);
+  });
+
+  it("raises the AI budget by what more AI requests pay for", () => {
+    const q = growth("month", { packs: { aiPerMonth: 1 } });
+    expect(q.quotas.aiPerMonth).toBe(1500 + 500);
+    expect(q.quotas.aiBudgetUsd).toBe(Math.round((7 + aiBudgetFor(29900, P)) * 100) / 100);
+  });
+
+  it("adds packs to a built plan, with its seats chosen as before", () => {
+    const q = quote({ kind: "custom", modules: ["crm"], seats: 4, interval: "month", addons: { packs: { contacts: 1 } } }, DEFAULT_PLANS, P);
+    expect(q.amount).toBe(19900 + 29900 + 9900 + 19900);
+    expect(q.quotas.contacts).toBe(5000 + 5000);
+    expect(() => quote({ kind: "custom", modules: [], seats: 4, interval: "month", addons: { packs: { seats: 1 } } }, DEFAULT_PLANS, P)).toThrow(QuoteError);
+  });
+
+  it("refuses counts it can't sell", () => {
+    expect(() => growth("month", { packs: { contacts: 1.5 } })).toThrow(QuoteError);
+    expect(() => growth("month", { packs: { contacts: 1001 } })).toThrow(QuoteError);
+    expect(() => growth("month", { modules: ["nope" as never] })).toThrow(QuoteError);
+  });
+
+  it("reads the add-ons back from a subscription's lines", () => {
+    const q = growth("month", { modules: ["quality"], packs: { storageMb: 2, chatGuests: 1 } });
+    expect(addonsOf(q.lines)).toEqual({ modules: ["quality"], packs: { storageMb: 2, chatGuests: 1 } });
+    expect(growth("month", addonsOf(q.lines)).amount).toBe(q.amount);
   });
 });

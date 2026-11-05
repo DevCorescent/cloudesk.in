@@ -10,9 +10,11 @@ import { and, asc, desc, eq, gt, inArray, isNotNull, lte, ne, sql } from "drizzl
 import { db, schema } from "@/db";
 import {
   addInterval,
+  addonsOf,
   DEFAULT_PLANS,
   entitledTo,
   entitlement,
+  isAddonLine,
   isDowngrade,
   money,
   prorate,
@@ -26,6 +28,7 @@ import {
   type Interval,
   type Pricing,
   type Quote,
+  type QuoteLine,
   type QuotaKey,
   QUOTA_KEYS,
   QUOTA_LABEL,
@@ -49,7 +52,7 @@ export type Invoice = typeof schema.subscriptionInvoices.$inferSelect;
 
 // ── Catalogue and pricing ───────────────────────────────────────────────────
 
-const cache = globalThis as unknown as { __planCatalog?: { at: number; v: CatalogPlan[] } | null; __entitlements?: Map<string, { at: number; v: Entitlement & { planName: string } }> };
+const cache = globalThis as unknown as { __planCatalog?: { at: number; v: CatalogPlan[] } | null; __allowancesChecked?: boolean; __entitlements?: Map<string, { at: number; v: Entitlement & { planName: string } }> };
 export const clearCatalogCache = () => void (cache.__planCatalog = null);
 const ents = () => (cache.__entitlements ??= new Map());
 export const clearEntitlement = (orgId?: string) => (orgId ? ents().delete(orgId) : ents().clear());
@@ -70,6 +73,32 @@ const toPlan = (r: typeof schema.planCatalog.$inferSelect): CatalogPlan => ({
   sort: r.sort,
 });
 
+const BACKFILL = "billing_allowances_backfilled";
+
+/**
+ * Once per platform: built-in plans saved before allowances existed (so with
+ * none, i.e. unlimited AI, storage, email…) get the recommended allowances, so
+ * every plan's running costs stay under its price and extra room can be sold
+ * as add-ons. Prices, features and limits are left alone; a plan an admin
+ * later leaves unlimited stays that way. Subscribers keep what they bought.
+ */
+async function backfillAllowances(rows: (typeof schema.planCatalog.$inferSelect)[]) {
+  if (cache.__allowancesChecked) return false;
+  const [done] = await db.select({ key: schema.platformSettings.key }).from(schema.platformSettings).where(eq(schema.platformSettings.key, BACKFILL));
+  cache.__allowancesChecked = true;
+  if (done) return false;
+  const filled: string[] = [];
+  for (const r of rows) {
+    const d = DEFAULT_PLANS.find((x) => x.id === r.id);
+    if (!d?.quotas || r.kind === "free" || Object.keys(r.quotas ?? {}).length) continue;
+    await db.update(schema.planCatalog).set({ quotas: d.quotas as Record<string, number>, updatedAt: new Date() }).where(eq(schema.planCatalog.id, r.id));
+    filled.push(r.id);
+  }
+  await db.insert(schema.platformSettings).values({ key: BACKFILL, value: { at: new Date().toISOString(), plans: filled } }).onConflictDoNothing();
+  if (filled.length) log.info("plan_allowances_backfilled", { plans: filled });
+  return filled.length > 0;
+}
+
 /** Every plan, including archived ones; the defaults are added the first time. Cached for 10 seconds. */
 export async function allPlans(): Promise<CatalogPlan[]> {
   const c = cache.__planCatalog;
@@ -81,6 +110,7 @@ export async function allPlans(): Promise<CatalogPlan[]> {
     await db.insert(schema.planCatalog).values(add.map((p) => ({ ...p, modules: p.modules, quotas: p.quotas ?? {} }))).onConflictDoNothing();
     rows = await db.select().from(schema.planCatalog).orderBy(asc(schema.planCatalog.sort), asc(schema.planCatalog.monthly));
   }
+  if (await backfillAllowances(rows)) rows = await db.select().from(schema.planCatalog).orderBy(asc(schema.planCatalog.sort), asc(schema.planCatalog.monthly));
   const v = rows.map(toPlan);
   cache.__planCatalog = { at: Date.now(), v };
   return v;
@@ -262,7 +292,9 @@ const discountLine = (pv: Preview, d: Discount) => (pv.discount && d ? [{ label:
 
 function previewFor(sub: Sub, q: Quote, p: Pricing, now: Date, disc: Discount = null): Preview {
   const base = { quote: q, credit: 0, charge: 0, balanceUsed: 0, carry: 0, discount: 0, discountCode: null };
-  const same = sub.planId === q.planId && sub.interval === q.interval && sub.amount === q.amount && JSON.stringify(sub.modules) === JSON.stringify(q.modules) && sub.seats === q.seats;
+  // Same plan, period, price and lines (so adding or dropping an add-on is a change).
+  const lineKey = (ls: unknown) => ((ls as QuoteLine[] | null) ?? []).map((l) => `${l.label}|${l.amount}|${l.addon ?? ""}|${l.qty ?? ""}`).join("\n");
+  const same = sub.planId === q.planId && sub.interval === q.interval && sub.amount === q.amount && JSON.stringify(sub.modules) === JSON.stringify(q.modules) && sub.seats === q.seats && lineKey(sub.lines) === lineKey(q.lines);
   const bill = (charge: number, credit: number) => {
     const owed = charge - credit;
     const balanceUsed = owed > 0 ? Math.min(sub.credit, owed) : 0;
@@ -332,7 +364,7 @@ async function raiseInvoice(tx: Exec, orgId: string, v: { kind: string; descript
   return inv;
 }
 
-const lineLabel = (l: { label: string; module?: string }) => (l.module ? (moduleById(l.module as ModuleId)?.name ?? l.label) : l.label);
+const lineLabel = (l: { label: string; module?: string; addon?: string }) => (l.module ? `${moduleById(l.module as ModuleId)?.name ?? l.label}${l.addon ? " (add-on)" : ""}` : l.addon ? `${l.label} (add-on)` : l.label);
 
 /**
  * Applies a choice. In the trial it's what you'll be on afterwards (an invoice
@@ -371,7 +403,8 @@ export async function changePlan(orgId: string, actorId: string, choice: Choice,
     // start or upgrade: one invoice for it; anything open from earlier choices goes.
     await voidOpen(tx, orgId, ["first", "upgrade"]);
     const span = (a: string, b: string) => `${new Date(a).toDateString().slice(4)} – ${new Date(b).toDateString().slice(4)}`;
-    const invLines = pv.mode === "upgrade" ? [{ label: `${q.name}, ${span(pv.chargeFrom ?? pv.periodStart!, pv.periodEnd!)}`, amount: pv.charge }, ...(pv.credit ? [{ label: `Unused time on ${sub.planName}`, amount: -pv.credit }] : [])] : lines;
+    const extras = q.lines.filter(isAddonLine).length;
+    const invLines = pv.mode === "upgrade" ? [{ label: `${q.name}${extras ? ` with ${extras} add-on${extras === 1 ? "" : "s"}` : ""}, ${span(pv.chargeFrom ?? pv.periodStart!, pv.periodEnd!)}`, amount: pv.charge }, ...(pv.credit ? [{ label: `Unused time on ${sub.planName}`, amount: -pv.credit }] : [])] : lines;
     if (pv.balanceUsed) invLines.push({ label: "Credit on your account", amount: -pv.balanceUsed });
     invLines.push(...discountLine(pv, disc));
     const inv = await raiseInvoice(tx, orgId, { kind: pv.mode === "upgrade" ? "upgrade" : "first", description: pv.mode === "upgrade" ? `Change to ${q.name}` : `${q.name} — ${q.interval === "year" ? "1 year" : "1 month"}`, lines: invLines, subtotal: pv.subtotal, creditApplied: pv.balanceUsed, tax: pv.tax, total: pv.total, currency: q.currency, periodStart: new Date(pv.periodStart!), periodEnd: new Date(pv.periodEnd!), dueAt: now, applies: { snapshot: snap, start: pv.mode === "upgrade" ? "now" : "on_payment", periodStart: pv.periodStart, periodEnd: pv.periodEnd, carry: pv.carry, ...discounted }, createdBy: actorId }, p);
@@ -404,7 +437,7 @@ export async function cancelAtEnd(orgId: string, actorId: string, cancel: boolea
       const [open] = await tx.select({ id: schema.subscriptionInvoices.id }).from(schema.subscriptionInvoices).where(and(eq(schema.subscriptionInvoices.orgId, orgId), eq(schema.subscriptionInvoices.kind, "first"), eq(schema.subscriptionInvoices.status, "open")));
       if (!open) {
         const p = await pricing();
-        const snap = { planId: sub.planId, planName: sub.planName, modules: sub.modules, limits: sub.limits, seats: sub.seats, interval: sub.interval as Interval, amount: sub.amount, monthly: sub.monthly, currency: sub.currency, lines: sub.lines };
+        const snap = { planId: sub.planId, planName: sub.planName, modules: sub.modules, limits: sub.limits, quotas: sub.quotas, seats: sub.seats, interval: sub.interval as Interval, amount: sub.amount, monthly: sub.monthly, currency: sub.currency, lines: sub.lines };
         const used = Math.min(sub.credit, sub.amount);
         const subtotal = sub.amount - used;
         const tax = taxOf(subtotal, p.taxBps);
@@ -641,7 +674,7 @@ export async function overview(orgId: string) {
     },
     plans,
     free: freePlan,
-    pricing: { currency: p.currency, trialDays: trialDaysNow(p.trialDays), taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, graceDays: p.graceDays, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices },
+    pricing: { currency: p.currency, trialDays: trialDaysNow(p.trialDays), taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, graceDays: p.graceDays, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices, customQuotas: p.customQuotas, aiCostShareBps: p.aiCostShareBps, usdInr: p.usdInr, packs: p.packs },
     providers: paymentProviders(),
     invoices: invoices.map(publicInvoice),
     events,
@@ -939,10 +972,19 @@ export async function savePlan(adminId: string, plan: CatalogPlan) {
 export async function syncSubscribers(adminId: string, planId: string) {
   const plan = (await allPlans()).find((p) => p.id === planId);
   if (!plan || plan.kind === "free") throw new ApiError("not_found", "Plan not found");
-  const rows = await db.select({ id: schema.orgSubscriptions.id, orgId: schema.orgSubscriptions.orgId, seats: schema.orgSubscriptions.seats, limits: schema.orgSubscriptions.limits }).from(schema.orgSubscriptions).where(eq(schema.orgSubscriptions.planId, planId));
+  const rows = await db.select({ id: schema.orgSubscriptions.id, orgId: schema.orgSubscriptions.orgId, seats: schema.orgSubscriptions.seats, limits: schema.orgSubscriptions.limits, lines: schema.orgSubscriptions.lines, interval: schema.orgSubscriptions.interval }).from(schema.orgSubscriptions).where(eq(schema.orgSubscriptions.planId, planId));
+  const [plans, p] = await Promise.all([allPlans(), pricing()]);
   for (const r of rows) {
-    const limits = { ...plan.limits, seats: Math.max(plan.limits.seats, r.limits?.seats ?? 0) };
-    await db.update(schema.orgSubscriptions).set({ modules: plan.modules, limits, quotas: (plan.quotas ?? {}) as Record<string, number>, planName: plan.name, updatedAt: new Date() }).where(eq(schema.orgSubscriptions.id, r.id));
+    // Add-ons bought on top stay on top of the plan as it is now.
+    let now = { modules: plan.modules, limits: { ...plan.limits }, quotas: (plan.quotas ?? {}) as Quotas };
+    try {
+      const q = quote({ kind: "plan", planId, interval: r.interval as Interval, addons: addonsOf(r.lines) }, plans.map((x) => (x.id === planId ? { ...x, active: true } : x)), p);
+      now = { modules: q.modules, limits: q.limits, quotas: q.quotas };
+    } catch {
+      // An add-on that can't be sold any more: the plan alone.
+    }
+    const limits = { ...now.limits, seats: Math.max(now.limits.seats, r.limits?.seats ?? 0) };
+    await db.update(schema.orgSubscriptions).set({ modules: now.modules, limits, quotas: now.quotas as Record<string, number>, planName: plan.name, updatedAt: new Date() }).where(eq(schema.orgSubscriptions.id, r.id));
     await event(db, r.orgId, "plan_refreshed", { plan: plan.name }, adminId, true);
     clearEntitlement(r.orgId);
   }

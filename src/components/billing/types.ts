@@ -1,14 +1,14 @@
 // The workspace's subscription as GET /orgs/:id/subscription returns it, and
 // the small formatting helpers every billing screen shares. Amounts are minor
 // units (paise); limits that are unlimited arrive as null (Infinity in JSON).
-import type { CatalogPlan, Choice, Interval, Quote, SubState } from "@/lib/billing/catalog";
+import type { CatalogPlan, Choice, Interval, Pack, PackKey, Quotas, Quote, SubState } from "@/lib/billing/catalog";
 import { moduleById, type ModuleId } from "@/lib/workspace/modules";
 
 export type Limit = number | null;
 export type LimitsJson = { projects: Limit; seats: Limit; customDomains: Limit; automationsPerProject: Limit };
 export type Provider = "razorpay" | "stripe";
 
-export type Line = { label: string; amount: number; module?: string };
+export type Line = { label: string; amount: number; module?: string; addon?: "module" | PackKey; qty?: number };
 
 export type Invoice = {
   id: string;
@@ -74,6 +74,11 @@ export type PublicPricing = {
   seatPrice: number;
   customLimits: { projects: Limit; customDomains: Limit; automationsPerProject: Limit };
   modulePrices: Partial<Record<ModuleId, number>>;
+  customQuotas: Quotas;
+  aiCostShareBps: number;
+  usdInr: number;
+  /** Add-ons on any paid plan. */
+  packs: Record<PackKey, Pack>;
 };
 
 export type Overview = {
@@ -88,7 +93,7 @@ export type Overview = {
   /** The Free plan (what the workspace has without paying), if the platform offers one. */
   free: CatalogPlan | null;
   /** Allowances in force and how much is used (only those with a limit). */
-  quotas: Partial<Record<"invoicesPerMonth" | "contacts" | "aiPerMonth", { used: number; limit: number; label: string; unit: string; monthly: boolean }>>;
+  quotas: Partial<Record<keyof Quotas, { used: number; limit: number; label: string; unit: string; monthly: boolean }>>;
   /** In the trial or on Free: what was built in features Free doesn't include, and the plan that keeps it. */
   /** A partner's code on this workspace, and the discount still to come. */
   coupon: { code: string; discount: string; left: number } | null;

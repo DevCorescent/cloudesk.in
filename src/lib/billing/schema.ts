@@ -1,13 +1,20 @@
 // Request shapes for subscriptions, shared by the routes and sign-up.
 import { z } from "zod";
 import { MODULE_IDS, type ModuleId } from "@/lib/workspace/modules";
+import { PACK_KEYS, type PackKey } from "./catalog";
 
 const moduleId = z.enum(MODULE_IDS as unknown as [ModuleId, ...ModuleId[]]);
 export const intervalSchema = z.enum(["month", "year"]);
 
+/** Features and packs bought on top of a plan. */
+export const addonsSchema = z.object({
+  modules: z.array(moduleId).max(MODULE_IDS.length).optional(),
+  packs: z.partialRecord(z.enum(PACK_KEYS as [PackKey, ...PackKey[]]), z.number().int().min(0).max(1000)).optional(),
+});
+
 export const choiceSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("plan"), planId: z.string().trim().regex(/^[a-z0-9-]{2,30}$/), interval: intervalSchema }),
-  z.object({ kind: z.literal("custom"), modules: z.array(moduleId).max(MODULE_IDS.length), seats: z.number().int().min(1).max(10000), interval: intervalSchema }),
+  z.object({ kind: z.literal("plan"), planId: z.string().trim().regex(/^[a-z0-9-]{2,30}$/), interval: intervalSchema, addons: addonsSchema.optional() }),
+  z.object({ kind: z.literal("custom"), modules: z.array(moduleId).max(MODULE_IDS.length), seats: z.number().int().min(1).max(10000), interval: intervalSchema, addons: addonsSchema.optional() }),
 ]);
 
 /** A plan's allowances (unlimited when left out). The AI budget is in US dollars and may have cents. */

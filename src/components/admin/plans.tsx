@@ -4,14 +4,15 @@
 // limits, archive/restore), and the rules every subscription follows — whether
 // subscriptions are enforced at all, the free trial, tax, yearly discount,
 // grace and renewal notice, and the prices for building your own plan.
-// Money is typed in rupees and stored in paise. Each plan shows how much of its
+// Add-on packs (more seats, invoices, storage… on any paid plan) are priced
+// here too. Money is typed in rupees and stored in paise. Each plan shows how much of its
 // price its AI allowance could cost, so no plan is priced to lose money.
 import { Plus, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Dialog } from "@/components/ui/overlays";
 import { Badge, Button, Card, ErrorState, Field, Input, Notice, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
 import { errorMessage } from "@/lib/client/api";
-import { aiBudgetFor, money, QUOTA_KEYS, QUOTA_LABEL, type CatalogPlan, type Pricing, type QuotaKey, type Quotas } from "@/lib/billing/catalog";
+import { aiBudgetFor, DEFAULT_PRICING, money, PACK_KEYS, PACK_LABEL, QUOTA_KEYS, QUOTA_LABEL, type CatalogPlan, type PackKey, type Pricing, type QuotaKey, type Quotas } from "@/lib/billing/catalog";
 import { MODULE_GROUPS, MODULE_IDS, MODULES, type ModuleId } from "@/lib/workspace/modules";
 import { num, Section, useAdmin, useCan, useRun } from "./common";
 import { Block, useSettings } from "./settings";
@@ -66,6 +67,14 @@ export function PlansPricingPanel() {
       {!pricing.enforce && <Notice tone="warning" title="Subscriptions aren't enforced">Every workspace is unrestricted, whatever its plan or trial. Turn enforcement on in the rules below when you&apos;re ready to charge.</Notice>}
       {!providers.length && <Notice title="No payment provider connected">Workspaces can&apos;t pay online until Razorpay or Stripe is set up (Integrations). You can still record bank or UPI payments in Subscriptions.</Notice>}
       {!w && <Notice>Only platform owners can change plans and prices.</Notice>}
+      {(() => {
+        const open = plans.filter((p) => p.active && p.kind !== "free" && !Object.keys(p.quotas ?? {}).length);
+        return open.length > 0 && (
+          <Notice tone="warning" title={`${open.map((p) => p.name).join(", ")} ${open.length === 1 ? "has" : "have"} no allowances`} action={w && <Button size="sm" onClick={() => setRecommend(true)}>Apply recommended</Button>}>
+            Invoices, contacts, AI, email, storage and chat guests are unlimited on {open.length === 1 ? "it" : "them"}, so AI and email costs aren&apos;t capped and extra room can&apos;t be sold as add-ons. Set allowances on each plan, or apply the recommended ones.
+          </Notice>
+        );
+      })()}
 
       <Section title="Plans" sub="What workspaces choose from. Editing or archiving a plan never changes what existing subscribers bought — they keep it until they change plan." actions={w && <div className="flex gap-2"><Button size="sm" icon={<Sparkles className="size-4" />} onClick={() => setRecommend(true)}>Apply recommended plans</Button><Button variant="primary" size="sm" icon={<Plus className="size-4" />} onClick={() => setEdit("new")}>New plan</Button></div>}>
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -104,7 +113,7 @@ export function PlansPricingPanel() {
         </div>
       </Section>
 
-      <Section title="Rules and build-your-own prices" sub="Apply to every subscription. Prices are monthly, before tax.">
+      <Section title="Rules, build-your-own and add-on prices" sub="Apply to every subscription. Prices are monthly, before tax.">
         <Block k="pricing" title="Pricing & trial" sub="Saved together." data={pricing} meta={s.data.meta.pricing} perm={w}>
           {(v, set) => <PricingForm v={v} set={set} />}
         </Block>
@@ -219,6 +228,57 @@ function PricingForm({ v, set }: { v: Pricing; set: (p: Partial<Pricing>) => voi
             );
           })}
         </div>
+      </div>
+      <PackFields v={v} set={set} />
+    </div>
+  );
+}
+
+const PACK_HINT: Partial<Record<PackKey, string>> = { storageMb: "MB per pack (10240 = 10 GB)" };
+
+/** Add-ons on any paid plan: what one pack adds and its monthly price. Features are sold as add-ons at the feature prices above. */
+function PackFields({ v, set }: { v: Pricing; set: (p: Partial<Pricing>) => void }) {
+  const packs = { ...DEFAULT_PRICING.packs, ...(v.packs ?? {}) };
+  const put = (k: PackKey, x: Partial<{ size: number; price: number }>) => set({ packs: { ...packs, [k]: { ...packs[k], ...x } } });
+  return (
+    <div className="space-y-3">
+      <div>
+        <h4 className="text-[13.5px] font-semibold">Add-ons on any plan</h4>
+        <p className="text-[12.5px] text-muted">
+          Workspaces on a paid plan buy these in Settings → Billing, as many packs as they need, added to their plan&apos;s bill each period (a yearly plan pays {v.yearlyMonths} months). Any feature a plan doesn&apos;t include is sold at its price above. Packs only show for what a plan limits; changes apply to new purchases and renewals stay as bought until the workspace changes its add-ons.
+        </p>
+      </div>
+      <div className="overflow-x-auto rounded-[12px] border border-border">
+        <table className="w-full min-w-[560px] text-left text-[13px]">
+          <thead className="text-xs text-subtle">
+            <tr>
+              <th className="px-3 py-2 font-medium">Add-on</th>
+              <th className="w-40 px-3 py-2 font-medium">One pack adds</th>
+              <th className="w-40 px-3 py-2 font-medium">Price / month</th>
+              <th className="px-3 py-2 font-medium">Shown as</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {PACK_KEYS.map((k) => {
+              const pk = packs[k];
+              const ai = k === "aiPerMonth" ? aiBudgetFor(pk.price, v) : null;
+              return (
+                <tr key={k}>
+                  <td className="px-3 py-1.5">{PACK_LABEL[k].name}</td>
+                  <td className="px-3 py-1.5">
+                    <Input aria-label={`${PACK_LABEL[k].name}: one pack adds`} title={PACK_HINT[k]} type="number" min={1} value={pk.size} onChange={(e) => put(k, { size: Math.max(1, Math.trunc(Number(e.target.value || 1))) })} />
+                  </td>
+                  <td className="px-3 py-1.5">
+                    <MoneyInput aria-label={`${PACK_LABEL[k].name}: price per month`} value={pk.price} onChange={(p) => put(k, { price: p ?? 0 })} />
+                  </td>
+                  <td className="px-3 py-1.5 text-[12px] text-muted">
+                    +{PACK_LABEL[k].amount(pk.size)} for {money(pk.price, v.currency)}/mo{ai !== null ? ` · adds $${ai.toFixed(2)} of AI budget` : ""}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );

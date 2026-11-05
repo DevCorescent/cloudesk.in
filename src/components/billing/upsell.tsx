@@ -13,6 +13,7 @@ import { Button, Card, cx } from "@/components/ui/primitives";
 import { money } from "@/lib/billing/catalog";
 import { api } from "@/lib/client/api";
 import { moduleById, type ModuleId } from "@/lib/workspace/modules";
+import { takesAddons } from "./addons";
 import { canManageBilling, subKey, subPath, type Overview } from "./types";
 
 /** An allowance as people read it: dollars for AI spend, MB or GB for storage, whole numbers otherwise. */
@@ -91,7 +92,10 @@ export function PaywallDialog() {
   const rec = plans.data?.plans.find((x) => x.id === p.upgrade) ?? null;
   const mod = p.module ? moduleById(p.module as ModuleId) : null;
   const title = p.quota ? "You've reached your plan's limit" : mod ? `${mod.name} isn't in your plan` : "Upgrade to continue";
-  const href = rec ? `/settings/billing?plan=${rec.id}#plans` : mod ? `/settings/billing?add=${mod.id}` : "/settings/billing#plans";
+  // A limit reached: straight to the pack that lifts it (AI spend comes with more AI requests).
+  const pack = p.quota === "aiBudgetUsd" ? "aiPerMonth" : p.quota;
+  const onPlan = !!o.data && takesAddons(o.data);
+  const href = onPlan && pack ? `/settings/billing?more=${pack}` : onPlan && mod ? `/settings/billing?add=${mod.id}` : rec ? `/settings/billing?plan=${rec.id}#plans` : mod ? `/settings/billing?add=${mod.id}` : "/settings/billing#plans";
   return (
     <Dialog
       open
@@ -104,7 +108,7 @@ export function PaywallDialog() {
           <Button onClick={() => setP(null)}>Not now</Button>
           {manage ? (
             <Link href={href} onClick={() => setP(null)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13.5px] font-medium text-bg hover:opacity-90">
-              {rec ? `See ${rec.name}` : mod ? `Add ${mod.name}` : "See plans"} <ArrowRight className="size-4" />
+              {onPlan && pack ? "Add more" : onPlan && mod ? `Add ${mod.name}` : rec ? `See ${rec.name}` : mod ? `Add ${mod.name}` : "See plans"} <ArrowRight className="size-4" />
             </Link>
           ) : null}
         </>

@@ -1,8 +1,9 @@
 "use client";
 
 // Settings → Billing: the workspace's subscription. Where it stands (trial,
-// plan, dates, what's due), what it uses, changing plan or building one from
-// features, paying and printing invoices, and the history of every change.
+// plan, dates, what's due), the bill line by line, adding features or more
+// room to the plan, changing plan or building one from features, paying and
+// printing invoices, and the history of every change.
 // Owners and the billing role manage it; everyone else sees the plan's name.
 import { CouponCard } from "@/components/billing/coupon";
 import { KeepRecap, QuotaMeters } from "@/components/billing/upsell";
@@ -10,15 +11,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, ExternalLink } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { ChangePlan } from "@/components/billing/change-plan";
+import { AddOns, takesAddons, YourBill } from "@/components/billing/addons";
+import { ChangePlan, PreviewDialog } from "@/components/billing/change-plan";
 import { InvoiceSheet } from "@/components/billing/invoice-sheet";
 import { usePayInvoice, useStripeReturn } from "@/components/billing/pay";
 import { Hero, Invoices, Stats, Timeline } from "@/components/billing/sections";
-import { canManageBilling, day, stateBadge, subKey, subPath, type Invoice, type Overview } from "@/components/billing/types";
+import { canManageBilling, day, stateBadge, subKey, subPath, type ChangeResult, type Choice, type Invoice, type Overview } from "@/components/billing/types";
 import { useSession } from "@/components/shell/session-context";
 import { useToast } from "@/components/ui/overlays";
 import { Badge, Button, Card, ErrorState, Notice, Skeleton } from "@/components/ui/primitives";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
+import { PACK_KEYS, type PackKey } from "@/lib/billing/catalog";
 import { MODULE_IDS, moduleById, type ModuleId } from "@/lib/workspace/modules";
 
 type Legacy = { subscription: { provider: "stripe" | "razorpay"; status: string; plan: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null };
@@ -56,6 +59,9 @@ function Manage() {
   const params = useSearchParams();
   const addParam = params.get("add");
   const add = addParam && (MODULE_IDS as string[]).includes(addParam) ? (addParam as ModuleId) : null;
+  const moreParam = params.get("more");
+  const more = moreParam && (PACK_KEYS as string[]).includes(moreParam) ? (moreParam as PackKey) : null;
+  const [review, setReview] = useState<Choice | null>(null);
   const q = useQuery({ queryKey: subKey(org.id), queryFn: () => api<Overview>(subPath(org.id)), retry: (n, e) => !(e instanceof ApiClientError && e.status === 403) && n < 2 });
   const legacy = useQuery({ queryKey: ["billing", org.id], queryFn: () => api<Legacy>(`/api/v1/orgs/${org.id}/billing`), staleTime: 300_000 });
   const pay = usePayInvoice(org.id, q.data);
@@ -81,9 +87,19 @@ function Manage() {
   const o = q.data;
   const sub = o.subscription;
   const toPlans = () => document.getElementById("plans")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const toAddons = () => document.getElementById("addons")?.scrollIntoView({ behavior: "smooth", block: "start" });
   const payNow = (inv: Invoice) => {
     setViewing(null);
     pay.pay(inv);
+  };
+  const billable = takesAddons(o);
+  const locked = !!sub?.complimentary && o.state === "active";
+  // After a change: start afresh, and pay straight away when it's due now.
+  const changed = (r: ChangeResult) => {
+    setReview(null);
+    setPlanKey((k) => k + 1);
+    const inv = r.invoiceId ? r.overview.invoices.find((i) => i.id === r.invoiceId) : null;
+    if (!r.applied && inv && inv.status === "open" && inv.total > 0 && (r.mode === "start" || r.mode === "upgrade")) pay.pay(inv);
   };
 
   return (
@@ -91,7 +107,7 @@ function Manage() {
       {ret.cancelled && <Notice action={<Button size="sm" variant="ghost" onClick={ret.dismissCancelled}>Dismiss</Button>}>Payment cancelled — nothing was charged.</Notice>}
       {add && sub && o.entitled !== null && !o.entitled.includes(add) && (
         <Notice tone="accent" title={`Add ${moduleById(add)?.name ?? add} to your plan`}>
-          It&apos;s preselected in “Build your own” below with everything you have now — check the total and review.
+          {billable ? "It's switched on in “Add to your plan” below — check the new total and review." : "It's preselected in “Build your own” below with everything you have now — check the total and review."}
         </Notice>
       )}
       {!o.enforced || !sub ? (
@@ -99,11 +115,13 @@ function Manage() {
       ) : (
         <>
           <Hero o={o} onPay={payNow} paying={pay.busy} busy={cancel.isPending} onCancel={() => cancel.mutate(true)} onResume={() => cancel.mutate(false)} onChoose={toPlans} onView={setViewing} />
-          {(o.state === "free" || o.state === "trial") && <QuotaMeters o={o} />}
+          {billable && <YourBill o={o} onAdd={toAddons} />}
+          {!billable && (o.state === "free" || o.state === "trial") && <QuotaMeters o={o} />}
           <KeepRecap o={o} onChoose={() => toPlans()} />
-          <Stats o={o} />
+          {billable ? <AddOns key={`a${planKey}`} o={o} add={add} more={more} disabled={locked} onReview={setReview} /> : <Stats o={o} />}
+          <ChangePlan key={planKey} o={o} orgId={org.id} add={billable ? null : add} onDone={() => setPlanKey((k) => k + 1)} onPay={(id, ov) => { const inv = ov.invoices.find((i) => i.id === id); if (inv) pay.pay(inv); }} />
           <CouponCard o={o} orgId={org.id} />
-          <ChangePlan key={planKey} o={o} orgId={org.id} add={add} onDone={() => setPlanKey((k) => k + 1)} onPay={(id, ov) => { const inv = ov.invoices.find((i) => i.id === id); if (inv) pay.pay(inv); }} />
+          {review && <PreviewDialog o={o} orgId={org.id} choice={review} onClose={() => setReview(null)} onDone={changed} />}
         </>
       )}
       <Invoices o={o} onPay={payNow} paying={pay.busy} onView={setViewing} />

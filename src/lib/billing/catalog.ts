@@ -23,6 +23,35 @@ export const QUOTA_LABEL: Record<QuotaKey, { name: string; unit: string; module:
   chatGuests: { name: "Chat guests", unit: "guests in chats", module: "chat", monthly: false },
 };
 
+/**
+ * Add-ons: more room bought on top of any paid plan, in packs (e.g. +500
+ * invoices a month), each with a monthly price. Seats, web apps and custom
+ * domains raise the plan's limits; the rest raise its allowances.
+ */
+export type PackKey = "seats" | "projects" | "customDomains" | Exclude<QuotaKey, "aiBudgetUsd">;
+export const PACK_KEYS: PackKey[] = ["seats", "projects", "customDomains", "invoicesPerMonth", "contacts", "aiPerMonth", "campaignEmailsPerMonth", "signaturesPerMonth", "storageMb", "chatGuests"];
+export type Pack = { size: number; price: number };
+export const LIMIT_PACKS = ["seats", "projects", "customDomains"] as const;
+const isLimitPack = (k: PackKey): k is (typeof LIMIT_PACKS)[number] => (LIMIT_PACKS as readonly string[]).includes(k);
+
+/** How a pack reads: "Team seats", and "+500 invoices a month" for `n` of it. */
+export const PACK_LABEL: Record<PackKey, { name: string; amount: (n: number) => string }> = {
+  seats: { name: "Team seats", amount: (n) => `${fmtN(n)} seat${n === 1 ? "" : "s"}` },
+  projects: { name: "Web apps", amount: (n) => `${fmtN(n)} web app${n === 1 ? "" : "s"}` },
+  customDomains: { name: "Custom domains", amount: (n) => `${fmtN(n)} custom domain${n === 1 ? "" : "s"}` },
+  invoicesPerMonth: { name: "Invoices", amount: (n) => `${fmtN(n)} invoices a month` },
+  contacts: { name: "CRM contacts", amount: (n) => `${fmtN(n)} contacts` },
+  aiPerMonth: { name: "AI requests", amount: (n) => `${fmtN(n)} AI requests a month` },
+  campaignEmailsPerMonth: { name: "Campaign emails", amount: (n) => `${fmtN(n)} campaign emails a month` },
+  signaturesPerMonth: { name: "E-sign requests", amount: (n) => `${fmtN(n)} e-sign requests a month` },
+  storageMb: { name: "Storage", amount: (n) => (n >= 1024 ? `${+(n / 1024).toFixed(1)} GB of storage` : `${fmtN(n)} MB of storage`) },
+  chatGuests: { name: "Chat guests", amount: (n) => `${fmtN(n)} chat guests` },
+};
+const fmtN = (n: number) => Math.round(n).toLocaleString("en-IN");
+
+/** What's added on top of a plan: features (each at its monthly price) and how many of each pack. */
+export type Addons = { modules?: ModuleId[]; packs?: Partial<Record<PackKey, number>> };
+
 /** A plan in the catalogue (Admin → Plans). modules null = every feature. */
 export type CatalogPlan = {
   id: string;
@@ -74,6 +103,8 @@ export type Pricing = {
   aiCostShareBps: number;
   /** Rupees per US dollar, for comparing AI spend (billed in dollars) with what a plan earns. */
   usdInr: number;
+  /** Add-ons on top of any paid plan: each pack's size and monthly price. */
+  packs: Record<PackKey, Pack>;
 };
 
 export const WORKDAY_MODULES: ModuleId[] = ["mail", "calendar", "chat"];
@@ -209,15 +240,29 @@ export const DEFAULT_PRICING: Pricing = {
   customQuotas: { invoicesPerMonth: 1_000, contacts: 5_000, aiPerMonth: 500, campaignEmailsPerMonth: 2_000, signaturesPerMonth: 25, storageMb: 20_480, chatGuests: 100 },
   aiCostShareBps: 2000,
   usdInr: 85,
+  // Each pack's running cost (AI, email, storage) stays well under its price, like the plans'.
+  packs: {
+    seats: { size: 1, price: rupees(99) },
+    projects: { size: 1, price: rupees(299) },
+    customDomains: { size: 1, price: rupees(149) },
+    invoicesPerMonth: { size: 500, price: rupees(99) },
+    contacts: { size: 5_000, price: rupees(199) },
+    aiPerMonth: { size: 500, price: rupees(299) },
+    campaignEmailsPerMonth: { size: 5_000, price: rupees(399) },
+    signaturesPerMonth: { size: 25, price: rupees(199) },
+    storageMb: { size: 10_240, price: rupees(99) },
+    chatGuests: { size: 50, price: rupees(99) },
+  },
 };
 
 /** The most a plan earning `monthly` (minor units, before tax) may spend on AI each month, in US dollars. */
 export const aiBudgetFor = (monthly: number, p: Pick<Pricing, "aiCostShareBps" | "usdInr">) => Math.floor(((monthly / 100) * p.aiCostShareBps) / 10000 / Math.max(1, p.usdInr) * 100) / 100;
 
-/** What someone chooses: a plan from the catalogue, or features of their own. */
-export type Choice = { kind: "plan"; planId: string; interval: Interval } | { kind: "custom"; modules: ModuleId[]; seats: number; interval: Interval };
+/** What someone chooses: a plan from the catalogue, or features of their own — either with add-ons. */
+export type Choice = { kind: "plan"; planId: string; interval: Interval; addons?: Addons } | { kind: "custom"; modules: ModuleId[]; seats: number; interval: Interval; addons?: Addons };
 
-export type QuoteLine = { label: string; amount: number; module?: ModuleId };
+/** One priced line. Add-on lines say which (`addon`), and packs how many (`qty`). */
+export type QuoteLine = { label: string; amount: number; module?: ModuleId; addon?: "module" | PackKey; qty?: number };
 
 /** A priced choice: what it includes and what one period costs before tax. */
 export type Quote = {
@@ -240,31 +285,39 @@ export class QuoteError extends Error {}
 
 /** Prices a choice. Throws QuoteError for anything that can't be sold. */
 export function quote(choice: Choice, plans: CatalogPlan[], pricing: Pricing): Quote {
-  if (choice.kind === "plan") {
-    const p = plans.find((x) => x.id === choice.planId && x.active);
-    if (!p) throw new QuoteError("That plan isn't available.");
-    if (p.kind === "free") throw new QuoteError("Free is what you're on without a paid plan — cancel the current plan to move to it at the end of the period.");
-    const amount = choice.interval === "year" ? p.yearly : p.monthly;
-    return {
-      planId: p.id,
-      name: p.name,
-      modules: p.modules ? [...p.modules] : null,
-      limits: { ...p.limits },
-      quotas: { ...(p.quotas ?? {}) },
-      seats: p.limits.seats,
-      interval: choice.interval,
-      currency: p.currency,
-      lines: [{ label: `${p.name} plan, ${choice.interval === "year" ? "yearly" : "monthly"}`, amount }],
-      amount,
-      monthly: choice.interval === "year" ? Math.round(p.yearly / 12) : p.monthly,
-    };
-  }
+  const base = choice.kind === "plan" ? planBase(choice, plans) : customBase(choice, pricing);
+  return withAddons(base, choice.kind === "plan" ? choice.addons : { packs: choice.addons?.packs }, choice.interval, pricing);
+}
+
+type Base = Omit<Quote, "monthly">;
+
+function planBase(choice: Extract<Choice, { kind: "plan" }>, plans: CatalogPlan[]): Base {
+  const p = plans.find((x) => x.id === choice.planId && x.active);
+  if (!p) throw new QuoteError("That plan isn't available.");
+  if (p.kind === "free") throw new QuoteError("Free is what you're on without a paid plan — cancel the current plan to move to it at the end of the period.");
+  const amount = choice.interval === "year" ? p.yearly : p.monthly;
+  return {
+    planId: p.id,
+    name: p.name,
+    modules: p.modules ? [...p.modules] : null,
+    limits: { ...p.limits },
+    quotas: { ...(p.quotas ?? {}) },
+    seats: p.limits.seats,
+    interval: choice.interval,
+    currency: p.currency,
+    lines: [{ label: `${p.name} plan, ${choice.interval === "year" ? "yearly" : "monthly"}`, amount }],
+    amount,
+  };
+}
+
+function customBase(choice: Extract<Choice, { kind: "custom" }>, pricing: Pricing): Base {
   const seats = Math.floor(choice.seats);
   if (!Number.isFinite(seats) || seats < pricing.customSeatsIncluded || seats > 10000) throw new QuoteError(`Choose between ${pricing.customSeatsIncluded} and 10,000 seats.`);
-  const unknown = choice.modules.filter((m) => !MODULE_IDS.includes(m));
+  if (choice.addons?.packs?.seats) throw new QuoteError("Choose a built plan's seats with its seat count.");
+  const unknown = [...choice.modules, ...(choice.addons?.modules ?? [])].filter((m) => !MODULE_IDS.includes(m));
   if (unknown.length) throw new QuoteError(`Unknown feature: ${unknown[0]}`);
   // Features another one needs come along with it, and the base is always included.
-  const picked = withRequirements([...new Set([...pricing.customBaseModules, ...choice.modules])]);
+  const picked = withRequirements([...new Set([...pricing.customBaseModules, ...choice.modules, ...(choice.addons?.modules ?? [])])]);
   const extra = picked.filter((m) => !pricing.customBaseModules.includes(m)).sort((a, b) => MODULE_IDS.indexOf(a) - MODULE_IDS.indexOf(b));
   const missing = extra.filter((m) => typeof pricing.modulePrices[m] !== "number");
   if (missing.length) throw new QuoteError(`${missing[0]} can't be added to a plan yet.`);
@@ -276,7 +329,6 @@ export function quote(choice: Choice, plans: CatalogPlan[], pricing: Pricing): Q
   if (extraSeats > 0) perMonth.push({ label: `${extraSeats} extra seat${extraSeats === 1 ? "" : "s"}`, amount: extraSeats * pricing.seatPrice });
   const monthly = perMonth.reduce((s, l) => s + l.amount, 0);
   const months = choice.interval === "year" ? pricing.yearlyMonths : 1;
-  const lines = perMonth.map((l) => ({ ...l, amount: l.amount * months }));
   return {
     planId: "custom",
     name: "Your plan",
@@ -287,11 +339,74 @@ export function quote(choice: Choice, plans: CatalogPlan[], pricing: Pricing): Q
     seats,
     interval: choice.interval,
     currency: pricing.currency,
-    lines,
+    lines: perMonth.map((l) => ({ ...l, amount: l.amount * months })),
     amount: monthly * months,
-    monthly: choice.interval === "year" ? Math.round((monthly * months) / 12) : monthly,
   };
 }
+
+/**
+ * Adds features and packs to a priced plan. Each add-on costs its monthly price
+ * a month (a yearly plan: yearlyMonths of them, the same saving as a built
+ * plan). Features the plan already has, and packs for what it has without
+ * limit, are left out, so add-ons carry over when the plan changes.
+ */
+function withAddons(b: Base, addons: Addons | undefined, interval: Interval, pricing: Pricing): Quote {
+  const months = interval === "year" ? pricing.yearlyMonths : 1;
+  const packs = pricing.packs ?? DEFAULT_PRICING.packs;
+  const lines = [...b.lines];
+  const out = { modules: b.modules, limits: { ...b.limits }, quotas: { ...b.quotas }, seats: b.seats };
+  let perMonth = 0;
+  const add = (l: QuoteLine) => {
+    perMonth += l.amount;
+    lines.push({ ...l, amount: l.amount * months });
+  };
+  const wanted = addons?.modules ?? [];
+  if (wanted.length && out.modules) {
+    const unknown = wanted.filter((m) => !MODULE_IDS.includes(m));
+    if (unknown.length) throw new QuoteError(`Unknown feature: ${unknown[0]}`);
+    const all = withRequirements([...new Set([...out.modules, ...wanted])]);
+    const extra = all.filter((m) => !out.modules!.includes(m)).sort((a, z) => MODULE_IDS.indexOf(a) - MODULE_IDS.indexOf(z));
+    const missing = extra.filter((m) => typeof pricing.modulePrices[m] !== "number");
+    if (missing.length) throw new QuoteError(`${missing[0]} can't be added to a plan yet.`);
+    for (const m of extra) add({ label: m, amount: pricing.modulePrices[m]!, module: m, addon: "module" });
+    out.modules = all;
+  }
+  for (const k of PACK_KEYS) {
+    const n = addons?.packs?.[k] ?? 0;
+    if (!n) continue;
+    if (!Number.isInteger(n) || n < 0 || n > 1000) throw new QuoteError("Choose between 0 and 1,000 of each add-on.");
+    const pk = packs[k];
+    if (!pk || pk.size <= 0) throw new QuoteError(`${PACK_LABEL[k].name} can't be added yet.`);
+    const more = n * pk.size;
+    if (isLimitPack(k)) {
+      if (!Number.isFinite(out.limits[k])) continue;
+      out.limits[k] += more;
+      if (k === "seats") out.seats += more;
+    } else {
+      if (out.quotas[k] === undefined) continue;
+      out.quotas[k] = out.quotas[k]! + more;
+      // More AI requests bring the AI budget their price pays for.
+      if (k === "aiPerMonth" && out.quotas.aiBudgetUsd !== undefined) out.quotas.aiBudgetUsd = Math.round((out.quotas.aiBudgetUsd + aiBudgetFor(n * pk.price, pricing)) * 100) / 100;
+    }
+    add({ label: `+${PACK_LABEL[k].amount(more)}`, amount: n * pk.price, addon: k, qty: n });
+  }
+  const amount = b.amount + perMonth * months;
+  return { planId: b.planId, name: b.name, interval, currency: b.currency, ...out, lines, amount, monthly: interval === "year" ? Math.round(amount / 12) : amount };
+}
+
+/** The add-ons in a subscription's lines (what was bought on top of its plan). */
+export function addonsOf(lines: { module?: string; addon?: string; qty?: number }[] | null | undefined): Required<Addons> {
+  const modules: ModuleId[] = [];
+  const packs: Partial<Record<PackKey, number>> = {};
+  for (const l of lines ?? []) {
+    if (l.addon === "module" && l.module) modules.push(l.module as ModuleId);
+    else if (l.qty && PACK_KEYS.includes(l.addon as PackKey)) packs[l.addon as PackKey] = (packs[l.addon as PackKey] ?? 0) + l.qty;
+  }
+  return { modules, packs };
+}
+
+/** Whether a line is an add-on (not the plan itself). */
+export const isAddonLine = (l: Pick<QuoteLine, "addon">) => !!l.addon;
 
 /** Adds a period (calendar months, so 31 Jan + 1 month = 28/29 Feb). */
 export function addInterval(from: Date, interval: Interval, n = 1): Date {

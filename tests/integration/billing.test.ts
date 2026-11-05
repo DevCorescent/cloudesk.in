@@ -86,6 +86,20 @@ describe("without billing configured", () => {
     expect(o.json).toMatchObject({ enforced: false, providers: [], plan: "free" });
     for (const n of ["One", "Two", "Three", "Four"]) expect((await newProject(n)).status).toBe(201);
   });
+
+  it("refuses every webhook while no signing secret is set (an empty key is one anybody can sign with)", async () => {
+    // Keys but no webhook secret: how a platform looks before the webhook is created.
+    process.env.RAZORPAY_KEY_ID = "rzp_test_x";
+    process.env.RAZORPAY_KEY_SECRET = "rzp_secret";
+    try {
+      const forged = await rzpEvent("payment.captured", {}, { id: "pay_forged", order_id: "order_any", amount: 100, currency: "INR", status: "captured" }, "");
+      expect(forged.status).toBe(403);
+      expect((await stripeEvent("evt_forged", "checkout.session.completed", { mode: "payment", metadata: { invoice_id: "x" } }, "")).status).toBe(403);
+    } finally {
+      delete process.env.RAZORPAY_KEY_ID;
+      delete process.env.RAZORPAY_KEY_SECRET;
+    }
+  });
 });
 
 describe("Stripe Billing", () => {
