@@ -102,6 +102,8 @@ export type Overview = {
   recap: { lost: { module: ModuleId; name: string; records: number }[]; plan: { planId: string; name: string; monthly: number; currency: string } | null; custom: { monthly: number; currency: string } | null } | null;
   pricing: PublicPricing;
   providers: Provider[];
+  /** The website payments are approved for (e.g. https://cloudesk.in); paying starts there. */
+  payOrigin?: string | null;
   invoices: Invoice[];
   events: SubEvent[];
 };

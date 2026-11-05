@@ -96,6 +96,13 @@ export function usePayInvoice(orgId: string, overview: Overview | undefined) {
 
   function pay(inv: Invoice) {
     if (!providers.length) return setNoProvider(inv);
+    // Payment providers only accept payments from the website they approved: continue there.
+    const home = overview?.payOrigin;
+    if (home && window.location.origin !== home) {
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- another origin, so a full navigation
+      window.location.assign(`${home}/settings/billing?pay=${encodeURIComponent(inv.id)}`);
+      return;
+    }
     if (providers.length === 1) return void run(inv, providers[0]!);
     setPicking(inv);
   }

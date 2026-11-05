@@ -10,7 +10,7 @@ import { KeepRecap, QuotaMeters } from "@/components/billing/upsell";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CreditCard, ExternalLink } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AddOns, takesAddons, YourBill } from "@/components/billing/addons";
 import { TopupCard } from "@/components/billing/topup";
 import { ChangePlan, PreviewDialog } from "@/components/billing/change-plan";
@@ -68,6 +68,16 @@ function Manage() {
   const q = useQuery({ queryKey: subKey(org.id), queryFn: () => api<Overview>(subPath(org.id)), retry: (n, e) => !(e instanceof ApiClientError && e.status === 403) && n < 2 });
   const legacy = useQuery({ queryKey: ["billing", org.id], queryFn: () => api<Legacy>(`/api/v1/orgs/${org.id}/billing`), staleTime: 300_000 });
   const pay = usePayInvoice(org.id, q.data);
+  // Sent here from another address to pay (see usePayInvoice): carry on with that invoice, once.
+  const resumePay = params.get("pay");
+  const resumed = useRef(false);
+  useEffect(() => {
+    if (!resumePay || resumed.current || !q.data) return;
+    resumed.current = true;
+    window.history.replaceState(null, "", "/settings/billing");
+    const inv = q.data.invoices.find((i) => i.id === resumePay && i.status === "open" && i.total > 0);
+    if (inv) pay.pay(inv);
+  }, [resumePay, q.data, pay]);
   const ret = useStripeReturn(org.id, true);
   const [viewing, setViewing] = useState<Invoice | null>(null);
   const [planKey, setPlanKey] = useState(0);

@@ -56,7 +56,8 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           // The till scans barcodes with the camera; only the app itself may ask.
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+          // Razorpay and Stripe open windows (UPI apps, card checks) that report back to the page.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
         ],
       },
       // Every response, published sites and API answers included: never guess a content type.

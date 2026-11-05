@@ -40,6 +40,12 @@ export async function proxy(request: NextRequest) {
   const refused = await checkRequest(request);
   if (refused) return refused;
   const path = request.nextUrl.pathname;
+  // One address for the platform: www. goes to the bare domain (payment
+  // providers only accept the website they approved, and sign-ins stay on one host).
+  const at = (request.headers.get("host") ?? "").toLowerCase().replace(/:\d+$/, "");
+  if (at.startsWith("www.") && OWN_HOSTS.has(at) && OWN_HOSTS.has(at.slice(4)) && !at.endsWith(".vercel.app")) {
+    return NextResponse.redirect(`https://${at.slice(4)}${path}${request.nextUrl.search}`, 308);
+  }
   if (OWN.test(path)) {
     const headers = new Headers(request.headers);
     headers.set("x-pathname", path + request.nextUrl.search);

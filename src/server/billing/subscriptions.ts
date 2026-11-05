@@ -710,6 +710,8 @@ export async function overview(orgId: string) {
     free: freePlan,
     pricing: { currency: p.currency, trialDays: trialDaysNow(p.trialDays), taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, graceDays: p.graceDays, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices, customQuotas: p.customQuotas, aiCostShareBps: p.aiCostShareBps, usdInr: p.usdInr, packs: p.packs },
     providers: paymentProviders(),
+    // Where payments must be made from (the website the payment provider approved), if set.
+    payOrigin: (await import("../platform/config")).cfg("PAYMENT_ORIGIN")?.replace(/\/+$/, "") || null,
     invoices: invoices.map(publicInvoice),
     events,
   };
