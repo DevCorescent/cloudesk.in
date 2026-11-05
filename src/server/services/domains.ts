@@ -29,8 +29,12 @@ export function dnsTarget() {
 /** Hosts that belong to the platform itself (never treated as customer domains). */
 export function isPlatformHost(host: string) {
   const h = host.toLowerCase().replace(/:\d+$/, "");
-  const app = process.env.APP_URL ? new URL(process.env.APP_URL).hostname.toLowerCase() : "";
-  return h === app || h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]" || h === dnsTarget().cname;
+  // The same addresses the proxy serves as the platform (src/proxy.ts): APP_URL, Vercel's domains for this project, PLATFORM_HOSTS — each with and without www.
+  const own = [process.env.APP_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, ...(process.env.PLATFORM_HOSTS ?? "").split(",")]
+    .map((u) => { try { return u?.trim() ? new URL(u.includes("://") ? u.trim() : `https://${u.trim()}`).hostname.toLowerCase() : ""; } catch { return ""; } })
+    .filter(Boolean)
+    .flatMap((x) => [x, x.startsWith("www.") ? x.slice(4) : `www.${x}`]);
+  return own.includes(h) || h.endsWith(".vercel.app") || h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]" || h === dnsTarget().cname;
 }
 
 export function normalizeHostname(input: string) {

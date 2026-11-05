@@ -3,11 +3,31 @@ import { checkRequest } from "@/server/security/firewall";
 
 const PLATFORM = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+const hostOf = (url?: string) => {
+  if (!url) return "";
+  try {
+    return new URL(url.includes("://") ? url : `https://${url}`).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+};
+/**
+ * The platform's own addresses: APP_URL's host and its www., the domains
+ * Vercel serves this project on (its production domain and deployment URLs),
+ * any *.vercel.app address (customers' sites never use those), and any listed
+ * in PLATFORM_HOSTS (comma-separated).
+ */
+const OWN_HOSTS = new Set(
+  [process.env.APP_URL, process.env.VERCEL_PROJECT_PRODUCTION_URL, process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL, ...(process.env.PLATFORM_HOSTS ?? "").split(",")]
+    .map((u) => hostOf(u?.trim()))
+    .filter(Boolean)
+    .flatMap((h) => [h, h.startsWith("www.") ? h.slice(4) : `www.${h}`]),
+);
+
 /** True for requests to a customer's own domain rather than the platform. */
 function isCustomHost(host: string) {
   const h = host.toLowerCase().replace(/:\d+$/, "");
-  if (PLATFORM.has(h)) return false;
-  if (process.env.APP_URL && new URL(process.env.APP_URL).hostname.toLowerCase() === h) return false;
+  if (PLATFORM.has(h) || OWN_HOSTS.has(h) || h.endsWith(".vercel.app")) return false;
   if (process.env.CUSTOM_DOMAIN_CNAME && process.env.CUSTOM_DOMAIN_CNAME.toLowerCase() === h) return false;
   return true;
 }
