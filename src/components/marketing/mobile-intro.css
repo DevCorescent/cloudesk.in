@@ -463,3 +463,115 @@
 
 /* The app windows stay light inside. */
 .mi-win { --line: rgb(22 19 42 / 0.08); --ink-3: rgb(22 19 42 / 0.42); }
+
+/* ── Diwali (while lib/festive.ts says so): every screen in the festival's pastel ── */
+.mi[data-diwali] {
+  --bg: #fdf6ee;
+  --fg: #2b1d12;
+  --glass: rgb(255 255 255 / 0.7);
+  --line: rgb(43 29 18 / 0.08);
+  --ink-2: rgb(43 29 18 / 0.62);
+  --ink-3: rgb(43 29 18 / 0.42);
+  color-scheme: light;
+}
+.mi[data-diwali] .mi-bg { background: linear-gradient(180deg, #fdf6ee 0%, #fbeee6 55%, #f6eef7 100%); }
+.mi[data-diwali] .mi-bg::before { background: #ffe1b8; opacity: 0.55; filter: blur(60px); }
+.mi[data-diwali] .mi-bg::after { background: #f3dcf6; opacity: 0.6; filter: blur(70px); }
+.mi[data-diwali] .mi-bg > span { background: radial-gradient(80% 40% at 50% 34%, color-mix(in srgb, var(--g) 22%, transparent), transparent 72%); }
+.mi[data-diwali] .mi-prog span { background: rgb(43 29 18 / 0.1); }
+.mi[data-diwali] .mi-prog span.is-past { background: rgb(43 29 18 / 0.45); }
+.mi[data-diwali] .mi-win { box-shadow: 0 30px 60px -28px rgb(120 60 30 / 0.4), 0 0 0 1px var(--line); }
+.mi[data-diwali] .mi-title em { background-image: linear-gradient(92deg, color-mix(in srgb, var(--tone) 85%, #5a2a0a), color-mix(in srgb, var(--tone) 60%, #b8741a)); }
+.mi[data-diwali] .mi-badge-in { color: var(--fg); background: rgb(255 255 255 / 0.88); border-color: rgb(255 255 255 / 0.95); box-shadow: 0 14px 30px -16px rgb(120 60 30 / 0.4), 0 0 0 1px var(--line); }
+.mi[data-diwali] .mi-badge-ic { color: color-mix(in srgb, var(--tone) 80%, #2b1d12); background: color-mix(in srgb, var(--tone) 16%, #fff); }
+.mi[data-diwali] .mi-next { color: #fdf6ee; background: #2b1d12; box-shadow: 0 14px 30px -14px rgb(43 29 18 / 0.6); }
+.mi[data-diwali] .mi-next::after { background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.2) 50%, transparent 65%); }
+.mi[data-diwali] .mi-next-arrow { color: #2b1d12; background: #fdf6ee; }
+.mi[data-diwali] .mi-btn-main { background: #2b1d12; color: #fdf6ee; }
+.mi[data-diwali] .mi-btn-glass { background: rgb(255 255 255 / 0.75); border-color: var(--line); color: var(--fg); }
+.mi[data-diwali] .mi-ai, .mi[data-diwali] .mi-setup { color: var(--fg); background: rgb(255 255 255 / 0.72); }
+.mi[data-diwali] .mi-ai svg, .mi[data-diwali] .mi-setup svg { color: #b8741a; }
+.mi[data-diwali] .mi-foot button { text-decoration-color: rgb(43 29 18 / 0.25); }
+.mi[data-diwali] .mi-splash { background: radial-gradient(70% 45% at 50% 40%, #ffe9c7, transparent 70%), radial-gradient(60% 40% at 50% 72%, #f6e2f7, transparent 70%), #fdf6ee; }
+.mi[data-diwali] .mi-splash-name { color: #2b1d12; }
+.mi[data-diwali] .mi-splash-mark path:nth-child(3) { stroke: #2b1d12; }
+.mi-splash-diya { position: absolute; left: 50%; top: 150px; width: 34px; height: 16px; margin-left: -17px; border-radius: 0 0 34px 34px; background: linear-gradient(180deg, #d3743a, #8a3a15); opacity: 0; animation: mi-fade-in 0.6s 1.3s both; }
+.mi-splash-diya i { position: absolute; left: 50%; bottom: 100%; width: 9px; height: 18px; margin-left: -4.5px; border-radius: 50% 50% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff6d0, #ffb43c 70%); box-shadow: 0 0 16px 6px rgb(255 170 60 / 0.55); transform-origin: 50% 100%; animation: mi-flick 1.5s ease-in-out infinite; }
+@keyframes mi-fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes mi-flick { 0%, 100% { transform: scale(1, 1); } 40% { transform: scale(0.85, 1.12); } 70% { transform: scale(1.08, 0.92); } }
+
+/* The festival over every screen: a marigold toran under the top bar, petals drifting down. */
+.mi-festive { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.mi-toran { position: absolute; left: 0; top: calc(env(safe-area-inset-top, 0px) + 62px); filter: drop-shadow(0 5px 6px rgb(200 120 40 / 0.15)); }
+.mi-petal { position: absolute; top: -14px; width: 8px; height: 12px; border-radius: 60% 60% 50% 50% / 70% 70% 40% 40%; background: var(--c); opacity: 0; animation: mi-fall var(--t) linear var(--d) infinite; }
+@keyframes mi-fall { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 10% { opacity: 0.5; } 85% { opacity: 0.35; } 100% { transform: translate(var(--x), 105vh) rotate(320deg); opacity: 0; } }
+.mi[data-diwali] .mi-top, .mi[data-diwali] .mi-prog { position: relative; z-index: 2; }
+.mi[data-diwali] .mi-stage { z-index: 2; }
+.mi[data-diwali] .mi-bar { z-index: 3; }
+
+/* The Diwali screen: the gift, then the words and one quiet button. */
+.mi-dw .mi-art-wrap { padding-top: 34px; }
+.mi-dw-hi { margin: 4px 0 0; text-align: center; font-size: 15px; font-weight: 500; color: #a8622a; opacity: 0; transition: opacity 0.6s 1.9s; }
+.mi-dw[data-on] .mi-dw-hi { opacity: 1; }
+.mi-dw .mi-title { margin-top: 4px; }
+.mi-dw[data-on] .mi-title { transition-delay: 2.05s; }
+.mi-dw[data-on] .mi-sub { transition-delay: 2.2s; }
+.mi-dw-left { font-weight: 500; color: #8a5a20; }
+.mi-dw-cta { align-self: center; display: inline-flex; align-items: center; gap: 7px; height: 44px; margin: 14px 0 86px; padding: 0 20px; border-radius: 999px; font-size: 14.5px; font-weight: 500; color: #fdf6ee; background: #2b1d12; box-shadow: 0 12px 26px -14px rgb(43 29 18 / 0.7); opacity: 0; transform: translateY(10px); transition: opacity 0.5s 2.35s, transform 0.6s cubic-bezier(.2,.8,.2,1) 2.35s; }
+.mi-dw[data-on] .mi-dw-cta { opacity: 1; transform: none; }
+.mi-dw-cta:active { transform: scale(0.97); }
+
+.mi-gift-stage { --s: min(1, calc((100vw - 120px) / 260px)); position: relative; width: calc(280px * var(--s)); height: calc(330px * var(--s)); display: grid; place-items: end center; }
+.mi-gift { position: relative; width: calc(200px * var(--s)); height: calc(300px * var(--s)); }
+/* The box bobs, then trembles before it opens. */
+.mi-dw[data-on] .mi-gift { animation: mi-bob 1.1s ease-in-out both, mi-tremble 0.42s ease-in-out 0.62s both; }
+@keyframes mi-bob { 0% { transform: translateY(26px) scale(0.92); opacity: 0; } 45% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+@keyframes mi-tremble { 0%, 100% { rotate: 0deg; } 20% { rotate: -3.5deg; } 40% { rotate: 3deg; } 60% { rotate: -2.5deg; } 80% { rotate: 1.5deg; } }
+.mi-box { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: calc(132px * var(--s)); border-radius: calc(14px * var(--s)); overflow: hidden; background: linear-gradient(160deg, #f6c9d2 0%, #eaa3b4 50%, #d9849a 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), inset 0 -14px 24px rgb(160 60 90 / 0.18), 0 24px 44px -22px rgb(160 70 90 / 0.55); }
+.mi-ribbon { position: absolute; top: 0; bottom: 0; left: 50%; width: calc(24px * var(--s)); translate: -50% 0; background: linear-gradient(90deg, #c8922f, #f3d38c 40%, #fff1cc 50%, #f3d38c 60%, #c8922f); }
+.mi-sheen { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.38) 45%, transparent 60%); }
+.mi-dw[data-on] .mi-sheen { animation: mi-sheen-move 2.4s ease-in-out 0.2s; }
+@keyframes mi-sheen-move { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.mi-lid { position: absolute; z-index: 4; left: calc(-8px * var(--s)); right: calc(-8px * var(--s)); bottom: calc(126px * var(--s)); height: calc(38px * var(--s)); border-radius: calc(11px * var(--s)); background: linear-gradient(165deg, #f8d3db 0%, #eeb0bf 60%, #e195a8 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 10px 18px -10px rgb(160 70 90 / 0.55); transform-origin: 25% 100%; }
+/* The lid springs off, turning, and falls away. */
+.mi-dw[data-on] .mi-lid { animation: mi-lid-off 1.05s cubic-bezier(.4,-0.3,.3,1.1) 1.04s both; }
+@keyframes mi-lid-off { 0% { transform: none; opacity: 1; } 35% { transform: translate(calc(-14px * var(--s)), calc(-110px * var(--s))) rotate(-28deg); opacity: 1; } 100% { transform: translate(calc(-120px * var(--s)), calc(-40px * var(--s))) rotate(-70deg); opacity: 0; } }
+.mi-bow { position: absolute; left: 50%; bottom: 100%; translate: -50% 18%; width: calc(88px * var(--s)); height: calc(42px * var(--s)); }
+.mi-bow i { position: absolute; bottom: 0; width: 50%; height: 100%; border: calc(7px * var(--s)) solid #e2ad4c; border-radius: 50% 50% 10% 50% / 60% 60% 20% 60%; }
+.mi-bow i:nth-of-type(1) { left: 2px; rotate: -18deg; }
+.mi-bow i:nth-of-type(2) { right: 2px; rotate: 18deg; scale: -1 1; }
+.mi-bow b { position: absolute; left: 50%; bottom: calc(-3px * var(--s)); translate: -50% 0; width: calc(19px * var(--s)); height: calc(17px * var(--s)); border-radius: calc(6px * var(--s)); background: linear-gradient(180deg, #fff1cc, #e2ad4c); }
+/* The card rises out and settles with a little overshoot, sparkles circling it. */
+.mi-card { position: absolute; z-index: 2; left: calc(12px * var(--s)); right: calc(12px * var(--s)); bottom: calc(22px * var(--s)); height: calc(196px * var(--s)); display: grid; justify-items: center; align-content: center; gap: calc(2px * var(--s)); border-radius: calc(16px * var(--s)); text-align: center; color: #2b1d12; background: radial-gradient(120% 80% at 50% 0%, #ffffff, #fff8ec 60%, #fbecd2); box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.3), inset 0 0 0 calc(5px * var(--s)) rgb(255 255 255 / 0.7), 0 22px 44px -20px rgb(200 130 50 / 0.6); opacity: 0; }
+.mi-dw[data-on] .mi-card { animation: mi-card-up 1.2s cubic-bezier(.2,.9,.2,1.15) 1.22s both, mi-card-glow 2.6s ease-in-out 2.6s infinite; }
+@keyframes mi-card-up { 0% { transform: translateY(calc(30px * var(--s))) scale(0.84); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(calc(-104px * var(--s))) scale(1); opacity: 1; } }
+@keyframes mi-card-glow { 0%, 100% { box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.3), inset 0 0 0 calc(5px * var(--s)) rgb(255 255 255 / 0.7), 0 22px 44px -20px rgb(200 130 50 / 0.6); } 50% { box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.45), inset 0 0 0 calc(5px * var(--s)) rgb(255 255 255 / 0.7), 0 22px 60px -14px rgb(240 170 70 / 0.85); } }
+.mi-card-kick { font-size: calc(9.5px * var(--s)); letter-spacing: 0.22em; text-transform: uppercase; color: #a8622a; }
+.mi-card-kick[lang="hi"] { letter-spacing: 0; font-size: calc(13px * var(--s)); }
+.mi-card-big { margin-top: calc(4px * var(--s)); font-size: calc(30px * var(--s)); font-weight: 300; letter-spacing: -0.04em; line-height: 1; }
+.mi-card-big b { font-size: calc(62px * var(--s)); font-weight: 300; background: linear-gradient(180deg, #e0a03a, #9a5a14); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.mi-card-sub { font-size: calc(14px * var(--s)); color: #5b4636; }
+.mi-orbit { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #f2b84b; box-shadow: 0 0 8px 2px rgb(255 190 90 / 0.75); opacity: 0; }
+.mi-dw[data-on] .mi-orbit { animation: mi-orbit 3.6s linear calc(2.2s + var(--i) * -0.6s) infinite, mi-fade-in 0.6s 2.2s both; }
+@keyframes mi-orbit { from { transform: rotate(0deg) translateX(calc(118px * var(--s))) rotate(0deg) scaleY(1); } to { transform: rotate(360deg) translateX(calc(118px * var(--s))) rotate(-360deg); } }
+/* Light pouring out, a warm halo, and a burst of petals and sparks as the lid goes. */
+.mi-rays { position: absolute; left: 50%; bottom: calc(150px * var(--s)); width: calc(460px * var(--s)); height: calc(460px * var(--s)); translate: -50% 50%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 10deg, rgb(255 200 110 / 0.45) 14deg, transparent 20deg 40deg, rgb(255 200 110 / 0.32) 46deg, transparent 52deg 76deg, rgb(255 200 110 / 0.42) 82deg, transparent 88deg 115deg, rgb(255 200 110 / 0.3) 120deg, transparent 126deg 150deg, rgb(255 200 110 / 0.42) 156deg, transparent 162deg 200deg, rgb(255 200 110 / 0.3) 210deg, transparent 216deg 260deg, rgb(255 200 110 / 0.38) 270deg, transparent 276deg 360deg); -webkit-mask-image: radial-gradient(closest-side, #000 28%, transparent); mask-image: radial-gradient(closest-side, #000 28%, transparent); opacity: 0; }
+.mi-dw[data-on] .mi-rays { animation: mi-rays-in 1.2s ease-out 1.08s both, mi-spin 30s linear 1.08s infinite; }
+@keyframes mi-rays-in { from { opacity: 0; scale: 0.3; } to { opacity: 1; scale: 1; } }
+@keyframes mi-spin { to { rotate: 360deg; } }
+.mi-halo { position: absolute; left: 50%; bottom: calc(180px * var(--s)); width: calc(260px * var(--s)); height: calc(260px * var(--s)); translate: -50% 50%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 205 120 / 0.6), transparent); opacity: 0; }
+.mi-dw[data-on] .mi-halo { animation: mi-fade-in 1s 1.1s both; }
+.mi-floor { position: absolute; left: 50%; bottom: calc(-8px * var(--s)); width: calc(240px * var(--s)); height: calc(30px * var(--s)); translate: -50% 0; border-radius: 50%; background: radial-gradient(closest-side, rgb(160 80 60 / 0.2), transparent); filter: blur(3px); }
+.mi-burst { position: absolute; left: 50%; bottom: calc(150px * var(--s)); width: 0; height: 0; z-index: 5; }
+.mi-burst i { position: absolute; opacity: 0; }
+.mi-spark { width: 6px; height: 6px; border-radius: 50%; background: #ffe3a1; box-shadow: 0 0 10px 2px rgb(255 190 90 / 0.85); }
+.mi-flake { width: 8px; height: 12px; border-radius: 60% 60% 50% 50% / 70% 70% 40% 40%; background: var(--c); }
+.mi-dw[data-on] .mi-burst i { animation: mi-pop 1.5s cubic-bezier(.1,.8,.3,1) calc(1.08s + var(--d)) both; }
+@keyframes mi-pop { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0) rotate(0deg); } 15% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--r) * -1 * var(--s))) rotate(220deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mi-petal, .mi-orbit, .mi-burst, .mi-splash-diya i { animation: none !important; display: none; }
+  .mi-dw[data-on] .mi-gift, .mi-dw[data-on] .mi-rays, .mi-dw[data-on] .mi-halo, .mi-dw[data-on] .mi-sheen { animation: none !important; opacity: 1; }
+  .mi-dw[data-on] .mi-lid { animation: none !important; opacity: 0; }
+  .mi-dw[data-on] .mi-card { animation: none !important; opacity: 1; transform: translateY(calc(-104px * var(--s))); }
+}

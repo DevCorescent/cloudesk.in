@@ -7,7 +7,7 @@ import { Impact } from "@/components/marketing/impact";
 import { NotesSpotlight, WorkdayCards } from "@/components/marketing/home-spotlights";
 import { Innovations } from "@/components/marketing/innovations";
 import { IntelligenceHighlight } from "@/components/marketing/intelligence";
-import { isDiwali } from "@/lib/festive";
+import { isDiwali, launchOffer } from "@/lib/festive";
 import { PlatformTrio } from "@/components/marketing/platform-trio";
 import { SiteJsonLd } from "@/components/legal/json-ld";
 import { MobileIntro } from "@/components/marketing/mobile-intro";
@@ -27,7 +27,7 @@ export default async function Landing() {
     <>
       <SiteJsonLd />
       {/* Phones open on a swipeable intro instead of the long page. */}
-      <MobileIntro signedIn={!!session} />
+      <MobileIntro signedIn={!!session} diwali={diwali} offer={diwali && !!launchOffer()} />
       <HomeHero diwali={diwali} />
       <IntelligenceHighlight />
       {/* ── The feature films ── */}

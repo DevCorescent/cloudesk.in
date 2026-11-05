@@ -8,6 +8,7 @@
 // after a short logo splash on every load. "Setup with AI" opens the sign-up
 // conversation from any screen. "Explore the website" lets them through to the
 // full page for the rest of the visit.
+import { LAUNCH_OFFER } from "@/lib/festive";
 import { freeFor } from "@/lib/festive";
 import "./mobile-intro.css";
 import clsx from "clsx";
@@ -141,11 +142,14 @@ const SLIDES: Slide[] = [
     ],
   },
 ];
-const LAST = SLIDES.length; // the final "start" screen comes after the story
 const FINAL_TONE = "#f08a4b";
-const toneAt = (i: number) => SLIDES[i]?.tone ?? FINAL_TONE;
+const DIWALI_TONE = "#e0a03a";
 
-export function MobileIntro({ signedIn }: { signedIn: boolean }) {
+export function MobileIntro({ signedIn, diwali = false, offer = false }: { signedIn: boolean; diwali?: boolean; offer?: boolean }) {
+  // During Diwali the story opens on the gift (lib/festive.ts), and every screen wears the festival.
+  const lead = diwali ? 1 : 0;
+  const LAST = SLIDES.length + lead; // the final "start" screen comes after the story
+  const toneAt = (i: number) => (i < lead ? DIWALI_TONE : (SLIDES[i - lead]?.tone ?? FINAL_TONE));
   const [at, setAt] = useState(0);
   const [auto, setAuto] = useState(true);
   const [drag, setDrag] = useState(0);
@@ -176,7 +180,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   const go = useCallback((i: number, manual = true) => {
     setAt(Math.max(0, Math.min(LAST, i)));
     if (manual) setAuto(false);
-  }, []);
+  }, [LAST]);
 
   // Back from sign-up lands where they left; storage may be blocked, which is fine.
   useEffect(() => {
@@ -189,7 +193,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
         /* eslint-enable react-hooks/set-state-in-effect */
       }
     } catch {}
-  }, []);
+  }, [LAST]);
   useEffect(() => {
     try {
       sessionStorage.setItem(AT_KEY, String(at));
@@ -201,7 +205,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
     if (!ready || !auto || dragging || aiMode || at >= LAST) return;
     const t = setTimeout(() => go(at + 1, false), AUTO_MS);
     return () => clearTimeout(t);
-  }, [ready, auto, dragging, aiMode, at, go]);
+  }, [ready, auto, dragging, aiMode, at, go, LAST]);
 
   // The status bar matches the intro on phones; the page's own colour comes back when it goes.
   useEffect(() => {
@@ -210,7 +214,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
     const mq = window.matchMedia(PHONE);
     const apply = () => {
       const on = mq.matches && !document.documentElement.classList.contains("intro-off");
-      metas.forEach((m, i) => (m.content = on ? "#0b0b0c" : before[i]!));
+      metas.forEach((m, i) => (m.content = on ? (diwali ? "#fdf6ee" : "#0b0b0c") : before[i]!));
     };
     apply();
     mq.addEventListener("change", apply);
@@ -221,7 +225,7 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
       watch.disconnect();
       metas.forEach((m, i) => (m.content = before[i]!));
     };
-  }, []);
+  }, [diwali]);
 
   // Arrow keys for anyone with a keyboard.
   useEffect(() => {
@@ -291,9 +295,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   const last = at === LAST;
 
   return (
-    <div className="mi" data-at={at} style={{ "--tone": toneAt(at) } as CSSProperties} role="region" aria-roledescription="carousel" aria-label="Welcome to Cloudesk">
+    <div className="mi" data-at={at} data-diwali={diwali || undefined} style={{ "--tone": toneAt(at) } as CSSProperties} role="region" aria-roledescription="carousel" aria-label="Welcome to Cloudesk">
       <script dangerouslySetInnerHTML={{ __html: SKIP_SCRIPT }} />
-      {splash !== "off" && <Splash leaving={splash === "leaving"} />}
+      {splash !== "off" && <Splash leaving={splash === "leaving"} diwali={diwali} />}
+      {diwali && <MiFestive />}
       {/* Colour light behind each screen, crossfading as they change. */}
       <div className="mi-bg" aria-hidden>
         {Array.from({ length: LAST + 1 }, (_, i) => (
@@ -327,7 +332,10 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
 
       <div ref={stage} className="mi-stage" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
         <div className={clsx("mi-track", dragging && "is-drag")} style={{ transform: `translate3d(calc(${-at * 100}% + ${drag}px),0,0)` }}>
-          {SLIDES.map((s, i) => (
+          {diwali && <DiwaliSlide on={ready && at === 0} offer={offer} signedIn={signedIn} label={`1 of ${LAST + 1}`} />}
+          {SLIDES.map((s, j) => {
+            const i = j + lead;
+            return (
             <section key={s.id} className="mi-slide" style={{ "--tone": s.tone } as CSSProperties} data-on={(ready && i === at) || undefined} aria-hidden={i !== at} aria-roledescription="slide" aria-label={`${i + 1} of ${LAST + 1}`}>
               <div className="mi-art-wrap">
                 <ShotArt screen={s.screen} phones={s.phones} first={i === 0} label={s.id}>
@@ -337,7 +345,8 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
               <h2 className="mi-title">{s.title}</h2>
               <p className="mi-sub">{s.sub}</p>
             </section>
-          ))}
+            );
+          })}
 
           <section className="mi-slide mi-final" style={{ "--tone": FINAL_TONE } as CSSProperties} data-on={(ready && last) || undefined} aria-hidden={!last} aria-roledescription="slide" aria-label={`${LAST + 1} of ${LAST + 1}`}>
             <div className="mi-art-wrap">
@@ -390,14 +399,99 @@ export function MobileIntro({ signedIn }: { signedIn: boolean }) {
   );
 }
 
+// ─── Diwali (while lib/festive.ts says so) ──────────────────────────────────
+
+/** The festival over every screen: a marigold toran across the top, and petals drifting down. */
+function MiFestive() {
+  return (
+    <div className="mi-festive" aria-hidden>
+      <svg className="mi-toran" width="100%" height="64">
+        <defs>
+          <radialGradient id="mi-mg" cx="45%" cy="40%" r="60%"><stop offset="0" stopColor="#ffd36b" /><stop offset="0.55" stopColor="#f6a43a" /><stop offset="1" stopColor="#e07b1f" /></radialGradient>
+          <radialGradient id="mi-mg2" cx="45%" cy="40%" r="60%"><stop offset="0" stopColor="#fff0a8" /><stop offset="0.6" stopColor="#f7c948" /><stop offset="1" stopColor="#e3a21a" /></radialGradient>
+          <pattern id="mi-toran" width="130" height="64" patternUnits="userSpaceOnUse">
+            <path d="M0 3 Q65 37 130 3" fill="none" stroke="#c8922f" strokeWidth="0.7" opacity="0.6" />
+            {Array.from({ length: 6 }, (_, i) => {
+              const t = (i + 0.5) / 6;
+              return <circle key={i} cx={130 * t} cy={3 + 68 * t * (1 - t)} r="5.4" fill={i % 2 ? "url(#mi-mg2)" : "url(#mi-mg)"} stroke="#c46a12" strokeWidth="0.7" strokeDasharray="1.1 1.4" />;
+            })}
+            <path d="M0 3 q-5 10 0 22 q5 -12 0 -22 z M2 5 q9 7 7 19 q-9 -6 -7 -19 z M-2 5 q-9 7 -7 19 q9 -6 7 -19 z" fill="#86b571" />
+            <path d="M130 3 q-5 10 0 22 q5 -12 0 -22 z M132 5 q9 7 7 19 q-9 -6 -7 -19 z M128 5 q-9 7 -7 19 q9 -6 7 -19 z" fill="#86b571" />
+            <path d="M65 20 v8" stroke="#c8922f" strokeWidth="0.7" opacity="0.6" />
+            <path d="M65 27 c-3 4 -3 7 0 9 c3 -2 3 -5 0 -9 z" fill="#e3b14d" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="64" fill="url(#mi-toran)" />
+      </svg>
+      {Array.from({ length: 9 }, (_, i) => <span key={i} className="mi-petal" style={{ left: `${(i * 37 + 8) % 94}%`, "--d": `${(i * 1.9) % 11}s`, "--t": `${11 + (i % 4) * 3}s`, "--x": `${(i % 2 ? 1 : -1) * (24 + (i % 3) * 20)}px`, "--c": i % 3 ? "#f6a43a" : "#f7c948" } as CSSProperties} />)}
+    </div>
+  );
+}
+
+/** The first screen during Diwali: a gift that wobbles, bursts open and lifts its card out — the launch offer. */
+function DiwaliSlide({ on, offer, signedIn, label }: { on: boolean; offer: boolean; signedIn: boolean; label: string }) {
+  const [left, setLeft] = useState<string | null>(null);
+  useEffect(() => {
+    if (!offer) return;
+    const tick = () => {
+      const ms = Math.max(0, new Date(LAUNCH_OFFER.until).getTime() - Date.now());
+      setLeft(`${Math.floor(ms / 86_400_000)}d ${Math.floor((ms % 86_400_000) / 3_600_000)}h left`);
+    };
+    tick();
+    const t = setInterval(tick, 60_000);
+    return () => clearInterval(t);
+  }, [offer]);
+  return (
+    <section className="mi-slide mi-dw" style={{ "--tone": DIWALI_TONE } as CSSProperties} data-on={on || undefined} aria-hidden={!on} aria-roledescription="slide" aria-label={label}>
+      <div className="mi-art-wrap">
+        <div className="mi-gift-stage" role="img" aria-label={offer ? `A Diwali gift: three months of Cloudesk, free, until ${LAUNCH_OFFER.lastDay}` : "A Diwali gift from Cloudesk"}>
+          <span className="mi-rays" />
+          <span className="mi-halo" />
+          <div className="mi-gift">
+            <div className="mi-card">
+              {offer ? (
+                <>
+                  <span className="mi-card-kick">Your Diwali gift</span>
+                  <span className="mi-card-big"><b>3</b> months</span>
+                  <span className="mi-card-sub">of Cloudesk, free</span>
+                </>
+              ) : (
+                <>
+                  <span className="mi-card-kick" lang="hi">शुभ दीपावली</span>
+                  <span className="mi-card-big">Happy</span>
+                  <span className="mi-card-sub">Diwali</span>
+                </>
+              )}
+              {Array.from({ length: 6 }, (_, i) => <i key={i} className="mi-orbit" style={{ "--i": i } as CSSProperties} />)}
+            </div>
+            <div className="mi-box"><i className="mi-ribbon" /><i className="mi-sheen" /></div>
+            <div className="mi-lid"><i className="mi-ribbon" /><span className="mi-bow"><i /><i /><b /></span></div>
+            <div className="mi-burst">
+              {Array.from({ length: 18 }, (_, i) => <i key={i} className={i % 3 === 0 ? "mi-spark" : "mi-flake"} style={{ "--a": `${(360 / 18) * i + (i % 2) * 8}deg`, "--r": `${90 + (i % 4) * 34}px`, "--d": `${(i % 5) * 40}ms`, "--c": i % 2 ? "#f6a43a" : "#f7c948" } as CSSProperties} />)}
+            </div>
+          </div>
+          <span className="mi-floor" />
+        </div>
+      </div>
+      <p className="mi-dw-hi" lang="hi">शुभ दीपावली</p>
+      <h2 className="mi-title">{offer ? <>Grow with <em>Cloudesk</em> this Diwali.</> : <>Happy <em>Diwali</em>.</>}</h2>
+      <p className="mi-sub">{offer ? <>3 months of every feature, free{left ? <> · <b className="mi-dw-left">{left}</b></> : null}</> : "Light, joy and growth to you and yours."}</p>
+      <Link href={signedIn ? "/home" : "/start"} tabIndex={on ? undefined : -1} className="mi-dw-cta">
+        {offer && !signedIn ? "Claim offer" : signedIn ? "Open my workspace" : "Start free"} <ArrowRight className="size-4" aria-hidden />
+      </Link>
+    </section>
+  );
+}
+
 // ─── The logo splash ────────────────────────────────────────────────────────
 
 /** The Cloudesk mark drawing itself stroke by stroke, the name settling in under it, then everything dissolving into the intro. */
-function Splash({ leaving }: { leaving: boolean }) {
+function Splash({ leaving, diwali }: { leaving: boolean; diwali: boolean }) {
   return (
     <div className={clsx("mi-splash", leaving && "is-leaving")} aria-hidden>
       <div className="mi-splash-in">
         <span className="mi-splash-glow" />
+        {diwali && <span className="mi-splash-diya"><i /></span>}
         <svg viewBox="14 9 292 459" className="mi-splash-mark" fill="none" strokeWidth="28">
           <path pathLength={1} d="M28 387V90A67 67 0 0 1 95 23" stroke="#FF5A5F" />
           <path pathLength={1} d="M95 23A67 67 0 0 1 161 102A100 100 0 0 1 238 282" stroke="#FDBA5A" />
