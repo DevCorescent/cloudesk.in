@@ -1707,3 +1707,27 @@ dialog.stat-pop { background: var(--glass-strong) !important; }
 @media (max-width: 639.98px) {
   .overflow-x-auto > table:not(.form-lines) th { white-space: nowrap; }
 }
+
+/* Payment successful (src/components/billing/success.tsx): the ring settles,
+   the check draws, a soft burst, then the details rise in. */
+.pay-ok { animation: pay-ok-fade 0.25s ease-out both; }
+.pay-ok-card { animation: pay-ok-in 0.5s cubic-bezier(0.2, 0.9, 0.25, 1.1) both; }
+.pay-ok-glow { background: radial-gradient(closest-side, color-mix(in srgb, var(--success) 22%, transparent), transparent); animation: pay-ok-fade 0.9s 0.15s ease-out both; }
+.pay-ok-ring { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--success) 85%, white), var(--success)); box-shadow: 0 10px 30px -8px color-mix(in srgb, var(--success) 60%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.35); animation: pay-ok-pop 0.55s 0.08s cubic-bezier(0.2, 0.9, 0.3, 1.35) both; }
+.pay-ok-wave { border: 2px solid var(--success); animation: pay-ok-wave 0.9s 0.35s ease-out both; }
+.pay-ok-check { color: white; stroke-dasharray: 40; stroke-dashoffset: 40; animation: pay-ok-draw 0.42s 0.38s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+.pay-ok-spark { background: var(--success); opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(0); animation: pay-ok-spark 0.75s calc(0.42s + var(--d)) ease-out both; }
+.pay-ok-spark:nth-child(3n) { background: color-mix(in srgb, var(--success) 55%, #f5c451); }
+.pay-ok-rise { animation: pay-ok-rise 0.5s var(--d, 0s) cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+@keyframes pay-ok-fade { from { opacity: 0; } }
+@keyframes pay-ok-in { from { opacity: 0; transform: translateY(18px) scale(0.97); } }
+@keyframes pay-ok-pop { 0% { transform: scale(0.3); opacity: 0; } 70% { transform: scale(1.06); opacity: 1; } 100% { transform: scale(1); } }
+@keyframes pay-ok-wave { from { transform: scale(0.9); opacity: 0.6; } to { transform: scale(1.75); opacity: 0; } }
+@keyframes pay-ok-draw { to { stroke-dashoffset: 0; } }
+@keyframes pay-ok-spark { 0% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-30px) scale(0.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-62px) scale(0.2); } }
+@keyframes pay-ok-rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) {
+  .pay-ok, .pay-ok-card, .pay-ok-glow, .pay-ok-ring, .pay-ok-rise { animation: none; }
+  .pay-ok-wave, .pay-ok-spark { display: none; }
+  .pay-ok-check { animation: none; stroke-dashoffset: 0; }
+}

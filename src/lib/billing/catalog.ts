@@ -427,7 +427,8 @@ export function topupQuote(packs: Partial<Record<TopupKey, number>>, pricing: Pi
     if (!Number.isInteger(n) || n < 0 || n > 100) throw new QuoteError("Choose between 1 and 100 packs at a time.");
     const pk = all[k];
     if (!pk || pk.size <= 0 || pk.price <= 0) throw new QuoteError(`${PACK_LABEL[k].name} can't be topped up yet.`);
-    lines.push({ label: `+${PACK_LABEL[k].amount(n * pk.size)} (top-up)`, amount: n * pk.price, addon: k, qty: n });
+    // Bought once, so no "a month".
+    lines.push({ label: `+${PACK_LABEL[k].amount(n * pk.size).replace(/ a month$/, "")} (top-up)`, amount: n * pk.price, addon: k, qty: n });
     units[k] = n * pk.size;
     // AI requests bring the AI spend their price pays for, like a plan's.
     if (k === "aiPerMonth") units.aiBudgetUsd = aiBudgetFor(n * pk.price, pricing);

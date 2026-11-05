@@ -12,6 +12,7 @@ import { Dialog, useToast } from "@/components/ui/overlays";
 import { Button, Notice } from "@/components/ui/primitives";
 import { money } from "@/lib/billing/catalog";
 import { api, errorMessage } from "@/lib/client/api";
+import { PaymentSuccess } from "./success";
 import { subKey, subPath, type Invoice, type Overview, type Provider } from "./types";
 
 type RazorpayStart = { provider: "razorpay"; keyId: string; orderId: string; amount: number; currency: string; name: string; description: string; prefill: { email: string; name: string } };
@@ -49,6 +50,7 @@ export function usePayInvoice(orgId: string, overview: Overview | undefined) {
   const [picking, setPicking] = useState<Invoice | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [noProvider, setNoProvider] = useState<Invoice | null>(null);
+  const [paid, setPaid] = useState<{ invoice: Invoice; overview: Overview } | null>(null);
   const providers = overview?.providers ?? [];
 
   const done = (o: Overview) => qc.setQueryData(subKey(orgId), o);
@@ -77,7 +79,8 @@ export function usePayInvoice(orgId: string, overview: Overview | undefined) {
           try {
             const c = await api<{ paid: boolean; overview: Overview }>(subPath(orgId, `/invoices/${inv.id}/confirm`), { method: "POST", body: { provider: "razorpay", orderId: resp.razorpay_order_id, paymentId: resp.razorpay_payment_id, signature: resp.razorpay_signature } });
             done(c.overview);
-            toast(c.paid ? { tone: "success", title: `${inv.number} paid`, description: "Thank you — your plan is up to date." } : { tone: "info", title: "Payment is still processing", description: "This page updates once Razorpay confirms it." });
+            if (c.paid) setPaid({ invoice: c.overview.invoices.find((i) => i.id === inv.id) ?? inv, overview: c.overview });
+            else toast({ tone: "info", title: "Payment is still processing", description: "This page updates once Razorpay confirms it." });
           } catch (e) {
             toast({ tone: "error", title: "Couldn't confirm the payment", description: errorMessage(e) });
             void qc.invalidateQueries({ queryKey: subKey(orgId) });
@@ -124,6 +127,7 @@ export function usePayInvoice(orgId: string, overview: Overview | undefined) {
           </div>
         </Dialog>
       )}
+      {paid && <PaymentSuccess invoice={paid.invoice} overview={paid.overview} onClose={() => setPaid(null)} />}
       {noProvider && (
         <Dialog open onClose={() => setNoProvider(null)} title={`Pay ${noProvider.number}`} size="sm" footer={<Button onClick={() => setNoProvider(null)}>Close</Button>}>
           <NoProviderNote invoice={noProvider} />

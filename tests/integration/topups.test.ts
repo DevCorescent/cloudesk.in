@@ -47,7 +47,7 @@ describe("top-ups", () => {
     expect(r.json.applied).toBe(false);
     const inv = r.json.overview.invoices.find((i: { id: string }) => i.id === r.json.invoiceId);
     invoice = inv.id;
-    expect(inv).toMatchObject({ kind: "topup", status: "open", subtotal: AI_PACK, tax: TAX, total: AI_PACK + TAX, lines: [{ label: "+500 AI requests a month (top-up)", amount: AI_PACK }] });
+    expect(inv).toMatchObject({ kind: "topup", status: "open", subtotal: AI_PACK, tax: TAX, total: AI_PACK + TAX, lines: [{ label: "+500 AI requests (top-up)", amount: AI_PACK }] });
     // Choosing again replaces it, so it's never charged twice.
     const again = await S("POST", "topup", { packs: { aiPerMonth: 2 } });
     const open = again.json.overview.invoices.filter((i: { kind: string; status: string }) => i.kind === "topup" && i.status === "open");
@@ -65,7 +65,7 @@ describe("top-ups", () => {
     const mails = await db.select().from(schema.outboundEmails).where(and(eq(schema.outboundEmails.to, "asha@kiln.in"), like(schema.outboundEmails.subject, "Receipt %")));
     expect(mails).toHaveLength(1);
     expect(mails[0]!.subject).toMatch(/^Receipt CD-\d{4}-\d{6} — ₹705\.64 paid$/);
-    expect(mails[0]!.body).toContain("+1,000 AI requests a month (top-up)");
+    expect(mails[0]!.body).toContain("+1,000 AI requests (top-up)");
     expect(mails[0]!.body).toMatch(/Total paid\s+₹705\.64/);
     // The bell says it too, without a second email.
     expect(await db.select().from(schema.outboundEmails).where(like(schema.outboundEmails.subject, "Payment received%"))).toHaveLength(0);

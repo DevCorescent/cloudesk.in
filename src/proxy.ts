@@ -46,6 +46,13 @@ export async function proxy(request: NextRequest) {
   if (at.startsWith("www.") && OWN_HOSTS.has(at) && OWN_HOSTS.has(at.slice(4)) && !at.endsWith(".vercel.app")) {
     return NextResponse.redirect(`https://${at.slice(4)}${path}${request.nextUrl.search}`, 308);
   }
+  // In production, pages opened on a vercel.app address move to the platform's
+  // own domain (APP_URL), so everyone is signed in on one address. API calls
+  // (webhooks, callbacks registered earlier) keep working where they are.
+  const home = hostOf(process.env.APP_URL);
+  if (process.env.VERCEL_ENV === "production" && home && !home.endsWith(".vercel.app") && at.endsWith(".vercel.app") && at !== hostOf(process.env.VERCEL_URL) && (request.method === "GET" || request.method === "HEAD") && !path.startsWith("/api/")) {
+    return NextResponse.redirect(`https://${home}${path}${request.nextUrl.search}`, 308);
+  }
   if (OWN.test(path)) {
     const headers = new Headers(request.headers);
     headers.set("x-pathname", path + request.nextUrl.search);
