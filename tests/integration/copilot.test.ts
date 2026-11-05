@@ -223,7 +223,7 @@ describe("a streamed answer", () => {
       } };
       return s;
     } } } }) as never);
-    const r = await call((api as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Who is Asha?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
+    const r = await call((api as unknown as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Who is Asha?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toContain("application/x-ndjson");
     const events = r.text.trim().split("\n").map((l) => JSON.parse(l) as { t: string; d?: string; label?: string; thread?: { items: { role: string; text?: string }[] } });
@@ -242,7 +242,7 @@ describe("a streamed answer", () => {
     await db.update(schema.orgSubscriptions).set({ quotas: { aiPerMonth: 0 } }).where(eq(schema.orgSubscriptions.orgId, orgId));
     await db.update(schema.orgSubscriptions).set({ status: "active", planId: "growth", modules: null, currentPeriodStart: new Date(Date.now() - 86_400_000), currentPeriodEnd: new Date(Date.now() + 86_400_000 * 20), trialEndsAt: new Date(Date.now() - 86_400_000) }).where(eq(schema.orgSubscriptions.orgId, orgId));
     (await import("@/server/billing/subscriptions")).clearEntitlement();
-    const r = await call((api as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Anything?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
+    const r = await call((api as unknown as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Anything?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
     expect(r.status).toBe(409);
     expect(r.json.error.details).toMatchObject({ topup: ["aiPerMonth"] });
   });
