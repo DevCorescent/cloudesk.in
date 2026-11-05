@@ -12,6 +12,7 @@ import { CreditCard, ExternalLink } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AddOns, takesAddons, YourBill } from "@/components/billing/addons";
+import { TopupCard } from "@/components/billing/topup";
 import { ChangePlan, PreviewDialog } from "@/components/billing/change-plan";
 import { InvoiceSheet } from "@/components/billing/invoice-sheet";
 import { usePayInvoice, useStripeReturn } from "@/components/billing/pay";
@@ -21,7 +22,7 @@ import { useSession } from "@/components/shell/session-context";
 import { useToast } from "@/components/ui/overlays";
 import { Badge, Button, Card, ErrorState, Notice, Skeleton } from "@/components/ui/primitives";
 import { api, ApiClientError, errorMessage } from "@/lib/client/api";
-import { PACK_KEYS, type PackKey } from "@/lib/billing/catalog";
+import { isTopupKey, PACK_KEYS, type PackKey, type TopupKey } from "@/lib/billing/catalog";
 import { MODULE_IDS, moduleById, type ModuleId } from "@/lib/workspace/modules";
 
 type Legacy = { subscription: { provider: "stripe" | "razorpay"; status: string; plan: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null };
@@ -61,6 +62,8 @@ function Manage() {
   const add = addParam && (MODULE_IDS as string[]).includes(addParam) ? (addParam as ModuleId) : null;
   const moreParam = params.get("more");
   const more = moreParam && (PACK_KEYS as string[]).includes(moreParam) ? (moreParam as PackKey) : null;
+  const topupParam = params.get("topup");
+  const topup: TopupKey | null = topupParam && isTopupKey(topupParam) ? topupParam : null;
   const [review, setReview] = useState<Choice | null>(null);
   const q = useQuery({ queryKey: subKey(org.id), queryFn: () => api<Overview>(subPath(org.id)), retry: (n, e) => !(e instanceof ApiClientError && e.status === 403) && n < 2 });
   const legacy = useQuery({ queryKey: ["billing", org.id], queryFn: () => api<Legacy>(`/api/v1/orgs/${org.id}/billing`), staleTime: 300_000 });
@@ -117,6 +120,7 @@ function Manage() {
           <Hero o={o} onPay={payNow} paying={pay.busy} busy={cancel.isPending} onCancel={() => cancel.mutate(true)} onResume={() => cancel.mutate(false)} onChoose={toPlans} onView={setViewing} />
           {billable && <YourBill o={o} onAdd={toAddons} />}
           {!billable && (o.state === "free" || o.state === "trial") && <QuotaMeters o={o} />}
+          <TopupCard o={o} orgId={org.id} focus={topup} />
           <KeepRecap o={o} onChoose={() => toPlans()} />
           {billable ? <AddOns key={`a${planKey}`} o={o} add={add} more={more} disabled={locked} onReview={setReview} /> : <Stats o={o} />}
           <ChangePlan key={planKey} o={o} orgId={org.id} add={billable ? null : add} onDone={() => setPlanKey((k) => k + 1)} onPay={(id, ov) => { const inv = ov.invoices.find((i) => i.id === id); if (inv) pay.pay(inv); }} />

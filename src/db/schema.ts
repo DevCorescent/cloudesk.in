@@ -6,6 +6,7 @@ import {
   boolean,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -4063,6 +4064,14 @@ export const docFiles = pgTable(
     shareNonce: text("share_token_hash"),
     shareRole: text("share_role"),
     shareExpiresAt: timestamp("share_expires_at", { withTimezone: true }),
+    /** Deleted completely at this time (every version and its log too) — a Drive QR upload's chosen stay, or set by hand. */
+    deleteAt: timestamp("delete_at", { withTimezone: true }),
+    /** Uploaded through this Drive QR (doc_drops), by someone who may not have an account. */
+    dropId: uuid("drop_id"),
+    /** Who uploaded it through the QR, as they gave it: name, email (told of every access, with a delete link), device. */
+    dropFrom: jsonb("drop_from").$type<{ name: string; email: string; ip: string | null; userAgent: string | null }>(),
+    /** The random value the uploader's delete link is signed from (with APP_ENCRYPTION_KEY). */
+    dropNonce: text("drop_nonce"),
     lastEditedBy: uuid("last_edited_by"),
     /** In the trash since; purged after 30 days. */
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -4071,7 +4080,40 @@ export const docFiles = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("doc_files_org_idx").on(t.orgId, t.folderId), index("doc_files_link_idx").on(t.orgId, t.linkType, t.linkId), uniqueIndex("doc_files_share_uq").on(t.shareNonce), index("doc_files_owner_idx").on(t.orgId, t.createdBy)],
+  (t) => [index("doc_files_org_idx").on(t.orgId, t.folderId), index("doc_files_link_idx").on(t.orgId, t.linkType, t.linkId), uniqueIndex("doc_files_share_uq").on(t.shareNonce), index("doc_files_owner_idx").on(t.orgId, t.createdBy), index("doc_files_delete_at_idx").on(t.deleteAt).where(sql`delete_at is not null`)],
+);
+
+/**
+ * A Drive QR: anyone who scans it can upload into one folder from their phone,
+ * without an account. Each upload stays for the chosen time and is then
+ * deleted completely. The link is signed from `nonce` (so it can be shown
+ * again, and changed to stop the old one working).
+ */
+export const docDrops = pgTable(
+  "doc_drops",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    /** Where uploads land; null with root "team" (the top of Team) or "mine" (the owner's My documents). */
+    folderId: uuid("folder_id").references(() => docFolders.id, { onDelete: "cascade" }),
+    root: text("root").notNull().default("team"),
+    /** Shown on the upload page ("Front desk", "Print counter"). */
+    name: text("name").notNull().default(""),
+    enabled: boolean("enabled").notNull().default(true),
+    nonce: text("nonce").notNull(),
+    /** How long an upload stays, in minutes; null keeps it. */
+    stayMinutes: integer("stay_minutes"),
+    /** The uploader picks how long (up to `stayMinutes`, or any choice when it's null). */
+    uploaderChooses: boolean("uploader_chooses").notNull().default(true),
+    /** Tell its owner about each upload. */
+    notifyOwner: boolean("notify_owner").notNull().default(true),
+    uploads: integer("uploads").notNull().default(0),
+    lastUploadAt: timestamp("last_upload_at", { withTimezone: true }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("doc_drops_org_idx").on(t.orgId, t.folderId)],
 );
 
 /** Someone a file or folder is shared with, and what they may do: view, comment or edit. */
@@ -7766,7 +7808,7 @@ export const subscriptionInvoices = pgTable("subscription_invoices", {
   id: id(),
   seq: bigserial("seq", { mode: "number" }).notNull(),
   orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
-  /** first | renewal | upgrade | manual */
+  /** first | renewal | upgrade | topup | manual */
   kind: text("kind").notNull(),
   description: text("description").notNull().default(""),
   lines: jsonb("lines").$type<{ label: string; amount: number }[]>().notNull().default([]),
@@ -7806,6 +7848,26 @@ export const subscriptionEvents = pgTable("subscription_events", {
   detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: createdAt(),
 }, (t) => [index("subscription_events_org_idx").on(t.orgId, t.createdAt)]);
+
+/**
+ * Top-ups: allowances bought once (e.g. +500 AI requests), on any plan. A
+ * "purchase" row adds units; at the end of each month a "used" row records how
+ * much of the balance went on usage beyond the plan's own allowance that month
+ * — so unused top-ups carry over and are never charged twice.
+ */
+export const quotaTopups = pgTable("quota_topups", {
+  id: id(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  /** The allowance: aiPerMonth, aiBudgetUsd (the AI spend that comes with AI requests), invoicesPerMonth… */
+  key: text("key").notNull(),
+  /** purchase | used */
+  kind: text("kind").notNull(),
+  units: doublePrecision("units").notNull(),
+  /** For "used": the month it covers, YYYY-MM (UTC). */
+  month: text("month"),
+  invoiceId: uuid("invoice_id").references(() => subscriptionInvoices.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [index("quota_topups_org_idx").on(t.orgId, t.key), uniqueIndex("quota_topups_used_uq").on(t.orgId, t.key, t.month).where(sql`kind = 'used'`)]);
 
 /**
  * One-time codes sent by email (sign-up and sign-in). Only an HMAC of the code

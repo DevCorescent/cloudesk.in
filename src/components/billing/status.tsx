@@ -57,7 +57,8 @@ export function SubscriptionBanner() {
   const { org } = useSession();
   const p = org.plan;
   const left = p?.until ? daysUntil(p.until) : null;
-  const show = !!p && (p.state === "expired" || p.state === "grace" || p.state === "free" || (p.state === "trial" && left !== null && left <= 7));
+  // Read-only is the one state that stops work, so it stays in view; the rest are under the warning sign in the top bar.
+  const show = !!p && p.state === "expired";
   const key = `${org.id}.${p?.state ?? ""}`;
   const dismissed = useDismissed(key);
   if (!p || !show || (p.state !== "expired" && dismissed)) return null;

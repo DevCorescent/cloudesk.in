@@ -56,7 +56,7 @@ async function budgetFor(orgId: string) {
  */
 export async function assertAiAllowed(orgId: string) {
   const spend = await monthlySpend(orgId);
-  if (spend.costMicroUsd >= spend.budgetMicroUsd) throw new ApiError("conflict", "This month's AI allowance is used up. It resets on the 1st — or upgrade in Settings → Billing for more.", { quota: ["aiBudgetUsd"] });
+  if (spend.costMicroUsd >= spend.budgetMicroUsd) throw new ApiError("conflict", "This month's AI allowance is used up. Top up now to keep going — it's added straight away — or wait for it to reset on the 1st.", { quota: ["aiBudgetUsd"], topup: ["aiPerMonth"] });
   await (await import("../billing/subscriptions")).assertQuota(orgId, "aiPerMonth");
 }
 

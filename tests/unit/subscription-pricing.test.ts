@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addInterval, addonsOf, aiBudgetFor, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, QUOTA_KEYS, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
+import { addInterval, addonsOf, aiBudgetFor, PACK_KEYS, packCost, RUN_COST, topupQuote, DEFAULT_PLANS, DEFAULT_PRICING, entitlement, isDowngrade, prorate, QUOTA_KEYS, quote, QuoteError, taxOf } from "@/lib/billing/catalog";
 import { MODULE_IDS } from "@/lib/workspace/modules";
 
 const P = DEFAULT_PRICING;
@@ -208,5 +208,28 @@ describe("add-ons", () => {
     const q = growth("month", { modules: ["quality"], packs: { storageMb: 2, chatGuests: 1 } });
     expect(addonsOf(q.lines)).toEqual({ modules: ["quality"], packs: { storageMb: 2, chatGuests: 1 } });
     expect(growth("month", addonsOf(q.lines)).amount).toBe(q.amount);
+  });
+});
+
+describe("unit economics", () => {
+  const inr = (usd: number) => usd * P.usdInr * 100;
+  it("every pack costs well under its price to run, payment fee included", () => {
+    for (const k of PACK_KEYS) expect(packCost(k, P.packs[k], P) / P.packs[k].price, k).toBeLessThanOrEqual(0.5);
+  });
+
+  it("no paid plan, used to every limit, costs more than 70% of its price (AI, email, storage, payment fee)", () => {
+    for (const p of DEFAULT_PLANS.filter((x) => x.monthly > 0)) {
+      const q = p.quotas ?? {};
+      const cost = inr(q.aiBudgetUsd ?? 0) + inr((q.campaignEmailsPerMonth ?? 0) * RUN_COST.emailUsd) + inr(((q.storageMb ?? 0) / 1024) * RUN_COST.storageGbUsd) + (p.monthly * RUN_COST.paymentFeeBps) / 10000;
+      expect(cost / p.monthly, p.id).toBeLessThanOrEqual(0.7);
+    }
+  });
+
+  it("prices top-ups exactly, with the AI spend their price pays for", () => {
+    const t = topupQuote({ aiPerMonth: 2, invoicesPerMonth: 1 }, P);
+    expect(t.amount).toBe(2 * 29900 + 9900);
+    expect(t.units).toEqual({ aiPerMonth: 1000, aiBudgetUsd: aiBudgetFor(2 * 29900, P), invoicesPerMonth: 500 });
+    expect(() => topupQuote({}, P)).toThrow(QuoteError);
+    expect(() => topupQuote({ aiPerMonth: 1.5 }, P)).toThrow(QuoteError);
   });
 });

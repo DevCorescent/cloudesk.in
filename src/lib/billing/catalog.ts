@@ -405,6 +405,49 @@ export function addonsOf(lines: { module?: string; addon?: string; qty?: number 
   return { modules, packs };
 }
 
+/**
+ * Top-ups: monthly allowances bought once, paid at once, on any plan (Free
+ * too). They're used only after the plan's own allowance runs out, and what's
+ * left carries over to later months — so nobody pays for what they don't use.
+ */
+export type TopupKey = "aiPerMonth" | "invoicesPerMonth" | "campaignEmailsPerMonth" | "signaturesPerMonth";
+export const TOPUP_KEYS: TopupKey[] = ["aiPerMonth", "invoicesPerMonth", "campaignEmailsPerMonth", "signaturesPerMonth"];
+export const isTopupKey = (k: string): k is TopupKey => (TOPUP_KEYS as string[]).includes(k);
+
+export type TopupQuote = { lines: (QuoteLine & { addon: TopupKey; qty: number })[]; amount: number; units: Partial<Record<TopupKey | "aiBudgetUsd", number>> };
+
+/** Prices top-ups (packs of each allowance, bought once). Throws QuoteError for anything that can't be sold. */
+export function topupQuote(packs: Partial<Record<TopupKey, number>>, pricing: Pick<Pricing, "packs" | "aiCostShareBps" | "usdInr">): TopupQuote {
+  const all = pricing.packs ?? DEFAULT_PRICING.packs;
+  const lines: TopupQuote["lines"] = [];
+  const units: TopupQuote["units"] = {};
+  for (const k of TOPUP_KEYS) {
+    const n = packs[k] ?? 0;
+    if (!n) continue;
+    if (!Number.isInteger(n) || n < 0 || n > 100) throw new QuoteError("Choose between 1 and 100 packs at a time.");
+    const pk = all[k];
+    if (!pk || pk.size <= 0 || pk.price <= 0) throw new QuoteError(`${PACK_LABEL[k].name} can't be topped up yet.`);
+    lines.push({ label: `+${PACK_LABEL[k].amount(n * pk.size)} (top-up)`, amount: n * pk.price, addon: k, qty: n });
+    units[k] = n * pk.size;
+    // AI requests bring the AI spend their price pays for, like a plan's.
+    if (k === "aiPerMonth") units.aiBudgetUsd = aiBudgetFor(n * pk.price, pricing);
+  }
+  if (!lines.length) throw new QuoteError("Choose what to top up.");
+  return { lines, amount: lines.reduce((s, l) => s + l.amount, 0), units };
+}
+
+/**
+ * The most a pack can cost the platform to run, in minor units: its AI spend,
+ * campaign email and storage (per month), plus the payment fee. Used to keep
+ * every price above its cost (tests/unit/subscription-pricing.test.ts).
+ */
+export const RUN_COST = { emailUsd: 0.0004, storageGbUsd: 0.023, paymentFeeBps: 236 };
+export function packCost(k: PackKey, pack: Pack, p: Pick<Pricing, "aiCostShareBps" | "usdInr">) {
+  const usd = k === "campaignEmailsPerMonth" ? pack.size * RUN_COST.emailUsd : k === "storageMb" ? (pack.size / 1024) * RUN_COST.storageGbUsd : 0;
+  const ai = k === "aiPerMonth" ? aiBudgetFor(pack.price, p) * p.usdInr * 100 : 0;
+  return Math.round(usd * p.usdInr * 100 + ai + (pack.price * RUN_COST.paymentFeeBps) / 10000);
+}
+
 /** Whether a line is an add-on (not the plan itself). */
 export const isAddonLine = (l: Pick<QuoteLine, "addon">) => !!l.addon;
 

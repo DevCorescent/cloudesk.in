@@ -40,9 +40,9 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
       window.location.assign(`/login?next=${encodeURIComponent(window.location.pathname)}`);
     }
     // A plan limit or a feature outside the plan: the app shows one upgrade prompt for all of them.
-    const d = (e?.details ?? null) as { quota?: string[]; planRequired?: string[]; upgrade?: string[] } | null;
+    const d = (e?.details ?? null) as { quota?: string[]; planRequired?: string[]; upgrade?: string[]; topup?: string[] } | null;
     if (typeof window !== "undefined" && d && (d.quota || d.planRequired)) {
-      window.dispatchEvent(new CustomEvent("cc:paywall", { detail: { message: e?.message ?? "", quota: d.quota?.[0] ?? null, module: d.planRequired?.[0] ?? null, upgrade: d.upgrade?.[0] ?? null } }));
+      window.dispatchEvent(new CustomEvent("cc:paywall", { detail: { message: e?.message ?? "", quota: d.quota?.[0] ?? null, module: d.planRequired?.[0] ?? null, upgrade: d.upgrade?.[0] ?? null, topup: d.topup?.[0] ?? null } }));
     }
     throw new ApiClientError(res.status, e?.code ?? "http_error", e?.message ?? `Request failed (${res.status})`, e?.details ?? null);
   }

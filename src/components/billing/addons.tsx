@@ -106,6 +106,20 @@ export function YourBill({ o, onAdd }: { o: Overview; onAdd?: () => void }) {
             </dd>
           </div>
           {s.interval === "year" && <p className="text-right text-[11.5px] text-subtle">≈ {money(Math.round((s.amount + tax) / 12), cur)} a month</p>}
+          {(o.topups?.month.count ?? 0) > 0 && (
+            <div className="mt-1.5 grid gap-0.5 border-t border-border pt-2 text-[12px]">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Top-ups this month (paid)</dt>
+                <dd>{money(o.topups!.month.total, cur)}</dd>
+              </div>
+              {s.interval === "month" && (
+                <div className="flex justify-between gap-3 font-medium">
+                  <dt>This month in all</dt>
+                  <dd>{money(s.amount + tax + o.topups!.month.total, cur)}</dd>
+                </div>
+              )}
+            </div>
+          )}
         </dl>
       </div>
     </Card>
@@ -119,7 +133,7 @@ const limitOf = (q: Quote, k: PackKey): number | null => {
   const v = k === "seats" || k === "projects" || k === "customDomains" ? q.limits[k] : q.quotas[k];
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 };
-const amountText = (k: PackKey, n: number) => (k === "storageMb" ? (n >= 1024 ? `${+(n / 1024).toFixed(1)} GB` : `${Math.round(n)} MB`) : Math.round(n).toLocaleString("en-IN"));
+export const amountText = (k: PackKey, n: number) => (k === "storageMb" ? (n >= 1024 ? `${+(n / 1024).toFixed(1)} GB` : `${Math.round(n)} MB`) : Math.round(n).toLocaleString("en-IN"));
 
 export function AddOns({ o, add, more, disabled, onReview }: { o: Overview; add: ModuleId | null; more: PackKey | null; disabled: boolean; onReview: (c: Choice) => void }) {
   const s = o.subscription!;

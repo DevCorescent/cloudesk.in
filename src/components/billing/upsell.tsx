@@ -10,10 +10,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog } from "@/components/ui/overlays";
 import { Button, Card, cx } from "@/components/ui/primitives";
-import { money } from "@/lib/billing/catalog";
+import { isTopupKey, money } from "@/lib/billing/catalog";
 import { api } from "@/lib/client/api";
 import { moduleById, type ModuleId } from "@/lib/workspace/modules";
 import { takesAddons } from "./addons";
+import { TopupOffer, useTopup } from "./topup";
 import { canManageBilling, subKey, subPath, type Overview } from "./types";
 
 /** An allowance as people read it: dollars for AI spend, MB or GB for storage, whole numbers otherwise. */
@@ -68,7 +69,7 @@ export function KeepRecap({ o, onChoose }: { o: Pick<Overview, "recap" | "state"
   );
 }
 
-type Paywall = { message: string; quota: string | null; module: string | null; upgrade: string | null };
+type Paywall = { message: string; quota: string | null; module: string | null; upgrade: string | null; topup: string | null };
 
 /** One upgrade prompt for the whole app, raised by any API answer about the plan (see src/lib/client/api.ts). */
 export function PaywallDialog() {
@@ -88,15 +89,17 @@ export function PaywallDialog() {
   }, []);
   const plans = useQuery({ queryKey: ["public-plans"], queryFn: () => api<{ plans: Overview["plans"] }>("/api/v1/plans"), enabled: !!p, staleTime: 300_000 });
   const o = useQuery({ queryKey: subKey(org.id), queryFn: () => api<Overview>(subPath(org.id)), enabled: !!p && manage, staleTime: 30_000, retry: false });
-  if (!p) return null;
+  const top = useTopup(org.id, o.data);
+  if (!p) return top.ui;
   const rec = plans.data?.plans.find((x) => x.id === p.upgrade) ?? null;
   const mod = p.module ? moduleById(p.module as ModuleId) : null;
-  const title = p.quota ? "You've reached your plan's limit" : mod ? `${mod.name} isn't in your plan` : "Upgrade to continue";
+  const title = p.topup ? "Top up to keep going" : p.quota ? "You've reached your plan's limit" : mod ? `${mod.name} isn't in your plan` : "Upgrade to continue";
   // A limit reached: straight to the pack that lifts it (AI spend comes with more AI requests).
   const pack = p.quota === "aiBudgetUsd" ? "aiPerMonth" : p.quota;
   const onPlan = !!o.data && takesAddons(o.data);
-  const href = onPlan && pack ? `/settings/billing?more=${pack}` : onPlan && mod ? `/settings/billing?add=${mod.id}` : rec ? `/settings/billing?plan=${rec.id}#plans` : mod ? `/settings/billing?add=${mod.id}` : "/settings/billing#plans";
+  const href = p.topup && isTopupKey(p.topup) ? `/settings/billing?topup=${p.topup}#topups` : onPlan && pack ? `/settings/billing?more=${pack}` : onPlan && mod ? `/settings/billing?add=${mod.id}` : rec ? `/settings/billing?plan=${rec.id}#plans` : mod ? `/settings/billing?add=${mod.id}` : "/settings/billing#plans";
   return (
+    <>
     <Dialog
       open
       onClose={() => setP(null)}
@@ -108,14 +111,26 @@ export function PaywallDialog() {
           <Button onClick={() => setP(null)}>Not now</Button>
           {manage ? (
             <Link href={href} onClick={() => setP(null)} className="inline-flex h-9 items-center gap-1.5 rounded-full bg-fg px-4 text-[13.5px] font-medium text-bg hover:opacity-90">
-              {onPlan && pack ? "Add more" : onPlan && mod ? `Add ${mod.name}` : rec ? `See ${rec.name}` : mod ? `Add ${mod.name}` : "See plans"} <ArrowRight className="size-4" />
+              {p.topup ? "More options" : onPlan && pack ? "Add more" : onPlan && mod ? `Add ${mod.name}` : rec ? `See ${rec.name}` : mod ? `Add ${mod.name}` : "See plans"} <ArrowRight className="size-4" />
             </Link>
           ) : null}
         </>
       }
     >
       <div className="grid gap-3">
-        {rec && (
+        {manage && o.data && p.topup && isTopupKey(p.topup) && o.data.topups?.packs.some((x) => x.key === p.topup) && (
+          <TopupOffer
+            o={o.data}
+            k={p.topup}
+            busy={top.busy}
+            buy={(packs) => {
+              // The prompt closes first: the payment window can't open over it.
+              setP(null);
+              top.buy(packs);
+            }}
+          />
+        )}
+        {rec && !(p.topup && o.data?.topups?.packs.length) && (
           <div className="rounded-[14px] bg-surface-2 p-3 text-[13px]">
             <p className="font-medium">{rec.name} · {money(rec.monthly, rec.currency)}/month</p>
             <p className="text-muted">{rec.tagline}</p>
@@ -125,5 +140,7 @@ export function PaywallDialog() {
         {!manage && <p className="text-[13px] text-muted">Ask an owner of this workspace to upgrade in Settings → Billing.</p>}
       </div>
     </Dialog>
+    {top.ui}
+    </>
   );
 }

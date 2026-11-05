@@ -1,8 +1,8 @@
 // A workspace's subscription: the plan, trial, invoices and paying them.
 // Owners and the billing role only; prices are always worked out here.
 import { z } from "zod";
-import { choiceSchema } from "@/lib/billing/schema";
-import { cancelAtEnd, changePlan, confirmPayment, overview, previewChange, quoteFor, startPayment } from "@/server/billing/subscriptions";
+import { choiceSchema, topupSchema } from "@/lib/billing/schema";
+import { buyTopup, cancelAtEnd, changePlan, confirmPayment, overview, previewChange, quoteFor, startPayment } from "@/server/billing/subscriptions";
 import { notFound } from "@/server/http/errors";
 import { applyCouponToOrg } from "@/server/partners/core";
 import { readJson, requireOrg, route, type AuthedContext } from "@/server/http/handler";
@@ -23,6 +23,11 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
   if (a === "change" && m === "POST") {
     const r = await changePlan(orgId, ctx.user.id, await readJson(ctx.req, choiceSchema));
     return { mode: r.preview.mode, applied: r.applied, invoiceId: r.invoice?.id ?? null, overview: await overview(orgId) };
+  }
+  if (a === "topup" && m === "POST") {
+    const { packs } = await readJson(ctx.req, z.object({ packs: topupSchema }));
+    const r = await buyTopup(orgId, ctx.user.id, packs);
+    return { applied: r.applied, invoiceId: r.invoice.id, overview: await overview(orgId) };
   }
   if (a === "coupon" && m === "POST") {
     await rateLimit(`coupon:${orgId}`, 10, 3_600_000);

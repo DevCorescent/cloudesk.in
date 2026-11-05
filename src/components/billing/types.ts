@@ -1,7 +1,7 @@
 // The workspace's subscription as GET /orgs/:id/subscription returns it, and
 // the small formatting helpers every billing screen shares. Amounts are minor
 // units (paise); limits that are unlimited arrive as null (Infinity in JSON).
-import type { CatalogPlan, Choice, Interval, Pack, PackKey, Quotas, Quote, SubState } from "@/lib/billing/catalog";
+import type { CatalogPlan, Choice, Interval, Pack, PackKey, Quotas, Quote, SubState, TopupKey } from "@/lib/billing/catalog";
 import { moduleById, type ModuleId } from "@/lib/workspace/modules";
 
 export type Limit = number | null;
@@ -13,7 +13,7 @@ export type Line = { label: string; amount: number; module?: string; addon?: "mo
 export type Invoice = {
   id: string;
   number: string;
-  kind: "first" | "renewal" | "upgrade" | "manual";
+  kind: "first" | "renewal" | "upgrade" | "topup" | "manual";
   description: string;
   lines: Line[];
   subtotal: number;
@@ -93,7 +93,9 @@ export type Overview = {
   /** The Free plan (what the workspace has without paying), if the platform offers one. */
   free: CatalogPlan | null;
   /** Allowances in force and how much is used (only those with a limit). */
-  quotas: Partial<Record<keyof Quotas, { used: number; limit: number; label: string; unit: string; monthly: boolean }>>;
+  quotas: Partial<Record<keyof Quotas, { used: number; limit: number; topup?: number; label: string; unit: string; monthly: boolean }>>;
+  /** Allowances that can be topped up now (bought once, paid at once), and this month's top-up spend. */
+  topups?: { packs: { key: TopupKey; size: number; price: number; left: number }[]; month: { subtotal: number; tax: number; total: number; count: number } };
   /** In the trial or on Free: what was built in features Free doesn't include, and the plan that keeps it. */
   /** A partner's code on this workspace, and the discount still to come. */
   coupon: { code: string; discount: string; left: number } | null;
@@ -229,6 +231,10 @@ export function eventText(e: SubEvent, invoices: Invoice[], currency: string, fm
       return "Complimentary plan ended";
     case "plan_assigned":
       return `Cloudesk team set your plan to ${plan}${inv ? ` · ${inv}` : ""}`;
+    case "topup_requested":
+      return `${who} chose a top-up${typeof d.what === "string" ? ` — ${d.what}` : ""}${typeof d.total === "number" ? `, ${amt(d.total)}` : ""}`;
+    case "topup_added":
+      return `Top-up added${typeof d.what === "string" ? `: ${d.what}` : ""}`;
     case "credit":
       return `Cloudesk team added ${amt(d.amount)} credit${typeof d.note === "string" && d.note ? ` — “${d.note}”` : ""}`;
     case "invoice_voided":

@@ -1,7 +1,7 @@
 // Request shapes for subscriptions, shared by the routes and sign-up.
 import { z } from "zod";
 import { MODULE_IDS, type ModuleId } from "@/lib/workspace/modules";
-import { PACK_KEYS, type PackKey } from "./catalog";
+import { PACK_KEYS, TOPUP_KEYS, type PackKey, type TopupKey } from "./catalog";
 
 const moduleId = z.enum(MODULE_IDS as unknown as [ModuleId, ...ModuleId[]]);
 export const intervalSchema = z.enum(["month", "year"]);
@@ -11,6 +11,9 @@ export const addonsSchema = z.object({
   modules: z.array(moduleId).max(MODULE_IDS.length).optional(),
   packs: z.partialRecord(z.enum(PACK_KEYS as [PackKey, ...PackKey[]]), z.number().int().min(0).max(1000)).optional(),
 });
+
+/** Top-ups to buy now: how many packs of each. */
+export const topupSchema = z.partialRecord(z.enum(TOPUP_KEYS as [TopupKey, ...TopupKey[]]), z.number().int().min(0).max(100));
 
 export const choiceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("plan"), planId: z.string().trim().regex(/^[a-z0-9-]{2,30}$/), interval: intervalSchema, addons: addonsSchema.optional() }),

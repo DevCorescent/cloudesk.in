@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import clsx from "clsx";
 import {
   AlertTriangle, AppWindow, ArrowDown, ArrowDownRight, ArrowRight, ArrowUp, ArrowUpRight, BadgeIndianRupee, Bell, Boxes, ChartColumn, CheckCircle2, ChevronRight, Clock, Contact, Eye, EyeOff, GripVertical,
-  Calculator, CalendarDays, HandCoins, Handshake, Plus, History, Inbox, Info, KanbanSquare, Landmark, Mail, MessagesSquare, NotebookPen, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wrench, X,
+  Calculator, CalendarDays, HandCoins, Handshake, Plus, History, Inbox, Info, KanbanSquare, Landmark, Mail, MessagesSquare, NotebookPen, LifeBuoy, Maximize2, Minus, ReceiptText, RefreshCw, Rocket, Send, Settings2, ShoppingBag, ShoppingCart, Sparkles, Stethoscope, Target, TrendingUp, Trophy, User, Users, Wallet, Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,7 +21,7 @@ import { useCountUp, useDesk, type DeskData } from "@/components/home/desk";
 import { AppTile, openCreate, TABS } from "@/components/shell/mobile-nav";
 import { useSession } from "@/components/shell/session-context";
 import { Dialog, useToast } from "@/components/ui/overlays";
-import { Button, ButtonLink, ErrorState, Notice, Skeleton } from "@/components/ui/primitives";
+import { Button, ButtonLink, ErrorState, Skeleton } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { timeAgo } from "@/lib/client/format";
 import type { ProjectSummary } from "@/lib/client/types";
@@ -133,7 +133,6 @@ export function Dashboard() {
   const visible = order.filter((s) => editing || !current.hidden.includes(s));
   return (
     <div className="dash mx-auto max-w-[1360px] px-4 py-6 sm:px-6 lg:px-8">
-      {!user.emailVerified && <VerifyEmail email={user.email} />}
       <PhoneHome d={d} desk={desk.data} greeting={`${greeting}, ${user.name.split(" ")[0]}`} status={lines[0] ?? ""} tone={urgent ? "danger" : notes ? "accent" : "ok"} fetching={q.isFetching} onRefresh={() => void Promise.all([q.refetch(), desk.refetch()])} />
       <div className="max-sm:hidden">
       <header className="mb-5 flex items-start justify-between gap-3 sm:mb-6 sm:flex-wrap sm:items-end sm:gap-4">
@@ -736,23 +735,5 @@ function WebApps() {
         </ul>
       )}
     </Panel>
-  );
-}
-
-function VerifyEmail({ email }: { email: string }) {
-  const toast = useToast();
-  const resend = useMutation({
-    mutationFn: () => api("/api/v1/auth/resend-verification", { method: "POST" }),
-    onSuccess: () => toast({ tone: "success", title: "Verification email sent" }),
-    onError: (e) => toast({ tone: "error", title: "Could not send", description: errorMessage(e) }),
-  });
-  const [gone, setGone] = useState(false);
-  if (gone) return null;
-  return (
-    <div className="mb-5">
-      <Notice tone="warning" title="Verify your email address" action={<span className="flex gap-1"><Button size="sm" onClick={() => resend.mutate()} loading={resend.isPending}>Resend email</Button><Button size="sm" variant="ghost" aria-label="Dismiss" icon={<X className="size-3.5" />} onClick={() => setGone(true)} /></span>}>
-        We sent a link to {email}. In local development, emails appear under Settings → Developer.
-      </Notice>
-    </div>
   );
 }

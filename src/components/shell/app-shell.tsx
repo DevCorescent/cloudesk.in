@@ -14,6 +14,7 @@ import { buttonClasses } from "../ui/primitives";
 import { Keys } from "../ui/shortcut";
 import { inPlan, isOn, visibleTo, moduleForPath, type ModuleId } from "@/lib/workspace/modules";
 import { NotificationBell } from "@/components/notify/bell";
+import { AlertsButton } from "@/components/shell/alerts";
 import { PlanChip, SubscriptionBanner } from "@/components/billing/status";
 import { PaywallDialog } from "@/components/billing/upsell";
 import { CommandPalette } from "./command-palette";
@@ -214,6 +215,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <PageNotesButton />
               <ComposeAnywhereButton />
             </span>
+            <AlertsButton />
             <NotificationBell />
             <span className="hidden lg:inline-flex">
               <ThemeMenu />

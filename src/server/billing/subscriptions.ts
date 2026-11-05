@@ -16,11 +16,14 @@ import {
   entitlement,
   isAddonLine,
   isDowngrade,
+  isTopupKey,
   money,
   prorate,
   quote,
   QuoteError,
   taxOf,
+  TOPUP_KEYS,
+  topupQuote,
   type CatalogPlan,
   type Choice,
   type Entitlement,
@@ -30,6 +33,7 @@ import {
   type Quote,
   type QuoteLine,
   type QuotaKey,
+  type TopupKey,
   QUOTA_KEYS,
   QUOTA_LABEL,
   type Quotas,
@@ -52,7 +56,7 @@ export type Invoice = typeof schema.subscriptionInvoices.$inferSelect;
 
 // ── Catalogue and pricing ───────────────────────────────────────────────────
 
-const cache = globalThis as unknown as { __planCatalog?: { at: number; v: CatalogPlan[] } | null; __allowancesChecked?: boolean; __entitlements?: Map<string, { at: number; v: Entitlement & { planName: string } }> };
+const cache = globalThis as unknown as { __planCatalog?: { at: number; v: CatalogPlan[] } | null; __allowancesChecked?: boolean; __entitlements?: Map<string, { at: number; v: Entitlement & { planName: string; topups?: Partial<Record<string, number>> } }> };
 export const clearCatalogCache = () => void (cache.__planCatalog = null);
 const ents = () => (cache.__entitlements ??= new Map());
 export const clearEntitlement = (orgId?: string) => (orgId ? ents().delete(orgId) : ents().clear());
@@ -201,12 +205,21 @@ export function withOverrides<E extends Entitlement>(e: E, o: Sub["overrides"] |
 }
 
 /** What the workspace may use right now. Cached for a few seconds per server. */
-export async function entitlementFor(orgId: string): Promise<Entitlement & { planName: string }> {
+export async function entitlementFor(orgId: string): Promise<Entitlement & { planName: string; topups?: Partial<Record<TopupKey | "aiBudgetUsd", number>> }> {
   const hit = ents().get(orgId);
   if (hit && Date.now() - hit.at < 5_000) return hit.v;
   const [sub, p] = await Promise.all([subscriptionOf(orgId), pricing()]);
   const v = { ...withOverrides(entitlement(sub, await trialLimits(), new Date(), p.enforce, { free: await freeTier(), trialQuotas: p.trialQuotas }), sub?.overrides), planName: sub?.planName ?? "" };
   if (v.state === "free") v.planName = "Free";
+  // Top-ups left go on top of this month's allowances.
+  if (v.state !== "unrestricted" && v.state !== "expired") {
+    const extra = await topupExtras(orgId, v.quotas);
+    if (Object.keys(extra).length) {
+      Object.assign(v, { topups: extra });
+      v.quotas = { ...v.quotas };
+      for (const [k, n] of Object.entries(extra) as [TopupKey | "aiBudgetUsd", number][]) if (v.quotas[k] !== undefined && n > 0) v.quotas[k] = round4(v.quotas[k]! + n);
+    }
+  }
   ents().set(orgId, { at: Date.now(), v });
   return v;
 }
@@ -572,7 +585,7 @@ export async function markPaid(invoiceId: string, how: { via: "razorpay" | "stri
       throw new ApiError("conflict", "This invoice was cancelled, so it can't be paid.");
     }
     const sub = await subscriptionOf(inv.orgId, tx);
-    const a = inv.applies as { snapshot?: unknown; start?: string; periodStart?: string; periodEnd?: string; carry?: number; discount?: { referralId: string } };
+    const a = inv.applies as { snapshot?: unknown; start?: string; periodStart?: string; periodEnd?: string; carry?: number; discount?: { referralId: string }; topup?: { units: Partial<Record<string, number>> } };
     // A partner code's discount was used on this payment.
     if (a.discount?.referralId) await useDiscount(tx, a.discount.referralId);
     if (sub && isSnapshot(a.snapshot)) {
@@ -590,6 +603,13 @@ export async function markPaid(invoiceId: string, how: { via: "razorpay" | "stri
       if (how.via === "razorpay" || how.via === "stripe") await tx.update(schema.organizations).set({ billingProvider: how.via }).where(eq(schema.organizations.id, inv.orgId));
       await event(tx, inv.orgId, inv.kind === "renewal" ? "renewed" : inv.kind === "upgrade" ? "upgraded" : "activated", { invoice: inv.seq, plan: snap.planName, from: start.toISOString(), to: end.toISOString() }, how.actorId);
     }
+    if (a.topup) {
+      // Top-ups: the allowance goes up now; account credit used on it is spent.
+      const units = Object.entries(a.topup.units).filter(([, n]) => typeof n === "number" && n > 0) as [string, number][];
+      if (units.length) await tx.insert(schema.quotaTopups).values(units.map(([key, n]) => ({ orgId: inv.orgId, key, kind: "purchase", units: n, invoiceId: inv.id, createdAt: now })));
+      if (sub && inv.creditApplied) await tx.update(schema.orgSubscriptions).set({ credit: Math.max(0, sub.credit - inv.creditApplied), updatedAt: now }).where(eq(schema.orgSubscriptions.id, sub.id));
+      await event(tx, inv.orgId, "topup_added", { invoice: inv.seq, what: inv.description.replace(/^Top-up: /, "") }, how.actorId);
+    }
     await event(tx, inv.orgId, "paid", { invoice: inv.seq, total: inv.total, via: how.via, ref: how.via === "manual" ? how.ref : undefined }, how.actorId, how.via === "manual");
     return { inv, fresh: true };
   });
@@ -598,7 +618,11 @@ export async function markPaid(invoiceId: string, how: { via: "razorpay" | "stri
     await audit({ actorId: how.actorId ?? null, orgId: res.inv.orgId, action: "billing.invoice_paid", targetType: "subscription_invoice", targetId: res.inv.id, metadata: { total: res.inv.total, via: how.via } });
     // The partner who brought this workspace earns their share.
     await earnFromInvoice(res.inv.id).catch((e) => log.warn("partner commission failed", { invoiceId: res.inv.id, error: String(e) }));
-    if (res.inv.total > 0) await notifyOwners(res.inv.orgId, { kind: "billing.paid", title: `Payment received — ${invoiceNumber(res.inv)}`, body: `We received ${money(res.inv.total, res.inv.currency)}. Thank you!`, link: "/settings/billing", values: { number: invoiceNumber(res.inv), amount: money(res.inv.total, res.inv.currency) } });
+    if (res.inv.total > 0) {
+      // The receipt (a PDF tax invoice) goes by email; the bell gets the note.
+      await notifyOwners(res.inv.orgId, { kind: "billing.paid", title: `Payment received — ${invoiceNumber(res.inv)}`, body: `We received ${money(res.inv.total, res.inv.currency)}. Thank you!`, link: "/settings/billing", values: { number: invoiceNumber(res.inv), amount: money(res.inv.total, res.inv.currency) }, email: false });
+      await (await import("./receipt")).sendReceipt(res.inv, invoiceNumber(res.inv)).catch((e) => log.warn("billing.receipt_failed", { invoiceId: res.inv.id, error: String(e) }));
+    }
   }
   return res.inv;
 }
@@ -623,7 +647,16 @@ export async function overview(orgId: string) {
   ]);
   const [org] = await db.select({ name: schema.organizations.name, slug: schema.organizations.slug }).from(schema.organizations).where(eq(schema.organizations.id, orgId));
   const [qUsed, recap, coupon] = await Promise.all([quotaUsage(orgId), ent.state === "trial" || ent.state === "free" ? keepRecap(orgId) : Promise.resolve(null), couponOfOrg(orgId)]);
-  const quotas = Object.fromEntries(QUOTA_KEYS.filter((k) => ent.quotas[k] !== undefined).map((k) => [k, { used: qUsed[k], limit: ent.quotas[k]!, label: QUOTA_LABEL[k].name, unit: QUOTA_LABEL[k].unit, monthly: QUOTA_LABEL[k].monthly }]));
+  const left = (ent.topups ?? {}) as Partial<Record<QuotaKey, number>>;
+  // limit includes top-ups left; topup is how much of it they are.
+  const quotas = Object.fromEntries(QUOTA_KEYS.filter((k) => ent.quotas[k] !== undefined).map((k) => [k, { used: qUsed[k], limit: ent.quotas[k]!, topup: left[k] ?? 0, label: QUOTA_LABEL[k].name, unit: QUOTA_LABEL[k].unit, monthly: QUOTA_LABEL[k].monthly }]));
+  // What can be topped up now (the allowance is limited and its feature is on), and this month's top-up spend.
+  const month = monthStart();
+  const topupPaid = invoices.filter((i) => i.kind === "topup" && i.status === "paid" && i.paidAt && i.paidAt >= month);
+  const topups = {
+    packs: ent.state === "unrestricted" || ent.state === "expired" ? [] : TOPUP_KEYS.filter((k) => ent.quotas[k] !== undefined && (QUOTA_LABEL[k].module === null || ent.modules === null || ent.modules.includes(QUOTA_LABEL[k].module!))).map((k) => ({ key: k, size: p.packs[k].size, price: p.packs[k].price, left: left[k] ?? 0 })),
+    month: { subtotal: topupPaid.reduce((n, i) => n + i.subtotal, 0), tax: topupPaid.reduce((n, i) => n + i.tax, 0), total: topupPaid.reduce((n, i) => n + i.total, 0), count: topupPaid.length },
+  };
   const now = Date.now();
   const days = (d: Date | null | undefined) => (d ? Math.max(0, Math.ceil((d.getTime() - now) / 86_400_000)) : null);
   const open = invoices.filter((i) => i.status === "open");
@@ -632,6 +665,7 @@ export async function overview(orgId: string) {
     enforced: p.enforce,
     state: ent.state,
     quotas,
+    topups,
     recap,
     coupon,
     entitled: ent.modules,
@@ -1059,6 +1093,100 @@ export async function planUsage() {
 
 const monthStart = (now = new Date()) => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
+// ── Top-ups ─────────────────────────────────────────────────────────────────
+
+const round4 = (n: number) => Math.round(n * 10_000) / 10_000;
+const monthKey = (d: Date) => d.toISOString().slice(0, 7);
+const nextMonth = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+type TopupUnit = TopupKey | "aiBudgetUsd";
+
+/** One monthly allowance's use between two dates (for settling a month that has ended). */
+async function usageBetween(orgId: string, key: TopupUnit, from: Date, to: Date): Promise<number> {
+  const n = (r: { rows: unknown[] }) => Number((r.rows[0] as { n?: number | string } | undefined)?.n ?? 0);
+  switch (key) {
+    case "invoicesPerMonth":
+      return n(await db.execute(sql`select count(*)::int as n from invoice_documents d join invoice_owners o on o.id = d.project_id left join projects p on p.id = o.project_id left join finance_books b on b.id = o.book_id where coalesce(p.org_id, b.org_id) = ${orgId} and d.type = 'invoice' and d.created_at >= ${from} and d.created_at < ${to}`));
+    case "aiPerMonth":
+      return n(await db.execute(sql`select count(*)::int as n from ai_tasks where org_id = ${orgId} and created_at > ${from} and created_at < ${to}`));
+    case "aiBudgetUsd":
+      return n(await db.execute(sql`select coalesce(sum(cost_micro_usd),0)::bigint as n from ai_tasks where org_id = ${orgId} and created_at > ${from} and created_at < ${to}`)) / 1_000_000;
+    case "campaignEmailsPerMonth":
+      return n(await db.execute(sql`select count(*)::int as n from mkt_sends where org_id = ${orgId} and sent_at >= ${from} and sent_at < ${to}`));
+    case "signaturesPerMonth":
+      return n(await db.execute(sql`select count(*)::int as n from doc_sign_requests where org_id = ${orgId} and created_at > ${from} and created_at < ${to}`));
+  }
+}
+
+/**
+ * What's left of each top-up: everything bought, less what went on usage
+ * beyond the plan's allowance in months that have ended. Settles those months
+ * the first time they're needed (once each), so the balance carries over and
+ * only real use beyond the plan ever draws on it.
+ */
+export async function topupExtras(orgId: string, base: Quotas, now = new Date()): Promise<Partial<Record<TopupUnit, number>>> {
+  const rows = await db.select().from(schema.quotaTopups).where(eq(schema.quotaTopups.orgId, orgId));
+  if (!rows.length) return {};
+  const cur = monthKey(now);
+  const out: Partial<Record<TopupUnit, number>> = {};
+  for (const key of [...new Set(rows.map((r) => r.key))] as TopupUnit[]) {
+    const mine = rows.filter((r) => r.key === key);
+    const bought = mine.filter((r) => r.kind === "purchase");
+    if (!bought.length) continue;
+    const settled = new Map(mine.filter((r) => r.kind === "used" && r.month).map((r) => [r.month!, r.units]));
+    // Each month from the first purchase up to last month, oldest first.
+    for (let m = monthStart(new Date(Math.min(...bought.map((r) => r.createdAt.getTime())))); monthKey(m) < cur; m = nextMonth(m)) {
+      const mk = monthKey(m);
+      if (settled.has(mk)) continue;
+      const end = nextMonth(m);
+      const avail = bought.filter((r) => r.createdAt < end).reduce((s, r) => s + r.units, 0) - [...settled].filter(([k]) => k < mk).reduce((s, [, u]) => s + u, 0);
+      const cap = base[key];
+      const take = avail <= 0 || cap === undefined ? 0 : round4(Math.min(avail, Math.max(0, (await usageBetween(orgId, key, m, end)) - cap)));
+      await db.insert(schema.quotaTopups).values({ orgId, key, kind: "used", units: take, month: mk }).onConflictDoNothing();
+      const [row] = await db.select({ units: schema.quotaTopups.units }).from(schema.quotaTopups).where(and(eq(schema.quotaTopups.orgId, orgId), eq(schema.quotaTopups.key, key), eq(schema.quotaTopups.kind, "used"), eq(schema.quotaTopups.month, mk)));
+      settled.set(mk, row?.units ?? take);
+    }
+    out[key] = round4(Math.max(0, bought.reduce((s, r) => s + r.units, 0) - [...settled].filter(([k]) => k < cur).reduce((s, [, u]) => s + u, 0)));
+  }
+  return out;
+}
+
+/**
+ * Buys top-ups: one invoice, due now, paid online (or from account credit).
+ * The allowance goes up the moment it's paid. Any earlier unpaid top-up
+ * invoice is replaced, so nothing is charged twice.
+ */
+export async function buyTopup(orgId: string, actorId: string, packs: Partial<Record<TopupKey, number>>, now = new Date()) {
+  const [p, ent] = await Promise.all([pricing(), entitlementFor(orgId)]);
+  if (ent.state === "unrestricted") throw new ApiError("conflict", "Nothing is limited on this workspace — there's nothing to top up.");
+  if (ent.state === "expired") throw new ApiError("conflict", "This workspace's plan has ended. Choose a plan first.");
+  for (const k of Object.keys(packs)) {
+    if (!isTopupKey(k)) throw new ApiError("validation_failed", "That allowance can't be topped up.");
+    if (ent.quotas[k] === undefined && (packs[k] ?? 0) > 0) throw new ApiError("conflict", `${QUOTA_LABEL[k].name} are already unlimited on your plan.`);
+  }
+  let t;
+  try {
+    t = topupQuote(packs, p);
+  } catch (e) {
+    if (e instanceof QuoteError) throw new ApiError("validation_failed", e.message);
+    throw e;
+  }
+  const inv = await db.transaction(async (tx) => {
+    await lockOrg(tx, orgId);
+    const sub = await subscriptionOf(orgId, tx);
+    await voidOpen(tx, orgId, ["topup"]);
+    const used = Math.min(sub?.credit ?? 0, t.amount);
+    const subtotal = t.amount - used;
+    const tax = taxOf(subtotal, p.taxBps);
+    const lines = [...t.lines.map((l) => ({ label: l.label, amount: l.amount })), ...(used ? [{ label: "Credit on your account", amount: -used }] : [])];
+    const names = t.lines.map((l) => l.label.replace(/ \(top-up\)$/, "")).join(", ");
+    const row = await raiseInvoice(tx, orgId, { kind: "topup", description: `Top-up: ${names}`, lines, subtotal, creditApplied: used, tax, total: subtotal + tax, currency: p.currency, periodStart: null, periodEnd: null, dueAt: now, applies: { topup: { packs, units: t.units } }, createdBy: actorId }, p);
+    await event(tx, orgId, "topup_requested", { what: names, total: subtotal + tax, invoice: row.seq }, actorId);
+    return row;
+  });
+  if (inv.total === 0) return { invoice: await markPaid(inv.id, { via: "credit", ref: `credit:${inv.id}`, actorId }), applied: true };
+  return { invoice: inv, applied: false };
+}
+
 /** How much of each allowance the workspace has used (this calendar month; contacts, storage and guests in total). */
 export async function quotaUsage(orgId: string, only?: QuotaKey): Promise<Record<QuotaKey, number>> {
   const since = monthStart();
@@ -1122,7 +1250,8 @@ export async function assertQuota(orgId: string, key: QuotaKey, adding = 1) {
   if (used + adding > limit) {
     const rec = await recommendPlan({ modules: meta.module ? [meta.module] : [], quota: key, atLeast: limit });
     const plan = e.state === "trial" ? "Your free trial" : `The ${e.planName || "current"} plan`;
-    throw new ApiError("conflict", `${plan} includes ${fmtQuota(key, limit)} ${meta.unit} and you've used ${fmtQuota(key, used)}.${rec ? ` ${rec.name} has more — upgrade in Settings → Billing.` : " Upgrade in Settings → Billing for more."}`, { quota: [key], limit: [String(limit)], used: [String(Math.round(used * 100) / 100)], ...(rec ? { upgrade: [rec.planId] } : {}) });
+    const top = isTopupKey(key);
+    throw new ApiError("conflict", `${plan} includes ${fmtQuota(key, limit)} ${meta.unit} and you've used ${fmtQuota(key, used)}.${top ? " Top up now to keep going — it's added straight away." : rec ? ` ${rec.name} has more — upgrade in Settings → Billing.` : " Upgrade in Settings → Billing for more."}`, { quota: [key], limit: [String(limit)], used: [String(Math.round(used * 100) / 100)], ...(top ? { topup: [key] } : {}), ...(rec ? { upgrade: [rec.planId] } : {}) });
   }
   if ((used + adding) / limit >= 0.8) void warnOnce(orgId, key, used + adding, limit).catch(() => {});
 }

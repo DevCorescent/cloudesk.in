@@ -11,7 +11,7 @@ import { money } from "@/lib/billing/catalog";
 import { day, isFuture, type Invoice } from "./types";
 
 const VIA: Record<string, string> = { razorpay: "Razorpay", stripe: "Stripe", manual: "Bank transfer", credit: "Account credit" };
-const KIND: Record<Invoice["kind"], string> = { first: "First period", renewal: "Renewal", upgrade: "Plan change", manual: "Raised by Cloudesk" };
+const KIND: Record<Invoice["kind"], string> = { first: "First period", renewal: "Renewal", upgrade: "Plan change", topup: "Top-up", manual: "Raised by Cloudesk" };
 
 const PRINT_CSS = `
 @media screen { .cd-invoice-print { display: none; } }

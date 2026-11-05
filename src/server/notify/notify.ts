@@ -10,7 +10,8 @@ import { ApiError, notFound } from "../http/errors";
 import { log } from "../log";
 import { appUrl, sendMail } from "../services/mail";
 
-export type Notice = { kind: NotificationKind; title: string; body?: string; link?: string; values?: Record<string, string> };
+/** `email: false` keeps it in the app only (when a fuller email goes separately, like a payment receipt). */
+export type Notice = { kind: NotificationKind; title: string; body?: string; link?: string; values?: Record<string, string>; email?: false };
 
 async function prefsOf(orgId: string, userIds: string[]) {
   const rows = userIds.length ? await db.select().from(schema.notificationPrefs).where(and(eq(schema.notificationPrefs.orgId, orgId), inArray(schema.notificationPrefs.userId, userIds))) : [];
@@ -37,7 +38,7 @@ export async function notify(orgId: string, userIds: (string | null | undefined)
       const title = tpl ? fill(tpl.subject, values) : n.title;
       const body = tpl ? fill(tpl.body, values) : (n.body ?? "");
       let emailId: string | null = null;
-      if ((p.email ?? NOTIFICATION_KINDS[n.kind].email) && u.email) {
+      if (n.email !== false && (p.email ?? NOTIFICATION_KINDS[n.kind].email) && u.email) {
         emailId = await sendMail({ to: u.email, subject: title, body: `${body}${body ? "\n\n" : ""}${link ? `Open it: ${appUrl(link)}` : ""}`.trim(), fromName: org?.name }).catch(() => null);
       }
       if (p.app ?? true) await db.insert(schema.notifications).values({ orgId, userId: u.id, kind: n.kind, title, body, link, emailId });
