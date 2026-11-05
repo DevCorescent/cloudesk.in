@@ -6,6 +6,7 @@
 // details, confirms the email with a code, creates the workspace and signs the
 // person in. It sends exactly what the /start form sends, to the same API.
 // Progress survives a refresh (sessionStorage); the password never does.
+import { freeFor } from "@/lib/festive";
 import clsx from "clsx";
 import { ArrowRight, Gift, Loader2, ReceiptIndianRupee, Sparkles, Store, Users } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -48,7 +49,7 @@ type State = {
 const START: State = { step: "home", qi: 0, intent: null, name: "", brief: "", industry: null, profile: null, modules: [], pick: null, interval: "month", person: "", email: "", ticket: null, sentAt: 0, devCode: null, workspace: null, signedIn: false, lines: [] };
 
 const FAQ = {
-  free: { q: "Is it really free to start?", a: "Yes. Every feature is **free for 30 days** — no card needed. Before the trial ends you pick a plan, or carry on with fewer features on the Free plan." },
+  free: { q: "Is it really free to start?", a: `Yes. Every feature is **free for ${freeFor()}** — no card needed. Before the trial ends you pick a plan, or carry on with fewer features on the Free plan.` },
   team: { q: "Can my team use it too?", a: "Yes. Everyone gets their own sign-in and a role — owner, manager, staff or accountant — so they only see what's theirs. Chat, calendar and tasks are shared." },
 };
 
@@ -124,7 +125,7 @@ export function PublicAiMode({ onClose }: { onClose: () => void }) {
     const modules = recommend(profile, x.industry).modules;
     move({ profile, modules, step: "features" }, said, `Here's what I'd switch on for **${x.name}** — ${modules.length} features. Tap any to leave it out, or add more.`);
   };
-  const askPlan = (said: string) => move({ step: "plan" }, said, "Everything is **free for 30 days**, no card needed. **Which plan should follow the trial?** You can change it any time.");
+  const askPlan = (said: string) => move({ step: "plan" }, said, `Everything is **free for ${freeFor()}**, no card needed. **Which plan should follow the trial?** You can change it any time.`);
   const askPerson = (said: string) => move({ step: "person" }, said, "Almost there — now your account. **What's your name?**");
 
   const back = () => {
@@ -224,7 +225,7 @@ export function PublicAiMode({ onClose }: { onClose: () => void }) {
         signedIn = await api<{ mfaRequired?: boolean }>("/api/v1/auth/login", { method: "POST", body: { email: r.email, password: password.current } }).then((x) => !x.mfaRequired, () => false);
       }
       password.current = "";
-      move({ step: "done", workspace: r.workspace, signedIn, ticket: null, devCode: null }, "••••••", `**${r.workspace}** is ready. Your 30-day trial has started — every feature, no card needed.`);
+      move({ step: "done", workspace: r.workspace, signedIn, ticket: null, devCode: null }, "••••••", `**${r.workspace}** is ready. Your ${freeFor() === "30 days" ? "30-day" : "3-month"} free trial has started — every feature, no card needed.`);
     } catch (e) {
       move({}, "••••••", `${errorMessage(e)}`);
     } finally {
@@ -332,7 +333,7 @@ export function PublicAiMode({ onClose }: { onClose: () => void }) {
         return (
           <div className="ai-done">
             <b>You&apos;re all set 🎉</b>
-            <p className="ai-note">{s.modules.length} features switched on · free for 30 days</p>
+            <p className="ai-note">{s.modules.length} features switched on · free for {freeFor()}</p>
             <a className="ai-cta" href={login("/home")} onClick={() => save(null)}>
               Open my workspace <ArrowRight className="size-4" aria-hidden />
             </a>

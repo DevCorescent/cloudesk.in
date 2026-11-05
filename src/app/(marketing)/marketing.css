@@ -732,3 +732,100 @@
   .aix-pre { padding: 26px 18px; border-radius: 28px; }
     .aix-cta, .aix-ghost { height: 52px; }
   }
+
+/* ───────── Diwali (components/marketing/diwali.tsx), for the festive days ───────── */
+:root { --dv-gold: #e9c27a; --dv-ink: #fbf3e6; }
+
+/* Fairy lights in two depths: the far strand smaller and softer, the near one brighter. */
+.dv-strand { position: absolute; inset-inline: 0; height: 80px; }
+.dv-strand-far { opacity: 0.55; filter: blur(0.4px); }
+.dv-light { position: absolute; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: radial-gradient(circle, #fffaf0 0%, #ffe1a1 45%, #f3b453 100%); box-shadow: 0 0 6px 1px rgb(255 214 140 / 0.85), 0 0 22px 6px rgb(255 176 80 / 0.28); animation: dv-twinkle 3.4s ease-in-out var(--d) infinite; }
+.dv-strand-near .dv-light { width: 6px; height: 6px; margin-left: -3px; }
+@keyframes dv-twinkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.8); } }
+@media (max-width: 639.98px) { .dv-light-odd { display: none; } }
+
+/* Lanterns sway gently on their threads. */
+.dv-lantern { position: absolute; top: 0; display: flex; flex-direction: column; align-items: center; transform-origin: 50% 0; animation: dv-sway 6s ease-in-out var(--d) infinite; }
+.dv-thread { display: block; width: 1px; height: var(--drop); background: linear-gradient(rgb(233 194 122 / 0), rgb(233 194 122 / 0.45)); }
+.dv-lantern svg { filter: drop-shadow(0 0 10px rgb(255 170 70 / 0.35)); }
+@keyframes dv-sway { 0%, 100% { rotate: -3deg; } 50% { rotate: 3deg; } }
+@media (max-width: 639.98px) { .dv-lantern:nth-of-type(2n) { display: none; } .dv-lantern { scale: 0.8; } }
+
+/* Embers drifting up, and fading. */
+.dv-ember { position: absolute; bottom: -10px; width: 2.5px; height: 2.5px; border-radius: 50%; background: #ffd894; box-shadow: 0 0 8px 2px rgb(255 190 90 / 0.5); opacity: 0; animation: dv-rise var(--t) linear var(--d) infinite; }
+@keyframes dv-rise { 0% { transform: translate(0, 0); opacity: 0; } 15% { opacity: 0.65; } 75% { opacity: 0.3; } 100% { transform: translate(var(--x), -520px); opacity: 0; } }
+
+/* The band under the hero: edge to edge on soft pastel, lit in warm gold. */
+.dv-band { --dv-gold: #c8922f; background: radial-gradient(60% 90% at 78% 40%, #fff1dc 0%, transparent 70%), radial-gradient(50% 80% at 12% 70%, #f6e7fb 0%, transparent 70%), linear-gradient(180deg, #fdf6ee 0%, #fbeee6 55%, #f7eef6 100%); }
+.dv-band::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(35% 50% at 72% 48%, rgb(255 196 110 / 0.28), transparent 70%); }
+.dv-toran { position: absolute; top: 0; left: 0; z-index: 1; filter: drop-shadow(0 6px 8px rgb(200 120 40 / 0.14)); }
+.dv-petal { position: absolute; top: -16px; width: 9px; height: 13px; border-radius: 60% 60% 50% 50% / 70% 70% 40% 40%; background: var(--c); opacity: 0; animation: dv-fall var(--t) linear var(--d) infinite; }
+@keyframes dv-fall { 0% { transform: translate(0, 0) rotate(0deg); opacity: 0; } 10% { opacity: 0.55; } 85% { opacity: 0.4; } 100% { transform: translate(var(--x), 560px) rotate(300deg); opacity: 0; } }
+.dv-mandala { position: absolute; z-index: -1; width: clamp(300px, 34vw, 560px); color: #d8a04f; opacity: 0.22; animation: dv-spin 200s linear infinite; pointer-events: none; }
+.dv-mandala-l { left: clamp(-300px, -15vw, -130px); top: 58%; translate: 0 -50%; }
+.dv-mandala-r { right: clamp(-300px, -15vw, -130px); top: 58%; translate: 0 -50%; animation-direction: reverse; color: #d98aa6; }
+@keyframes dv-spin { to { rotate: 360deg; } }
+@media (max-width: 1023.98px) { .dv-mandala { width: 320px; opacity: 0.16; } .dv-mandala-l { left: -190px; top: 30%; } .dv-mandala-r { right: -190px; top: 80%; } }
+.dv-gold { background: linear-gradient(100deg, #9a5a14 0%, #d8952c 35%, #f0bf5e 50%, #d8952c 65%, #9a5a14 100%) 0 0 / 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: dv-shine 6s ease-in-out infinite; }
+@keyframes dv-shine { 0%, 100% { background-position: 0 0; } 50% { background-position: 100% 0; } }
+.dv-in { animation: dv-up 0.9s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes dv-up { from { opacity: 0; transform: translateY(14px); filter: blur(5px); } to { opacity: 1; transform: none; filter: none; } }
+/* Quiet, professional controls: an ink pill, a plain link, the time left. */
+.dv-cta { display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 18px; border-radius: 999px; font-size: 14px; font-weight: 500; color: #fdf6ee; background: #2b1d12; box-shadow: 0 10px 24px -14px rgb(43 29 18 / 0.7); transition: background 0.25s, transform 0.25s cubic-bezier(.2,.8,.2,1); }
+.dv-cta:hover { background: #3d2a1b; transform: translateY(-1px); }
+.dv-cta-arrow { transition: transform 0.3s cubic-bezier(.2,.8,.2,1); }
+.dv-cta:hover .dv-cta-arrow { transform: translateX(3px); }
+.dv-ghost { display: inline-flex; align-items: center; gap: 6px; height: 42px; font-size: 14px; color: rgb(43 29 18 / 0.62); transition: color 0.2s; }
+.dv-ghost:hover { color: #2b1d12; }
+.dv-left { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-variant-numeric: tabular-nums; color: #8a5a20; background: rgb(255 255 255 / 0.6); box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.28); }
+
+/* The gift, on pastel. Closed: a blush box tied in gold. In view: the lid lifts away, light spills out, the card rises. */
+.dv-stage { --s: 1; position: relative; display: grid; place-items: end center; height: calc(390px * var(--s)); }
+@media (max-width: 639.98px) { .dv-stage { --s: 0.8; } }
+@media (min-width: 1024px) { .dv-stage { --s: 1.08; } }
+.dv-gift { position: relative; width: calc(240px * var(--s)); height: calc(330px * var(--s)); }
+.dv-box { position: absolute; z-index: 3; left: 0; right: 0; bottom: 0; height: calc(160px * var(--s)); border-radius: calc(16px * var(--s)); background: linear-gradient(160deg, #f6c9d2 0%, #eaa3b4 50%, #d9849a 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.6), inset 0 -16px 28px rgb(160 60 90 / 0.18), 0 28px 50px -24px rgb(160 70 90 / 0.5); overflow: hidden; }
+.dv-box-sheen { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgb(255 255 255 / 0.35) 45%, transparent 60%); }
+.dv-ribbon-v { position: absolute; top: 0; bottom: 0; left: 50%; width: calc(28px * var(--s)); translate: -50% 0; background: linear-gradient(90deg, #c8922f, #f3d38c 40%, #fff1cc 50%, #f3d38c 60%, #c8922f); }
+.dv-lid { position: absolute; z-index: 4; left: calc(-10px * var(--s)); right: calc(-10px * var(--s)); bottom: calc(152px * var(--s)); height: calc(44px * var(--s)); border-radius: calc(12px * var(--s)); background: linear-gradient(165deg, #f8d3db 0%, #eeb0bf 60%, #e195a8 100%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.7), 0 12px 22px -12px rgb(160 70 90 / 0.5); transform-origin: 20% 100%; transition: transform 1s cubic-bezier(.5,-0.2,.25,1.2), opacity 0.6s 0.6s; }
+.dv-bow { position: absolute; left: 50%; bottom: 100%; translate: -50% 18%; width: calc(104px * var(--s)); height: calc(50px * var(--s)); }
+.dv-bow i { position: absolute; bottom: 0; width: 50%; height: 100%; border: calc(8px * var(--s)) solid #e2ad4c; border-radius: 50% 50% 10% 50% / 60% 60% 20% 60%; }
+.dv-bow i:nth-of-type(1) { left: 2px; rotate: -18deg; }
+.dv-bow i:nth-of-type(2) { right: 2px; rotate: 18deg; scale: -1 1; }
+.dv-bow b { position: absolute; left: 50%; bottom: calc(-4px * var(--s)); translate: -50% 0; width: calc(22px * var(--s)); height: calc(20px * var(--s)); border-radius: calc(7px * var(--s)); background: linear-gradient(180deg, #fff1cc, #e2ad4c); }
+.dv-stage[data-open] .dv-lid { transform: translate(calc(-46px * var(--s)), calc(-150px * var(--s))) rotate(-24deg); opacity: 0; }
+.dv-card-out { position: absolute; z-index: 2; left: calc(14px * var(--s)); right: calc(14px * var(--s)); bottom: calc(26px * var(--s)); display: grid; justify-items: center; align-content: center; gap: calc(2px * var(--s)); height: calc(250px * var(--s)); padding: calc(18px * var(--s)); border-radius: calc(18px * var(--s)); text-align: center; color: #2b1d12; background: radial-gradient(120% 80% at 50% 0%, #ffffff, #fff8ec 60%, #fbecd2); box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.3), inset 0 0 0 calc(6px * var(--s)) rgb(255 255 255 / 0.7), 0 26px 50px -22px rgb(200 130 50 / 0.55); transform: translateY(calc(40px * var(--s))) scale(0.86); opacity: 0; transition: transform 1.1s cubic-bezier(.2,.9,.2,1.1) 0.55s, opacity 0.5s 0.55s; }
+.dv-stage[data-open] .dv-card-out { transform: translateY(calc(-118px * var(--s))) scale(1); opacity: 1; }
+.dv-card-kicker { font-size: calc(10.5px * var(--s)); letter-spacing: 0.22em; text-transform: uppercase; color: #a8622a; }
+.dv-card-kicker[lang="hi"] { letter-spacing: 0; font-size: calc(14px * var(--s)); }
+.dv-card-big { margin-top: calc(6px * var(--s)); font-size: calc(38px * var(--s)); font-weight: 300; letter-spacing: -0.04em; line-height: 1; }
+.dv-card-big b { font-size: calc(74px * var(--s)); font-weight: 300; background: linear-gradient(180deg, #e0a03a, #9a5a14); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.dv-card-sub { font-size: calc(17px * var(--s)); color: #5b4636; }
+.dv-card-foot { margin-top: calc(10px * var(--s)); padding-top: calc(10px * var(--s)); border-top: 1px solid rgb(200 146 47 / 0.25); font-size: calc(11px * var(--s)); white-space: nowrap; color: #8a6a4d; }
+.dv-rays { position: absolute; left: 50%; bottom: calc(150px * var(--s)); width: calc(520px * var(--s)); height: calc(520px * var(--s)); translate: -50% 50%; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 10deg, rgb(255 200 110 / 0.4) 14deg, transparent 20deg 40deg, rgb(255 200 110 / 0.3) 46deg, transparent 52deg 76deg, rgb(255 200 110 / 0.38) 82deg, transparent 88deg 115deg, rgb(255 200 110 / 0.28) 120deg, transparent 126deg 150deg, rgb(255 200 110 / 0.38) 156deg, transparent 162deg 360deg); mask-image: radial-gradient(closest-side, #000 30%, transparent); opacity: 0; scale: 0.4; transition: opacity 1.2s 0.4s, scale 1.4s cubic-bezier(.2,.8,.2,1) 0.4s; animation: dv-spin 40s linear infinite; }
+.dv-stage[data-open] .dv-rays { opacity: 1; scale: 1; }
+.dv-stage::before { content: ""; position: absolute; left: 50%; bottom: calc(190px * var(--s)); width: calc(300px * var(--s)); height: calc(300px * var(--s)); translate: -50% 50%; border-radius: 50%; background: radial-gradient(closest-side, rgb(255 205 120 / 0.55), transparent); opacity: 0; transition: opacity 1.2s 0.5s; pointer-events: none; }
+.dv-stage[data-open]::before { opacity: 1; }
+.dv-floor { position: absolute; left: 50%; bottom: calc(-12px * var(--s)); width: calc(320px * var(--s)); height: calc(46px * var(--s)); translate: -50% 0; border-radius: 50%; background: radial-gradient(closest-side, rgb(160 80 60 / 0.18), transparent); filter: blur(4px); }
+.dv-burst { position: absolute; left: 50%; bottom: calc(170px * var(--s)); width: 0; height: 0; z-index: 5; }
+.dv-burst i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #f2b84b; box-shadow: 0 0 8px 2px rgb(255 190 90 / 0.6); opacity: 0; }
+.dv-stage[data-open] .dv-burst i { animation: dv-pop 1.3s cubic-bezier(.1,.8,.3,1) calc(0.45s + var(--d)) both; }
+@keyframes dv-pop { 0% { opacity: 0; transform: rotate(var(--a)) translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: rotate(var(--a)) translateY(calc(var(--r) * -1)); } }
+.dv-replay { position: absolute; right: 0; bottom: 0; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; font-size: 12px; color: rgb(43 29 18 / 0.5); background: rgb(255 255 255 / 0.5); box-shadow: inset 0 0 0 1px rgb(200 146 47 / 0.22); opacity: 0; transition: opacity 0.4s 2s, color 0.2s; }
+.dv-stage[data-open] .dv-replay { opacity: 1; }
+.dv-replay:hover { color: #2b1d12; }
+@media (max-width: 1023.98px) { .dv-replay { right: 50%; translate: 50% 0; bottom: -36px; } .dv-stage { margin-bottom: 44px; } }
+
+/* A row of tiny diyas along the band's foot. */
+.dv-deepmala { display: flex; justify-content: space-between; padding: 0 max(16px, 3vw) 18px; }
+.dv-mini { position: relative; width: 14px; height: 7px; border-radius: 0 0 14px 14px; background: linear-gradient(180deg, #c6672e, #7c3313); opacity: 0.85; }
+.dv-mini i { position: absolute; left: 50%; bottom: 100%; width: 4px; height: 8px; margin-left: -2px; border-radius: 50% 50% 40% 40%; background: radial-gradient(circle at 50% 70%, #fff6d0, #ffb43c 70%); box-shadow: 0 0 10px 3px rgb(255 170 60 / 0.55); transform-origin: 50% 100%; animation: dv-flick 1.5s ease-in-out var(--d) infinite; }
+@keyframes dv-flick { 0%, 100% { transform: scale(1, 1); } 40% { transform: scale(0.85, 1.12); } 70% { transform: scale(1.08, 0.92); } }
+@media (max-width: 639.98px) { .dv-mini-odd { display: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-light, .dv-lantern, .dv-ember, .dv-mandala, .dv-petal, .dv-gold, .dv-in, .dv-rays, .dv-mini i, .dv-burst i { animation: none !important; }
+  .dv-ember, .dv-petal, .dv-burst { display: none; }
+  .dv-lid, .dv-card-out, .dv-rays { transition: none !important; }
+}
+

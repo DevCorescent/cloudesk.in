@@ -7,6 +7,7 @@ import { Impact } from "@/components/marketing/impact";
 import { NotesSpotlight, WorkdayCards } from "@/components/marketing/home-spotlights";
 import { Innovations } from "@/components/marketing/innovations";
 import { IntelligenceHighlight } from "@/components/marketing/intelligence";
+import { isDiwali } from "@/lib/festive";
 import { PlatformTrio } from "@/components/marketing/platform-trio";
 import { SiteJsonLd } from "@/components/legal/json-ld";
 import { MobileIntro } from "@/components/marketing/mobile-intro";
@@ -21,12 +22,13 @@ export const metadata: Metadata = {
 // per section (the footer and trust strip come from the marketing layout).
 export default async function Landing() {
   const session = await getPageSession();
+  const diwali = isDiwali();
   return (
     <>
       <SiteJsonLd />
       {/* Phones open on a swipeable intro instead of the long page. */}
       <MobileIntro signedIn={!!session} />
-      <HomeHero />
+      <HomeHero diwali={diwali} />
       <IntelligenceHighlight />
       {/* ── The feature films ── */}
       <FilmReel />

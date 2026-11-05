@@ -8,6 +8,7 @@
 // after a short logo splash on every load. "Setup with AI" opens the sign-up
 // conversation from any screen. "Explore the website" lets them through to the
 // full page for the rest of the visit.
+import { freeFor } from "@/lib/festive";
 import "./mobile-intro.css";
 import clsx from "clsx";
 import { ArrowRight, BellRing, CalendarCheck, CreditCard, FileCheck, Gift, Globe, LayoutGrid, Link as LinkIcon, RefreshCw, ScanBarcode, ScanSearch, Sparkles, Wand2, Store, TrendingUp, Video, Zap, type LucideIcon } from "lucide-react";
@@ -72,7 +73,7 @@ const SLIDES: Slide[] = [
     badges: [
       { icon: LayoutGrid, text: "35+ apps, one login", at: { top: "0", left: "0" }, from: "l" },
       { icon: Zap, text: "Set up in minutes", at: { top: "52%", left: "-2%" }, from: "l" },
-      { icon: Gift, text: "Free for 30 days", at: { bottom: "6%", left: "2%" }, from: "l" },
+      { icon: Gift, text: `Free for ${freeFor()}`, at: { bottom: "6%", left: "2%" }, from: "l" },
     ],
   },
   {

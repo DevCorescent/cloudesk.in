@@ -8,6 +8,7 @@
 // the guard rails; and the free trial to start. Everything listed exists in
 // the product today — the
 // sample figures are marked as samples. Styles: .aix-* in (marketing)/marketing.css.
+import { freeFor } from "@/lib/festive";
 import clsx from "clsx";
 import {
   ArrowRight, AudioLines, BookOpenCheck, Bot, Brain, Camera, Check, CheckCircle2, Code2, FileScan, FileText, FlaskConical, Globe, Languages, Lock, Mail, MessagesSquare, NotebookPen, Receipt, ScanSearch, Search, ShieldCheck, ShoppingBag, Sparkles, Store, TriangleAlert, Wallet, Wand2, type LucideIcon,
@@ -477,7 +478,7 @@ export function StartCta() {
           <div aria-hidden className="aix-pre-glow" />
           <span className="mx-auto grid size-14 place-items-center rounded-[18px] bg-white/[0.06] ring-1 ring-white/10"><Sparkles className="size-6 text-[#c9bcff]" strokeWidth={1.5} /></span>
           <h2 className="mx-auto mt-7 max-w-3xl text-[clamp(2.2rem,4.6vw,4rem)] leading-[1.02] font-[300] tracking-[-0.045em] text-balance">Put <span className="aix-shine">intelligence</span> to work.</h2>
-          <p className="mx-auto mt-4 max-w-md text-[16px] leading-relaxed text-fg/60">Every feature and every AI power, free for 30 days. No card needed.</p>
+          <p className="mx-auto mt-4 max-w-md text-[16px] leading-relaxed text-fg/60">Every feature and every AI power, free for {freeFor()}. No card needed.</p>
           <div className="mt-9 flex flex-wrap justify-center gap-3 max-sm:[&>*]:w-full max-sm:[&>*]:justify-center">
             <Link href="/start" className="aix-cta">Start free <ArrowRight className="size-4" /></Link>
             <button type="button" onClick={() => setAi(true)} className="aix-ghost"><Sparkles className="size-4" /> Set up with AI</button>

@@ -5,6 +5,7 @@
 // number is a fact about the product (feature count, templates, trial,
 // commission, GST rates) — no invented customer statistics. Counters and
 // graphics play once the section is on screen; still for reduced motion.
+import { freeFor } from "@/lib/festive";
 import clsx from "clsx";
 import { ArrowRight, Check, Globe, IndianRupee, LayoutGrid, Receipt, ShoppingBag, Store, Users } from "lucide-react";
 import Link from "next/link";
@@ -162,7 +163,7 @@ export function Impact() {
             <h2 id="impact-title" className="mt-3 text-[clamp(2rem,4.2vw,3.5rem)] leading-[1.04] font-[360] tracking-[-0.045em] text-balance">Less to juggle. <span className="mk-logo-gradient">More to show for it.</span></h2>
           </div>
           <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13.5px] text-fg/55">
-            {["No card needed", "Free for 30 days", "Export your data any time"].map((x) => <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-4 text-[var(--p-mint-ink)]" />{x}</li>)}
+            {["No card needed", `Free for ${freeFor()}`, "Export your data any time"].map((x) => <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-4 text-[var(--p-mint-ink)]" />{x}</li>)}
           </ul>
         </div>
 

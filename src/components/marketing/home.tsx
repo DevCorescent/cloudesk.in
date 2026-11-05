@@ -4,6 +4,8 @@
 // then the main features as a 3D coverflow of real screens on a MacBook and
 // an iPhone, moving on by itself until someone picks one. Pauses on hover;
 // still for reduced motion.
+import { launchOffer } from "@/lib/festive";
+import { DiwaliBand, DiwaliHero } from "./diwali";
 import clsx from "clsx";
 import { ArrowRight, BadgeIndianRupee, CalendarDays, Check, ChevronLeft, ChevronRight, Globe, Hammer, Inbox, LayoutDashboard, Mail, MessagesSquare, NotebookPen, ReceiptText, ShoppingBag, SlidersHorizontal, Sparkles, Store, Users, Zap } from "lucide-react";
 import Link from "next/link";
@@ -141,7 +143,7 @@ const BUILT_IN = [
 
 const ROTATE_MS = 6000;
 
-export function HomeHero() {
+export function HomeHero({ diwali = false }: { diwali?: boolean }) {
   // "Setup with AI" opens the same onboarding conversation as the phone intro's AI mode.
   const [ai, setAi] = useState(false);
   return (
@@ -151,6 +153,7 @@ export function HomeHero() {
       {/* The opening on matte black (its own --fg/--bg, so every colour inside flips), fading into the page below. */}
       <div className="mk-hero-matte mk-under-head relative isolate">
         <div aria-hidden className="mk-matte-glow absolute inset-0 -z-10" />
+        {diwali && <DiwaliHero />}
         <div className="mx-auto w-full max-w-[1600px] px-5 pt-12 pb-10 sm:px-8 sm:pt-16 sm:pb-14 lg:px-14 lg:pt-20 lg:pb-16 xl:px-20">
         {/* Two quick ways in, above the headline: sign up, then straight into the builder (as the phone intro does). */}
         <nav aria-label="Get started" className="hero-rise grid grid-cols-2 gap-2 max-[380px]:gap-1.5 sm:flex sm:flex-wrap">
@@ -206,7 +209,7 @@ export function HomeHero() {
               </span>
             </div>
             <ul className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] text-fg/50 lg:justify-end">
-              {["30-day free trial", "No card needed"].map((x) => (
+              {[launchOffer() ? "3 months free" : "30-day free trial", "No card needed"].map((x) => (
                 <li key={x} className="inline-flex items-center gap-1.5"><Check className="size-3.5 text-emerald-400" /> {x}</li>
               ))}
             </ul>
@@ -215,6 +218,8 @@ export function HomeHero() {
         </div>
       </div>
       <div aria-hidden className="mk-matte-fade" />
+      {/* Diwali, edge to edge on pastel as the hero fades into the page: the launch & Diwali gift (lib/festive.ts). */}
+      {diwali && <DiwaliBand offer={!!launchOffer()} />}
 
       <FeatureFlow />
       {/* On the page body: the hero is its own stacking context, which would keep it under the site header. */}

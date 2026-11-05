@@ -4,6 +4,7 @@
 // the money for an invoice. Nothing is applied because a browser came back from
 // checkout: a payment counts once the provider confirms it to the server
 // (a signature checked with our secret, then the payment looked up by id).
+import { launchOffer } from "@/lib/festive";
 import { createHmac } from "node:crypto";
 import { and, asc, desc, eq, gt, inArray, isNotNull, lte, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -125,16 +126,25 @@ async function event(exec: Exec, orgId: string, kind: string, detail: Record<str
   await exec.insert(schema.subscriptionEvents).values({ orgId, kind, detail, actorId: actorId ?? null, byPlatform });
 }
 
+/** The free trial for someone starting now: the launch & Diwali offer's three months while it runs (lib/festive.ts). */
+export function trialDaysNow(base: number) {
+  const offer = launchOffer();
+  return offer ? Math.max(base, offer.trialDays) : base;
+}
+
 /** Starts a new workspace's free trial of everything (once). */
 export async function startTrial(exec: Exec, orgId: string) {
   const p = await pricing();
   const now = new Date();
+  // The launch & Diwali offer: three months free for workspaces started while it runs (lib/festive.ts).
+  const offer = launchOffer(now);
+  const days = trialDaysNow(p.trialDays);
   const [row] = await exec
     .insert(schema.orgSubscriptions)
-    .values({ orgId, planId: "trial", planName: "Free trial", modules: null, limits: await trialLimits(), status: "trialing", trialStartedAt: now, trialEndsAt: new Date(now.getTime() + p.trialDays * 86_400_000) })
+    .values({ orgId, planId: "trial", planName: "Free trial", modules: null, limits: await trialLimits(), status: "trialing", trialStartedAt: now, trialEndsAt: new Date(now.getTime() + days * 86_400_000) })
     .onConflictDoNothing()
     .returning();
-  if (row) await event(exec, orgId, "trial_started", { days: p.trialDays, endsAt: row.trialEndsAt });
+  if (row) await event(exec, orgId, "trial_started", { days, endsAt: row.trialEndsAt, ...(offer ? { offer: "launch-diwali-2026" } : {}) });
   return row ?? null;
 }
 
@@ -631,7 +641,7 @@ export async function overview(orgId: string) {
     },
     plans,
     free: freePlan,
-    pricing: { currency: p.currency, trialDays: p.trialDays, taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, graceDays: p.graceDays, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices },
+    pricing: { currency: p.currency, trialDays: trialDaysNow(p.trialDays), taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, graceDays: p.graceDays, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices },
     providers: paymentProviders(),
     invoices: invoices.map(publicInvoice),
     events,
@@ -644,7 +654,7 @@ export async function publicCatalog() {
   // Plans on sale; the Free plan (what you have without paying) separately.
   const plans = all.filter((x) => x.kind !== "free");
   const free = p.freePlan ? (all.find((x) => x.kind === "free") ?? null) : null;
-  return { plans, free, pricing: { currency: p.currency, trialDays: p.trialDays, taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices } };
+  return { plans, free, pricing: { currency: p.currency, trialDays: trialDaysNow(p.trialDays), taxBps: p.taxBps, taxLabel: p.taxLabel, yearlyMonths: p.yearlyMonths, customBase: p.customBase, customBaseModules: p.customBaseModules, customSeatsIncluded: p.customSeatsIncluded, seatPrice: p.seatPrice, customLimits: p.customLimits, modulePrices: p.modulePrices } };
 }
 
 // ── The scheduler ───────────────────────────────────────────────────────────
