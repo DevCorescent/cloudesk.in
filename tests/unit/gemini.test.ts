@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanSchema, fromOpenAi, geminiClient, toOpenAi } from "@/server/ai/gemini";
+import { cleanSchema, fromOpenAi, geminiClient, resetGeminiState, toOpenAi } from "@/server/ai/gemini";
 
 // Gemini speaking the Anthropic Messages API: requests translate to the
 // OpenAI-compatible shape (system, images and PDFs, tools and tool results,
@@ -7,7 +7,10 @@ import { cleanSchema, fromOpenAi, geminiClient, toOpenAi } from "@/server/ai/gem
 type P = Parameters<typeof toOpenAi>[0];
 const p = (x: Record<string, unknown>) => ({ model: "claude-opus-5-5", max_tokens: 100, ...x }) as unknown as P;
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetGeminiState();
+});
 
 describe("Gemini adapter", () => {
   it("turns system blocks, text, images and a tool loop into chat messages", () => {
@@ -81,18 +84,60 @@ describe("Gemini adapter", () => {
     expect(JSON.parse(String((fetch.mock.calls[1]![1] as RequestInit).body)).model).toBe("gemini-3.5-flash-lite");
   });
 
-  it("waits the few seconds Google asks for when the free limit is hit, then tries the same model", async () => {
+  it("moves straight to the next model when one is busy, and rests the busy one for a while", async () => {
+    const ok = () => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "fast" } }] }), { status: 200 });
+    const fetch = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify([{ error: { code: 429, message: "Quota exceeded. Please retry in 2.5s." } }]), { status: 429 })).mockResolvedValueOnce(ok()).mockResolvedValueOnce(ok());
+    vi.stubGlobal("fetch", fetch);
+    const ask = () => geminiClient("k").beta.messages.stream({ messages: [{ role: "user", content: "x" }] } as never).finalMessage();
+    expect((await ask()).content[0]).toMatchObject({ text: "fast" });
+    // The next question goes to the model that answered, not the busy one.
+    await ask();
+    expect(fetch.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)).model)).toEqual(["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.5-flash-lite"]);
+  });
+
+  it("waits the few seconds Google asks for only when every model is busy", async () => {
     vi.useFakeTimers();
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify([{ error: { code: 429, message: "Quota exceeded. Please retry in 2.5s." } }]), { status: 429 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "later" } }] }), { status: 200 }));
+    const busy = () => new Response(JSON.stringify([{ error: { code: 429, message: "Quota exceeded. Please retry in 2.5s." } }]), { status: 429 });
+    const fetch = vi.fn().mockResolvedValueOnce(busy()).mockResolvedValueOnce(busy()).mockResolvedValueOnce(busy()).mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "later" } }] }), { status: 200 }));
     vi.stubGlobal("fetch", fetch);
     const done = geminiClient("k").beta.messages.stream({ messages: [{ role: "user", content: "x" }] } as never).finalMessage();
     await vi.advanceTimersByTimeAsync(3000);
     expect((await done).content[0]).toMatchObject({ text: "later" });
-    expect(fetch.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)).model)).toEqual(["gemini-3.5-flash", "gemini-3.5-flash"]);
+    expect(fetch.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)).model)).toEqual(["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash"]);
     vi.useRealTimers();
+  });
+
+  it("thinks least for quick answers, and asks again without the setting if a model won't take it", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ error: { code: 400, message: "reasoning_effort is not supported" } }]), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: "ok" } }] }), { status: 200 }));
+    vi.stubGlobal("fetch", fetch);
+    await geminiClient("k").beta.messages.stream({ messages: [{ role: "user", content: "x" }], output_config: { effort: "low" } } as never).finalMessage();
+    const bodies = fetch.mock.calls.map((c) => JSON.parse(String((c[1] as RequestInit).body)));
+    expect(bodies[0].reasoning_effort).toBe("minimal");
+    expect(bodies[1].reasoning_effort).toBeUndefined();
+  });
+
+  it("streams the answer as it's written, tool calls and usage included", async () => {
+    const sse = [
+      { model: "gemini-3.5-flash", choices: [{ delta: { content: "Sales " } }] },
+      { choices: [{ delta: { content: "rose 12%." } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, id: "c1", function: { name: "run_report", arguments: '{"dataset":' } }] } }] },
+      { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"sales"}' } }] }, finish_reason: "tool_calls" }] },
+      { choices: [], usage: { prompt_tokens: 40, completion_tokens: 9 } },
+    ]
+      .map((c) => `data: ${JSON.stringify(c)}\n\n`)
+      .join("") + "data: [DONE]\n\n";
+    const fetch = vi.fn(async () => new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } }));
+    vi.stubGlobal("fetch", fetch);
+    const parts: string[] = [];
+    const msg = await geminiClient("k").beta.messages.stream({ messages: [{ role: "user", content: "x" }] } as never).on("text", (d: string) => parts.push(d)).finalMessage();
+    expect(parts).toEqual(["Sales ", "rose 12%."]);
+    expect(JSON.parse(String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body)).stream).toBe(true);
+    expect(msg.stop_reason).toBe("tool_use");
+    expect(msg.content).toMatchObject([{ type: "text", text: "Sales rose 12%." }, { type: "tool_use", id: "c1", name: "run_report", input: { dataset: "sales" } }]);
+    expect(msg.usage).toMatchObject({ input_tokens: 40, output_tokens: 9 });
   });
 
   it("reports Google's errors with their status", async () => {

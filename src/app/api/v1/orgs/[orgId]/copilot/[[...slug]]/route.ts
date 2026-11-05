@@ -5,7 +5,9 @@ import { MAX_ATTACH_BYTES, type Upload } from "@/server/copilot/attachments";
 import { readJson, route, type AuthedContext } from "@/server/http/handler";
 import { ApiError, notFound } from "@/server/http/errors";
 import { rateLimit } from "@/server/security/rate-limit";
-import { activity, ask, checks, confirm, deleteThread, dismiss, scope, search, status, thread, threads } from "@/server/copilot/core";
+import { activity, ask, checks, confirm, deleteThread, dismiss, scope, search, status, thread, threads, type AskEvent } from "@/server/copilot/core";
+import { providerError } from "@/server/ai/gateway";
+import { log } from "@/server/log";
 
 type P = { orgId: string; slug?: string[] };
 // A question can take several model calls and reports.
@@ -25,6 +27,39 @@ async function question(req: Request): Promise<{ text: string; advisor: string |
   for (const f of form.getAll("files")) if (typeof f !== "string") files.push({ name: f.name || "file", bytes: Buffer.from(await f.arrayBuffer()) });
   return { text: String(form.get("text") ?? "").slice(0, 10_000), advisor: String(form.get("advisor") ?? "") || null, files };
 }
+
+/**
+ * The answer as it's worked out, one JSON object per line: text as the model
+ * writes it, each lookup as it starts, then the whole conversation ("done")
+ * or what went wrong ("error"). Asked for with Accept: application/x-ndjson.
+ */
+function streamed(run: (onEvent: (e: AskEvent) => void) => Promise<unknown>) {
+  const enc = new TextEncoder();
+  const body = new ReadableStream<Uint8Array>({
+    async start(c) {
+      let open = true;
+      const send = (o: unknown) => {
+        if (open) c.enqueue(enc.encode(`${JSON.stringify(o)}\n`));
+      };
+      // Some networks drop a connection that's quiet for long; a heartbeat keeps it.
+      const beat = setInterval(() => send({ t: "ping" }), 10_000);
+      try {
+        send({ t: "start" });
+        send({ t: "done", thread: await run(send) });
+      } catch (e) {
+        const err = e instanceof ApiError ? e : providerError(e);
+        if (!(e instanceof ApiError)) log.warn("copilot.stream_failed", { err: e instanceof Error ? e.name : "unknown" });
+        send({ t: "error", code: err.code, message: err.message, status: err.status, details: err.details ?? null });
+      } finally {
+        clearInterval(beat);
+        open = false;
+        c.close();
+      }
+    },
+  });
+  return new Response(body, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no" } });
+}
+const wantsStream = (req: Request) => (req.headers.get("accept") ?? "").includes("application/x-ndjson");
 
 /** A knowledge note as JSON, or a file whose text is read here (Office, CSV, text; the browser sends a PDF's text as a note). */
 async function knowledgeBody(req: Request): Promise<Record<string, unknown>> {
@@ -58,6 +93,11 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
     case "POST threads": {
       await rateLimit(`copilot:${s.userId}`, 60, 3_600_000);
       const v = await question(ctx.req);
+      if (wantsStream(ctx.req)) {
+        // Limits are checked before the stream opens, so the usual upgrade prompt still appears.
+        await (await import("@/server/ai/tasks")).assertAiAllowed(orgId);
+        return streamed((onEvent) => ask(s, null, v.text, { ...v, onEvent }));
+      }
       return ask(s, null, v.text, v);
     }
     case "GET threads :id":
@@ -65,6 +105,10 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
     case "POST threads :id messages": {
       await rateLimit(`copilot:${s.userId}`, 60, 3_600_000);
       const v = await question(ctx.req);
+      if (wantsStream(ctx.req)) {
+        await (await import("@/server/ai/tasks")).assertAiAllowed(orgId);
+        return streamed((onEvent) => ask(s, id!, v.text, { ...v, onEvent }));
+      }
       return ask(s, id!, v.text, v);
     }
     case "DELETE threads :id":

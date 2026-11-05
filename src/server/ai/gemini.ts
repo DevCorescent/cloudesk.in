@@ -126,32 +126,62 @@ export function fromOpenAi(r: OaResponse): Msg {
   } as unknown as Msg;
 }
 
-async function call(apiKey: string, p: Params, signal?: AbortSignal | null): Promise<Msg> {
+type OnText = (delta: string) => void;
+
+// Models Google said were busy (429/503), skipped for a short while so the
+// next request doesn't wait on them too; shared by every request on this server.
+const resting = new Map<string, number>();
+const rest = (model: string, seconds: number) => resting.set(model, Date.now() + Math.min(60, Math.max(5, seconds)) * 1000);
+const awake = (model: string) => (resting.get(model) ?? 0) <= Date.now();
+
+async function call(apiKey: string, p: Params, signal?: AbortSignal | null, onText?: OnText): Promise<Msg> {
   let last: GeminiError | null = null;
-  for (const [i, model] of modelsToTry().entries()) {
+  let firstWait: { model: string; s: number } | null = null;
+  const all = modelsToTry();
+  // Busy models go last rather than first.
+  const order = [...all.filter(awake), ...all.filter((m) => !awake(m))];
+  // Once part of an answer has been shown, another model can't take over without repeating it.
+  let spoke = false;
+  const said = onText && ((d: string) => ((spoke = true), onText(d)));
+  for (const model of order) {
     try {
-      return await once(apiKey, model, p, signal);
+      return await once(apiKey, model, p, signal, said);
     } catch (e) {
-      // The free tier allows a few requests a minute: on the first model, waiting the few seconds Google asks for beats switching.
-      if (i === 0 && e instanceof GeminiError && e.status === 429 && e.retryAfter !== null && e.retryAfter <= 25) {
-        await wait(e.retryAfter * 1000 + 250, signal);
-        try {
-          return await once(apiKey, model, p, signal);
-        } catch (again) {
-          e = again;
-        }
+      if (signal?.aborted || spoke) throw e;
+      // Busy or out of free quota: move straight to the next model instead of waiting.
+      if (e instanceof GeminiError && (e.status === 429 || e.status === 503)) {
+        rest(model, e.retryAfter ?? 20);
+        if (!firstWait && e.retryAfter !== null && e.retryAfter <= 20) firstWait = { model, s: e.retryAfter };
       }
-      if (signal?.aborted) throw e;
       // Retired (404), overloaded (503), out of free quota for this model (429), or hung: the next one may answer.
       if (e instanceof GeminiError && [404, 429, 500, 503].includes(e.status)) last = e;
       else if (e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError" || e.name === "TypeError")) last = new GeminiError(504, "Gemini didn't answer in time");
       else throw e;
     }
   }
+  // Every model was busy: wait the few seconds Google asked for, once.
+  if (firstWait) {
+    await wait(firstWait.s * 1000 + 250, signal);
+    return once(apiKey, firstWait.model, p, signal, said);
+  }
   throw last ?? new GeminiError(503, "No Gemini model answered");
 }
 
-async function once(apiKey: string, model: string, p: Params, signal?: AbortSignal | null): Promise<Msg> {
+/** How hard Gemini thinks, from the caller's effort: quick answers think least, which is most of the wait. */
+function reasoningFor(p: Params): string {
+  const effort = (p as { output_config?: { effort?: string } }).output_config?.effort;
+  return effort === "high" || effort === "max" ? "medium" : effort === "medium" ? "low" : "minimal";
+}
+// Models that turned down a reasoning setting: asked without it from then on.
+const noReasoning = new Set<string>();
+
+/** Tests start each case with no model resting and every reasoning setting allowed. */
+export function resetGeminiState() {
+  resting.clear();
+  noReasoning.clear();
+}
+
+async function once(apiKey: string, model: string, p: Params, signal?: AbortSignal | null, onText?: OnText): Promise<Msg> {
   const fmt = p.output_config?.format;
   const body: Record<string, unknown> = {
     model,
@@ -159,27 +189,123 @@ async function once(apiKey: string, model: string, p: Params, signal?: AbortSign
     // Flash models return up to 65k tokens; ask for less so free-tier answers stay quick.
     max_tokens: Math.min(p.max_tokens ?? 8192, 16_384),
   };
+  if (!noReasoning.has(model)) body.reasoning_effort = reasoningFor(p);
   if (p.tools?.length)
     body.tools = (p.tools as unknown as { name: string; description?: string; input_schema?: unknown }[])
       .filter((t) => t.name)
       .map((t) => ({ type: "function", function: { name: t.name, description: t.description ?? "", parameters: cleanSchema(t.input_schema ?? { type: "object", properties: {} }) } }));
   if (fmt?.type === "json_schema" && fmt.schema) body.response_format = { type: "json_schema", json_schema: { name: "answer", schema: cleanSchema(fmt.schema) } };
+  if (onText) Object.assign(body, { stream: true, stream_options: { include_usage: true } });
+  // A model that hangs gives way to the next one rather than holding the request
+  // (streamed answers only need to start in time; they then keep the line busy).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(new DOMException("Gemini didn't answer in time", "TimeoutError")), onText ? 20_000 : 40_000);
   const res = await fetch(`${BASE}/chat/completions`, {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify(body),
-    // A model that hangs gives way to the next one rather than holding the request.
-    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(40_000)]) : AbortSignal.timeout(40_000),
+    signal: signal ? AbortSignal.any([signal, ctrl.signal]) : ctrl.signal,
+  }).catch((e) => {
+    clearTimeout(timer);
+    throw e;
   });
-  const json = (await res.json().catch(() => ({}))) as OaResponse | OaResponse[];
-  const r = Array.isArray(json) ? json[0]! : json;
-  if (!res.ok || r.error) throw new GeminiError(res.status, r.error?.message ?? `HTTP ${res.status}`, retryHint(r.error));
-  return fromOpenAi(r);
+  if (!res.ok || !onText) {
+    clearTimeout(timer);
+    const json = (await res.json().catch(() => ({}))) as OaResponse | OaResponse[];
+    const r = Array.isArray(json) ? json[0]! : json;
+    if (!res.ok || r.error) {
+      // A model that doesn't take a reasoning setting: ask again without it.
+      if (res.status === 400 && body.reasoning_effort && /reason|thinking/i.test(r.error?.message ?? "")) {
+        noReasoning.add(model);
+        return once(apiKey, model, p, signal, onText);
+      }
+      throw new GeminiError(res.status, r.error?.message ?? `HTTP ${res.status}`, retryHint(r.error));
+    }
+    return fromOpenAi(r);
+  }
+  clearTimeout(timer);
+  return fromOpenAi(await readStream(res, onText, signal));
+}
+
+/** Gemini's streamed answer (OpenAI-style server-sent events), passing text on as it arrives and putting the whole answer back together. */
+async function readStream(res: Response, onText: OnText, signal?: AbortSignal | null): Promise<OaResponse> {
+  const reader = res.body!.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let content = "";
+  let finish: string | undefined;
+  let usage: OaResponse["usage"];
+  let model: string | undefined;
+  const calls: { id?: string; function: { name?: string; arguments: string }; extra_content?: unknown }[] = [];
+  // Between pieces of a long answer, a stall this long means it hung.
+  let idle: ReturnType<typeof setTimeout> | null = null;
+  const stall = () => {
+    if (idle) clearTimeout(idle);
+    idle = setTimeout(() => void reader.cancel(new DOMException("Gemini stopped answering", "TimeoutError")).catch(() => {}), 30_000);
+  };
+  try {
+    stall();
+    for (;;) {
+      if (signal?.aborted) throw signal.reason;
+      const { value, done } = await reader.read();
+      if (done) break;
+      stall();
+      buf += dec.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        let chunk: { model?: string; error?: OaResponse["error"]; usage?: OaResponse["usage"]; choices?: { finish_reason?: string; delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string }; extra_content?: unknown }[] } }[] };
+        try {
+          chunk = JSON.parse(data);
+        } catch {
+          continue;
+        }
+        if (chunk.error) throw new GeminiError(chunk.error.code ?? 500, chunk.error.message ?? "Gemini error", retryHint(chunk.error));
+        model ??= chunk.model;
+        if (chunk.usage) usage = chunk.usage;
+        const c = chunk.choices?.[0];
+        if (!c) continue;
+        if (c.finish_reason) finish = c.finish_reason;
+        const d = c.delta?.content;
+        if (d) {
+          content += d;
+          onText(d);
+        }
+        for (const t of c.delta?.tool_calls ?? []) {
+          const i = t.index ?? calls.length;
+          const cur = (calls[i] ??= { function: { arguments: "" } });
+          if (t.id) cur.id = t.id;
+          if (t.function?.name) cur.function.name = t.function.name;
+          if (t.function?.arguments) cur.function.arguments += t.function.arguments;
+          if (t.extra_content) cur.extra_content = t.extra_content;
+        }
+      }
+    }
+  } finally {
+    if (idle) clearTimeout(idle);
+  }
+  return { model, usage, choices: [{ finish_reason: finish, message: { content: content || null, tool_calls: calls.filter(Boolean).length ? calls.filter(Boolean) : undefined } }] };
 }
 
 /** An object with the slice of the Anthropic client our features use, backed by Gemini. */
 export function geminiClient(apiKey: string) {
-  const stream = (p: Params, opts?: { signal?: AbortSignal | null }) => ({ finalMessage: () => call(apiKey, p, opts?.signal) });
+  // Like the Anthropic SDK's MessageStream: listen for "text" as it arrives, then await finalMessage().
+  const stream = (p: Params, opts?: { signal?: AbortSignal | null }) => {
+    const listeners: OnText[] = [];
+    let started: Promise<Msg> | null = null;
+    const s = {
+      on(ev: string, cb: OnText) {
+        if (ev === "text") listeners.push(cb);
+        return s;
+      },
+      finalMessage: () => (started ??= call(apiKey, p, opts?.signal, listeners.length ? (d) => listeners.forEach((l) => l(d)) : undefined)),
+    };
+    return s;
+  };
   return { beta: { messages: { stream, create: (p: Params, opts?: { signal?: AbortSignal | null }) => call(apiKey, p, opts?.signal) } } } as unknown as Pick<Anthropic, "beta">;
 }
 

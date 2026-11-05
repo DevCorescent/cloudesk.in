@@ -61,7 +61,7 @@ const PhotoEditor = dynamic(() => import("./photo-editor").then((m) => m.PhotoEd
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; moreLabel?: string; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; /** The "thinking" dots (default: while busy); off once an answer is streaming in. */ typing?: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; moreLabel?: string; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const pick = useRef<HTMLInputElement>(null);
@@ -110,10 +110,12 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
     if (chatting && single) field.current?.focus();
   }, [kind, chatting, single]);
 
+  // Follows an answer as it streams in, too.
+  const growing = p.messages[p.messages.length - 1]?.text?.length ?? 0;
   useEffect(() => {
     if (chatting) end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     measure();
-  }, [p.messages.length, p.busy, chatting]);
+  }, [p.messages.length, p.busy, chatting, growing]);
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
@@ -234,7 +236,7 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
                 </div>
               ),
             )}
-            {p.busy && (
+            {(p.typing ?? p.busy) && (
               <div className="ai-msg ai-msg-ai">
                 <span className="ai-typing" aria-label="Thinking">
                   <i />

@@ -156,6 +156,9 @@ const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   remember: (i) => `Remembered: ${String(i.fact ?? "")}`,
 };
 
+/** How a tool's use reads to people ("Ran a report on sales"). */
+export const toolLabel = (name: string, input: unknown) => (TOOL_LABEL[name] ?? (() => `Used ${name}`))((input ?? {}) as Record<string, unknown>);
+
 /** What people see of a conversation: their questions, the answers, and which tools were used (tool results stay hidden). */
 export function toView(messages: unknown[]): ViewItem[] {
   const out: ViewItem[] = [];

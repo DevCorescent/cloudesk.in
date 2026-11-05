@@ -6,7 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { and, asc, desc, eq, gte, ilike, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { ACTION_INPUT, ACTION_LABEL, proposeInput, resultText, runReportInput, searchInput, SEARCH_KINDS, SYSTEM_PROMPT, titleFrom, toView, TOOLS, withQuestion, type ActionKind, type SearchKind } from "@/lib/copilot/model";
+import { ACTION_INPUT, ACTION_LABEL, proposeInput, resultText, runReportInput, searchInput, SEARCH_KINDS, SYSTEM_PROMPT, titleFrom, toolLabel, toView, TOOLS, withQuestion, type ActionKind, type SearchKind } from "@/lib/copilot/model";
 import { duplicateBills, expenseSpikes, largeBills, type Finding } from "@/lib/copilot/anomalies";
 import { isOn } from "@/lib/workspace/modules";
 import { anthropicFor, COPILOT_MODEL, providerError, recordUsage } from "../ai/gateway";
@@ -66,7 +66,10 @@ export async function deleteThread(s: Scope, id: string) {
 }
 
 /** Ask a question: run the model with its tools until it answers (or the turn limit), saving every message exchanged. */
-export async function ask(s: Scope, threadId: string | null, text: string, opts: { files?: Upload[]; advisor?: string | null } = {}) {
+/** What a streamed answer sends while it's being worked out: text as it's written, and each lookup as it starts. */
+export type AskEvent = { t: "text"; d: string } | { t: "tool"; label: string };
+
+export async function ask(s: Scope, threadId: string | null, text: string, opts: { files?: Upload[]; advisor?: string | null; onEvent?: (e: AskEvent) => void } = {}) {
   const files = opts.files ?? [];
   const q = text.trim() || (files.length ? "What is this, and what should I do with it?" : "");
   if (!q) throw new ApiError("validation_failed", "Ask something first", { text: ["Required"] });
@@ -83,6 +86,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
     messages = [...messages.slice(0, -1), { role: "user", content: [...content.slice(0, qi), ...blocks, content[qi]] }];
   }
   const advisor = advisorById(opts.advisor);
+  const emit = opts.onEvent ?? (() => {});
   const known = await (await import("./knowledge")).context(s, q);
   const save = () => db.update(schema.copilotThreads).set({ messages, updatedAt: new Date() }).where(eq(schema.copilotThreads.id, t.id));
   const note = (msg: string) => {
@@ -90,7 +94,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
   };
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const res = await client.beta.messages
+      const stream = client.beta.messages
         .stream({
           model: COPILOT_MODEL,
           max_tokens: 16_000,
@@ -107,9 +111,12 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
           output_config: { effort: "medium" },
           betas: ["server-side-fallback-2026-07-01"],
           fallbacks: "default",
-        } as Anthropic.Beta.MessageCreateParamsStreaming)
-        .finalMessage();
-      await recordUsage(s.orgId, s.userId, "copilot", res.usage, res.model ?? COPILOT_MODEL, { threadId: t.id });
+        } as Anthropic.Beta.MessageCreateParamsStreaming);
+      // The answer reaches the person as it's written, not when it's finished.
+      if (opts.onEvent) stream.on("text", (d: string) => emit({ t: "text", d }));
+      const res = await stream.finalMessage();
+      // Usage is recorded alongside the next step rather than holding it up.
+      const used = recordUsage(s.orgId, s.userId, "copilot", res.usage, res.model ?? COPILOT_MODEL, { threadId: t.id }).catch((e) => log.warn("copilot.usage_failed", { err: String(e) }));
       messages = [...messages, { role: "assistant", content: res.content }];
       if (res.stop_reason === "refusal") {
         note("I can't help with that request.");
@@ -119,9 +126,15 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
         note("(That answer was cut off for length. Ask for a narrower answer.)");
         break;
       }
-      if (res.stop_reason !== "tool_use") break;
-      const results: Anthropic.Beta.BetaToolResultBlockParam[] = [];
-      for (const b of res.content) if (b.type === "tool_use") results.push(await runTool(s, t.id, b.id, b.name, b.input, messages));
+      if (res.stop_reason !== "tool_use") {
+        await used;
+        break;
+      }
+      // Lookups asked for together run together (results stay in the order they were asked).
+      const calls = res.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+      for (const b of calls) emit({ t: "tool", label: toolLabel(b.name, b.input) });
+      const results = await Promise.all(calls.map((b) => runTool(s, t.id, b.id, b.name, b.input, messages)));
+      await used;
       messages = [...messages, { role: "user", content: results }];
       if (turn === MAX_TURNS - 1) note("I stopped after several lookups without a final answer. Ask again, perhaps more specifically.");
     }
@@ -224,42 +237,83 @@ export async function search(s: Scope, query: string, kinds?: readonly SearchKin
   const t = `%${query.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
   const want = new Set(kinds?.length ? kinds : SEARCH_KINDS);
   const own = (col: SQL | ReturnType<typeof sql>) => (s.ctx.crmOwn ? sql`(${col} = ${s.userId} or ${col} is null)` : sql`true`);
-  const out: Hit[] = [];
+  // Every kind is looked up at once, then put together in the usual order.
+  const jobs: Promise<Hit[]>[] = [];
   const crm = s.has("crm") && s.ctx.can("crm:read");
   if (want.has("contacts") && crm) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const C = schema.crmContacts;
     for (const r of await db.select({ id: C.id, name: C.name, email: C.email }).from(C).where(and(eq(C.orgId, s.orgId), or(ilike(C.name, t), ilike(C.email, t), ilike(C.phone, t)), own(sql`${C.ownerId}`))).limit(5)) out.push({ kind: "contacts", id: r.id, label: [r.name || "(no name)", r.email].filter(Boolean).join(" · "), link: `/crm/contacts/${r.id}` });
+        return out;
+      })(),
+    );
   }
   if (want.has("deals") && crm) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const D = schema.crmDeals;
     for (const r of await db.select({ id: D.id, title: D.title, value: D.value, status: D.status }).from(D).where(and(eq(D.orgId, s.orgId), ilike(D.title, t), own(sql`${D.ownerId}`))).limit(5)) out.push({ kind: "deals", id: r.id, label: `${r.title} · ₹${(r.value / 100).toLocaleString("en-IN")} · ${r.status}`, link: `/crm/deals/${r.id}` });
+        return out;
+      })(),
+    );
   }
   const inv = s.has("inventory") && s.ctx.can("inventory:read");
   if (want.has("suppliers") && inv) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const P = schema.invSuppliers;
     for (const r of await db.select({ id: P.id, name: P.name, gstin: P.gstin }).from(P).where(and(eq(P.orgId, s.orgId), or(ilike(P.name, t), ilike(P.gstin, t), ilike(P.email, t)))).limit(5)) out.push({ kind: "suppliers", id: r.id, label: [r.name, r.gstin].filter(Boolean).join(" · "), link: "/inventory/suppliers" });
+        return out;
+      })(),
+    );
   }
   if (want.has("items") && inv) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const I = schema.invItems;
     for (const r of await db.select({ id: I.id, name: I.name, sku: I.sku }).from(I).where(and(eq(I.orgId, s.orgId), or(ilike(I.name, t), ilike(I.sku, t)))).limit(5)) out.push({ kind: "items", id: r.id, label: [r.name, r.sku].filter(Boolean).join(" · "), link: `/inventory/items/${r.id}` });
+        return out;
+      })(),
+    );
   }
   // The staff directory beyond one's own record is for those who run HR.
   if (want.has("employees") && s.has("hr") && s.ctx.can("hr:manage")) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const E = schema.hrEmployees;
     for (const r of await db.select({ id: E.id, name: E.name, empNo: E.empNo, designation: E.designation }).from(E).where(and(eq(E.orgId, s.orgId), or(ilike(E.name, t), ilike(E.empNo, t), ilike(E.email, t)))).limit(5)) out.push({ kind: "employees", id: r.id, label: [r.name, r.empNo, r.designation].filter(Boolean).join(" · "), link: `/hr/people/${r.id}` });
+        return out;
+      })(),
+    );
   }
   if (want.has("projects") && s.has("work") && s.ctx.can("work:read")) {
+    jobs.push(
+      (async () => {
+        const out: Hit[] = [];
     const W = schema.workProjects;
     for (const r of await db.select({ id: W.id, name: W.name, code: W.code, client: W.clientName }).from(W).where(and(eq(W.orgId, s.orgId), or(ilike(W.name, t), ilike(W.code, t), ilike(W.clientName, t)))).limit(5)) out.push({ kind: "projects", id: r.id, label: [r.code, r.name, r.client].filter(Boolean).join(" · "), link: `/work/projects/${r.id}` });
+        return out;
+      })(),
+    );
   }
   // Documents: the drive's own rules (private, shared, folders), words inside written documents too.
   if (want.has("documents") && s.has("documents") && s.ctx.can("doc:read")) {
-    const { getSettings } = await import("../documents/access");
-    const { list } = await import("../documents/drive");
-    const ds = { orgId: s.orgId, userId: s.userId, role: s.role, write: s.ctx.can("doc:write"), manage: s.ctx.can("doc:manage"), settings: await getSettings(s.orgId), has: s.has };
-    for (const f of (await list(ds, { section: "search", q: query })).files.slice(0, 5)) out.push({ kind: "documents", id: f.id, label: [f.title, f.kind === "doc" ? f.snippet.slice(0, 160) : f.filename].filter(Boolean).join(" · "), link: f.kind === "doc" ? `/documents/d/${f.id}` : `/documents/file/${f.id}` });
+    jobs.push(
+      (async () => {
+        const { getSettings } = await import("../documents/access");
+        const { list } = await import("../documents/drive");
+        const ds = { orgId: s.orgId, userId: s.userId, role: s.role, write: s.ctx.can("doc:write"), manage: s.ctx.can("doc:manage"), settings: await getSettings(s.orgId), has: s.has };
+        return (await list(ds, { section: "search", q: query })).files.slice(0, 5).map((f): Hit => ({ kind: "documents", id: f.id, label: [f.title, f.kind === "doc" ? f.snippet.slice(0, 160) : f.filename].filter(Boolean).join(" · "), link: f.kind === "doc" ? `/documents/d/${f.id}` : `/documents/file/${f.id}` }));
+      })(),
+    );
   }
-  return out;
+  return (await Promise.all(jobs)).flat();
 }
 
 // ── Proposals ───────────────────────────────────────────────────────────────

@@ -206,3 +206,44 @@ describe("the copilot", () => {
     expect(r.json.error.message).toMatch(/AI allowance is used up/);
   });
 });
+
+describe("a streamed answer", () => {
+  it("sends each lookup as it starts and the text as it's written, then the whole conversation", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    // The budget test above spent this month's AI; start clean.
+    await db.delete(schema.aiTasks).where(eq(schema.aiTasks.orgId, orgId));
+    const replies: Reply[] = [{ content: [use("s1", "search_records", { query: "Asha" }), use("s2", "list_datasets", {})], stop_reason: "tool_use" }, say("Asha is in your CRM.")];
+    // A stand-in that writes its text in pieces, like the real stream.
+    setAnthropicClientFactory(() => ({ beta: { messages: { stream: () => {
+      const on: ((d: string) => void)[] = [];
+      const s = { on: (ev: string, cb: (d: string) => void) => (ev === "text" && on.push(cb), s), finalMessage: async () => {
+        const next = replies.shift()!;
+        for (const b of next.content as { type: string; text?: string }[]) if (b.type === "text") for (const piece of b.text!.split(/(?<= )/)) on.forEach((f) => f(piece));
+        return { ...next, model: "claude-opus-5-5", usage };
+      } };
+      return s;
+    } } } }) as never);
+    const r = await call((api as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Who is Asha?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toContain("application/x-ndjson");
+    const events = r.text.trim().split("\n").map((l) => JSON.parse(l) as { t: string; d?: string; label?: string; thread?: { items: { role: string; text?: string }[] } });
+    const kinds = events.map((e) => e.t).filter((t) => t !== "ping");
+    expect(kinds[0]).toBe("start");
+    expect(events.filter((e) => e.t === "tool").map((e) => e.label)).toEqual(["Searched for “Asha”", "Looked at the available data"]);
+    expect(events.filter((e) => e.t === "text").map((e) => e.d).join("")).toBe("Asha is in your CRM.");
+    expect(events.filter((e) => e.t === "text").length).toBeGreaterThan(1);
+    const done = events.at(-1)!;
+    expect(done.t).toBe("done");
+    expect(done.thread!.items.at(-1)).toEqual({ role: "assistant", text: "Asha is in your CRM." });
+  });
+
+  it("refuses before streaming when the AI allowance is used up, so the upgrade prompt appears", async () => {
+    process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+    await db.update(schema.orgSubscriptions).set({ quotas: { aiPerMonth: 0 } }).where(eq(schema.orgSubscriptions.orgId, orgId));
+    await db.update(schema.orgSubscriptions).set({ status: "active", planId: "growth", modules: null, currentPeriodStart: new Date(Date.now() - 86_400_000), currentPeriodEnd: new Date(Date.now() + 86_400_000 * 20), trialEndsAt: new Date(Date.now() - 86_400_000) }).where(eq(schema.orgSubscriptions.orgId, orgId));
+    (await import("@/server/billing/subscriptions")).clearEntitlement();
+    const r = await call((api as Record<string, Parameters<typeof call>[0]>).POST, { method: "POST", cookie: C.owner, body: { text: "Anything?" }, path: `/api/v1/orgs/${orgId}/copilot/threads`, params: { orgId, slug: ["threads"] }, headers: { accept: "application/x-ndjson" } });
+    expect(r.status).toBe(409);
+    expect(r.json.error.details).toMatchObject({ topup: ["aiPerMonth"] });
+  });
+});

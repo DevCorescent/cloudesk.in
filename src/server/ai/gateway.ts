@@ -24,6 +24,8 @@ export type CompletionRequest = {
   messages: { role: "user" | "assistant"; content: string | Anthropic.Beta.BetaContentBlockParam[] }[];
   maxTokens?: number;
   signal: AbortSignal;
+  /** Called with each piece of text as the model writes it. */
+  onText?: (delta: string) => void;
 };
 
 type Llm = { provider: "anthropic" | "gemini"; apiKey: string };
@@ -33,7 +35,25 @@ type Llm = { provider: "anthropic" | "gemini"; apiKey: string };
  * workspace's own keys come first (Anthropic, then Gemini), then the
  * platform's; Gemini is the free option for trying the AI features out.
  */
+const llmCache = new Map<string, { at: number; v: Llm | null }>();
+/** Forget a workspace's cached provider (its keys changed). Other servers notice within 30 seconds. */
+export const clearLlmCache = (orgId?: string) => {
+  for (const k of [...llmCache.keys()]) if (!orgId || k.startsWith(`${orgId}:`)) llmCache.delete(k);
+};
+
 async function llmFor(orgId: string): Promise<Llm | null> {
+  // Looked up and decrypted once per 30 seconds per workspace, not on every AI call.
+  // Only a provider found is remembered (connecting one takes effect at once),
+  // and a change to the platform's own keys starts afresh.
+  const key = `${orgId}:${cfg("ANTHROPIC_API_KEY")?.slice(-6) ?? ""}:${cfg("GEMINI_API_KEY")?.slice(-6) ?? ""}`;
+  const hit = llmCache.get(key);
+  if (hit && Date.now() - hit.at < 30_000) return hit.v;
+  const v = await lookupLlm(orgId);
+  if (v) llmCache.set(key, { at: Date.now(), v });
+  return v;
+}
+
+async function lookupLlm(orgId: string): Promise<Llm | null> {
   const creds = await db
     .select({ provider: schema.providerCredentials.provider, ciphertext: schema.providerCredentials.ciphertext })
     .from(schema.providerCredentials)
@@ -87,6 +107,7 @@ export async function complete(req: CompletionRequest): Promise<Completion> {
       },
       { signal: req.signal },
     );
+    if (req.onText) stream.on("text", (d: string) => req.onText!(d));
     const msg = await stream.finalMessage();
     if (msg.stop_reason === "refusal") {
       throw new ApiError("provider_error", "The model declined this request. Try rephrasing it.");

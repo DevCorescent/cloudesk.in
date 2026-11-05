@@ -10,7 +10,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
-import { api, errorMessage } from "@/lib/client/api";
+import { api, apiStream, errorMessage } from "@/lib/client/api";
 import { ADVISORS, advisorById, DOC_KIND_INFO, type AdvisorId, type DocKind } from "@/lib/copilot/advisors";
 import { industryById, visibleTo } from "@/lib/workspace/modules";
 import { ActionCard, confirmAll, type CopilotAction } from "./action-card";
@@ -47,15 +47,13 @@ async function shrink(f: File): Promise<File> {
 }
 
 /** A question with files goes as a form; the answer has the same shape as a JSON question's. */
-async function postForm<T>(path: string, text: string, files: File[], advisor: string): Promise<T> {
+/** A question with files, as a form. */
+function formOf(text: string, files: File[], advisor: string) {
   const form = new FormData();
   form.set("text", text);
   form.set("advisor", advisor);
   for (const f of files) form.append("files", f, f.name);
-  const res = await fetch(path, { method: "POST", body: form, credentials: "same-origin" });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((json as { error?: { message?: string } })?.error?.message ?? "Couldn't send that — try again");
-  return json as T;
+  return form;
 }
 
 /** A scan from the camera, filed in Documents. */
@@ -99,6 +97,8 @@ export function AppAiMode() {
   const router = useRouter();
   const [msgs, setMsgs] = useState<AiMsg[]>([]);
   const [busy, setBusy] = useState(false);
+  // An answer being written right now (shown as it streams in).
+  const [live, setLive] = useState(false);
   const thread = useRef<string | null>(null);
   // Suggestions already shown, so each answer only carries its own.
   const shown = useRef(new Set<string>());
@@ -202,10 +202,42 @@ export function AppAiMode() {
       });
     }
     setBusy(true);
+    // The answer appears as it's written, with each lookup named as it happens; repainted at most once a frame.
+    const mid = id();
+    let said = "";
+    let gap = false;
+    const looking: string[] = [];
+    let frame = 0;
+    let shownLive = false;
+    const paint = () => {
+      frame = 0;
+      const m: AiMsg = { id: mid, role: "assistant", text: said, node: looking.length && !said ? <p className="ai-looked ai-live">{looking.slice(-3).join(" · ")}…</p> : looking.length ? <p className="ai-looked">{looking.slice(-3).join(" · ")}</p> : undefined };
+      setMsgs((x) => (shownLive ? x.map((y) => (y.id === mid ? m : y)) : [...x, m]));
+      shownLive = true;
+      setLive(true);
+    };
+    const onEvent = (e: { t: string; [k: string]: unknown }) => {
+      if (e.t === "text" && typeof e.d === "string") {
+        if (gap) said += "\n\n";
+        gap = false;
+        said += e.d;
+      } else if (e.t === "tool" && typeof e.label === "string") {
+        looking.push(e.label);
+        if (said) gap = true;
+      } else return;
+      frame ||= requestAnimationFrame(paint);
+    };
+    const dropLive = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      setMsgs((x) => x.filter((y) => y.id !== mid));
+      setLive(false);
+    };
     try {
       const path = thread.current ? `threads/${thread.current}/messages` : "threads";
       const url = `/api/v1/orgs/${org.id}/copilot/${path}`;
-      const t = files.length ? await postForm<Thread>(url, text, await Promise.all(files.map(shrink)), advisor) : await api<Thread>(url, { method: "POST", body: { text, advisor } });
+      const t = files.length ? await apiStream<Thread>(url, { form: formOf(text, await Promise.all(files.map(shrink)), advisor) }, onEvent) : await apiStream<Thread>(url, { body: { text, advisor } }, onEvent);
+      dropLive();
       thread.current = t.id;
       // The answer is everything after the last thing they asked.
       const lastAsk = t.items.map((x) => x.role).lastIndexOf("user");
@@ -236,6 +268,7 @@ export function AppAiMode() {
           ) : undefined,
       });
     } catch (e) {
+      dropLive();
       add({ role: "assistant", text: errorMessage(e) });
     } finally {
       setBusy(false);
@@ -377,6 +410,7 @@ export function AppAiMode() {
       onSaveDoc={has("documents") ? (f) => saveDoc(org.id, f) : undefined}
       messages={msgs}
       busy={busy}
+      typing={busy && !live}
       attach
       onSend={(t, f) => void ask(t, f)}
       mark={

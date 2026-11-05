@@ -786,3 +786,8 @@
 }
 .ai-chip { background: color-mix(in srgb, var(--c, var(--ai-lav)) 9%, transparent); }
 .ai-tabs button.is-on, .ai-chip.is-key, .ai-next button.is-key { background: linear-gradient(160deg, color-mix(in srgb, var(--ai-lav) 10%, transparent), color-mix(in srgb, var(--ai-peach) 6%, transparent)); border-color: color-mix(in srgb, var(--ai-lav) 26%, transparent); }
+
+/* A lookup in progress while an answer streams in. */
+.ai-live { animation: ai-live 1.4s ease-in-out infinite; }
+@keyframes ai-live { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .ai-live { animation: none; } }

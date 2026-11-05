@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { PROVIDERS } from "@/server/ai/catalog";
-import { verifyAnthropicKey } from "@/server/ai/gateway";
+import { clearLlmCache, verifyAnthropicKey } from "@/server/ai/gateway";
 import { verifyGeminiKey } from "@/server/ai/gemini";
 import { ApiError } from "@/server/http/errors";
 import { readJson, requireOrg, route } from "@/server/http/handler";
@@ -30,6 +30,7 @@ export const PUT = route<{ orgId: string; provider: string }>(async (ctx, { orgI
     .insert(schema.providerCredentials)
     .values({ orgId, provider, createdBy: ctx.user.id, ...values })
     .onConflictDoUpdate({ target: [schema.providerCredentials.orgId, schema.providerCredentials.provider], set: values });
+  clearLlmCache(orgId);
   await audit({ orgId, actorId: ctx.user.id, action: "provider.connected", targetType: "provider", targetId: provider });
   return { ok: true, keyHint: values.keyHint };
 });
@@ -38,6 +39,7 @@ export const DELETE = route<{ orgId: string; provider: string }>(async (ctx, { o
   await requireOrg(ctx, orgId, "secrets:manage");
   assertProvider(provider);
   await db.delete(schema.providerCredentials).where(and(eq(schema.providerCredentials.orgId, orgId), eq(schema.providerCredentials.provider, provider)));
+  clearLlmCache(orgId);
   await audit({ orgId, actorId: ctx.user.id, action: "provider.disconnected", targetType: "provider", targetId: provider });
   return { ok: true };
 });
