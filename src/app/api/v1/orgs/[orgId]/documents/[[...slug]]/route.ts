@@ -17,6 +17,8 @@ import { convert, pdfTool, preview } from "@/server/documents/tools";
 import { docVersions, liveSince, openLive, pushLive, restoreVersion, saveLive, versionContent } from "@/server/documents/live";
 import { waitForUpdate } from "@/server/services/codoc-bus";
 import { rateLimit } from "@/server/security/rate-limit";
+import { dropFor, logAccess, rotateDrop, saveDrop, setStay } from "@/server/documents/drop";
+import { getFileAs } from "@/server/documents/access";
 
 const STREAM_MS = 25_000;
 
@@ -63,6 +65,7 @@ function liveStream(ctx: AuthedContext, s: Awaited<ReturnType<typeof scope>>, fi
 }
 
 type P = { orgId: string; slug?: string[] };
+const who = (ctx: AuthedContext) => ({ ip: ctx.ip ?? null, userAgent: ctx.req.headers.get("user-agent") });
 const body = (ctx: AuthedContext) => readJson(ctx.req, z.record(z.string(), z.unknown()));
 
 async function readUpload(ctx: AuthedContext) {
@@ -232,8 +235,31 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
       const u = await readUpload(ctx);
       return newVersion(s, id!, u.file, u.note);
     }
-    case "GET files :id download":
-      return fileResponse(await versionBytes(s, id!, qs.version ? Number(qs.version) : undefined), qs.inline === "1");
+    case "GET files :id download": {
+      const v = await versionBytes(s, id!, qs.version ? Number(qs.version) : undefined);
+      // Shown inline (previews, thumbnails) isn't a download; the viewer logs an opening itself.
+      if (qs.inline !== "1") await logAccess(s, id!, "downloaded", who(ctx));
+      return fileResponse(v, qs.inline === "1");
+    }
+    // Opening or printing a file, logged (and told to whoever uploaded it by Drive QR).
+    case "POST files :id event": {
+      const kind = (await body(ctx)).kind;
+      if (kind !== "viewed" && kind !== "printed") throw new ApiError("validation_failed", "Viewed or printed");
+      await getFileAs(s, id!);
+      await logAccess(s, id!, kind, who(ctx));
+      return { ok: true };
+    }
+    // When it's deleted completely (null keeps it).
+    case "PUT files :id stay":
+      return setStay(s, id!, await body(ctx));
+
+    // ── Drive QR: uploads from a phone into this folder ──
+    case "GET drop":
+      return dropFor(s, qs);
+    case "PUT drop":
+      return saveDrop(s, await body(ctx));
+    case "POST drop :id rotate":
+      return rotateDrop(s, id!);
 
     case "GET contracts":
       return { contracts: await contracts(s, qs) };

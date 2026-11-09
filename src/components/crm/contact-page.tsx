@@ -6,6 +6,7 @@
 import { ShareToChatButton } from "@/components/chat/share";
 import { EmailButton } from "@/components/mail/compose-provider";
 import { LinkedTickets } from "@/components/helpdesk/linked";
+import { LinkedRequisitions } from "@/components/requisitions/linked";
 import { LinkedDocuments } from "@/components/documents/linked";
 import { ArrowLeft, Ban, Briefcase, Building2, CalendarDays, Copy, Mail, MessageCircle, MoreHorizontal, Pencil, Phone, Plus, Receipt, Repeat, ShoppingBag, Trash2, UtensilsCrossed, FileText } from "lucide-react";
 import Link from "next/link";
@@ -248,6 +249,7 @@ export function ContactPage({ id }: { id: string }) {
             </Section>
           )}
           <LinkedTickets contactId={c.id} email={c.email} />
+          <LinkedRequisitions contactId={c.id} />
           <LinkedDocuments type="crm_contact" id={c.id} name={c.name || c.email} />
           <AcrossCloudesk linked={linked} />
         </div>

@@ -76,6 +76,9 @@ export type Permission =
   | "hd:read"
   | "hd:write"
   | "hd:manage"
+  | "rq:read"
+  | "rq:write"
+  | "rq:manage"
   | "portal:read"
   | "portal:manage"
   | "grc:read"
@@ -224,6 +227,10 @@ const MATRIX: Record<Permission, readonly Role[]> = {
   "hd:read": TEAM,
   "hd:write": ["owner", "admin", "billing", "developer", "designer", "editor"],
   "hd:manage": ["owner", "admin"],
+  // Requisitions: the team chases clients; owners and admins set the mailbox and defaults.
+  "rq:read": TEAM,
+  "rq:write": ["owner", "admin", "billing", "developer", "designer", "editor"],
+  "rq:manage": ["owner", "admin"],
   // Portals: the team sees who signs in and the invoices suppliers send;
   // owners and admins choose what customers and suppliers see and sign people out.
   "portal:read": TEAM,

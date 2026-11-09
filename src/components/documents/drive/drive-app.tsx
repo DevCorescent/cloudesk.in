@@ -12,6 +12,8 @@ import clsx from "clsx";
 import {
   ArrowDownAZ,
   ChevronRight,
+  History,
+  Timer,
   Clock,
   Copy,
   Download,
@@ -65,6 +67,7 @@ import { ConvertDialog } from "../viewer/convert-dialog";
 import { FileViewer } from "../viewer/file-viewer";
 import { PdfTools } from "../viewer/pdf-tools";
 import { QrDialog } from "../viewer/qr-dialog";
+import { ActivityDialog, DropBadges, DropDialog, StayDialog } from "./drop";
 import { familyOf, targetsFor } from "@/lib/documents/formats";
 import { FileGlyph, FolderGlyph, MoveDialog, ShareDialog, ago, downloadUrl, hrefOf, useDocsBase, useDriveRefresh, type DriveFile, type DriveFolder, type Listing, type TreeFolder } from "./shared";
 import "../docs.css";
@@ -714,13 +717,14 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
   const [menu, setMenu] = useState<{ x: number; y: number; target: { file?: DriveFile; folder?: DriveFolder } } | null>(null);
   const [dialog, setDialog] = useState<null | { kind: "rename"; file?: DriveFile; folder?: DriveFolder } | { kind: "move" | "copy" } | { kind: "share"; file?: DriveFile; folder?: DriveFolder } | { kind: "folder" } | { kind: "purge" }>(null);
   const [preview, setPreview] = useState<DriveFile | null>(null);
-  const [tool, setTool] = useState<{ kind: "qr" | "convert" | "pdf"; file: DriveFile } | null>(null);
+  const [tool, setTool] = useState<{ kind: "qr" | "convert" | "pdf" | "stay" | "activity"; file: DriveFile } | null>(null);
+  const [dropQr, setDropQr] = useState(false);
   const [details, setDetails] = useState(false);
   const [dropOver, setDropOver] = useState<string | null>(null);
   const up = useUploader();
   const sectionKey = section === "folder" ? `folder:${folderId}` : section === "search" ? `search:${query}` : section;
   const params = new URLSearchParams({ section: section === "search" ? "search" : section, ...(folderId ? { folderId } : {}), ...(query ? { q: query } : {}), ...(type ? { type } : {}), ...(owner ? { owner } : {}), ...(modified ? { modified } : {}) });
-  const list = useQuery({ queryKey: ["drive", org.id, "list", sectionKey, type, owner, modified], queryFn: () => api<Listing>(`${base}/drive?${params}`), placeholderData: (p) => (p?.section === (section === "search" ? "search" : section) ? p : undefined) });
+  const list = useQuery({ queryKey: ["drive", org.id, "list", sectionKey, type, owner, modified], queryFn: () => api<Listing & { qrLive?: boolean }>(`${base}/drive?${params}`), placeholderData: (p) => (p?.section === (section === "search" ? "search" : section) ? p : undefined), refetchInterval: (q) => (q.state.data?.qrLive ? 5000 : false) });
   const data = list.data;
   const place: Place = section === "folder" && folderId ? { folderId, root: data?.path.root === "mine" ? "mine" : "team" } : { folderId: null, root: section === "team" ? "team" : "mine" };
   usePlace(place);
@@ -851,6 +855,8 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
           ...(f.kind === "file" && f.mime === "application/pdf" ? [{ label: "PDF tools", icon: <Wrench />, run: () => setTool({ kind: "pdf", file: f }) }] : []),
           ...(f.kind === "doc" || targetsFor(familyOf(f)).length || ["pdf", "image"].includes(familyOf(f)) ? [{ label: "Convert to…", icon: <FileCog />, run: () => setTool({ kind: "convert", file: f }) }] : []),
           { label: "QR code", icon: <QrCode />, run: () => setTool({ kind: "qr", file: f }) },
+          { label: "Activity", icon: <History />, run: () => setTool({ kind: "activity", file: f }) },
+          { label: f.deleteAt ? "Change when it's deleted" : "Delete automatically…", icon: <Timer />, run: () => setTool({ kind: "stay", file: f }), disabled: f.role !== "edit" },
           "sep",
           { label: "Share", icon: <Share2 />, run: () => setDialog({ kind: "share", file: f }), disabled: f.role !== "edit" },
           { label: "Copy link", icon: <Link2 />, run: () => copyLink(f) },
@@ -956,6 +962,11 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
           {canAdd && (
             <Button size="sm" variant="ghost" icon={<FolderPlus className="size-3.5" />} onClick={() => setDialog({ kind: "folder" })} className="max-sm:hidden">
               New folder
+            </Button>
+          )}
+          {canAdd && (section === "folder" || section === "team" || section === "mine") && (
+            <Button size="sm" variant={data?.qrLive ? "secondary" : "ghost"} icon={<QrCode className="size-3.5" />} onClick={() => setDropQr(true)}>
+              Drive QR{data?.qrLive ? " · on" : ""}
             </Button>
           )}
           {trash && (data?.files.length || data?.folders.length) ? (
@@ -1108,7 +1119,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
                           <FileGlyph f={f} size={24} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-[13px] font-semibold">{f.title}</span>
-                            <span className="block truncate text-[11.5px] text-muted">{trash && f.deletedAt ? `Deleted ${ago(f.deletedAt)}` : `${f.mine ? "You" : f.owner.split(" ")[0]} · ${ago(f.updatedAt)}`}</span>
+                            <span className="flex min-w-0 items-center gap-1 text-[11.5px] text-muted"><DropBadges f={f} /><span className="truncate">{trash && f.deletedAt ? `Deleted ${ago(f.deletedAt)}` : `${f.mine ? "You" : f.owner.split(" ")[0]} · ${ago(f.updatedAt)}`}</span></span>
                           </span>
                           <ItemMenu entries={fileMenu(f)} label={`${f.title} options`} />
                         </div>
@@ -1156,6 +1167,7 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
                           <span className="truncate text-[13.5px] font-medium">{f ? f.title : d!.name}</span>
                           {(f ?? d)!.starred && <Star className="size-3 shrink-0 fill-amber-400 text-amber-400" />}
                           {(f ?? d)!.shared && <Users className="size-3 shrink-0 text-muted" aria-label="Shared" />}
+                          {f && <DropBadges f={f} />}
                           {f?.linkType && <span className="shrink-0 rounded-full bg-sky-500/10 px-1.5 text-[10px] font-medium text-sky-700 dark:text-sky-300">{LINK_LABEL[f.linkType as keyof typeof LINK_LABEL]}</span>}
                         </span>
                         <span className="block truncate text-[11.5px] text-muted md:hidden">
@@ -1179,6 +1191,9 @@ export function DriveView({ section, folderId, q: query, meta }: { section: stri
       {menu && <ContextMenu x={menu.x} y={menu.y} entries={menu.target.file ? fileMenu(menu.target.file) : folderMenu(menu.target.folder!)} onClose={() => setMenu(null)} />}
       {preview && <FileViewer file={preview} files={files} onClose={() => setPreview(null)} />}
       {tool?.kind === "qr" && <QrDialog file={tool.file} onClose={() => setTool(null)} />}
+      {tool?.kind === "stay" && <StayDialog file={tool.file} onClose={() => setTool(null)} />}
+      {tool?.kind === "activity" && <ActivityDialog file={tool.file} onClose={() => setTool(null)} />}
+      {dropQr && <DropDialog place={place} placeName={section === "folder" ? (data?.folder?.name ?? "this folder") : section === "mine" ? "My documents" : "Team documents"} onClose={() => (setDropQr(false), void list.refetch())} />}
       {tool?.kind === "convert" && <ConvertDialog file={tool.file} onClose={() => setTool(null)} />}
       {tool?.kind === "pdf" && <PdfTools file={tool.file} onClose={() => setTool(null)} onSaved={() => (setTool(null), refresh())} />}
       {dialog?.kind === "rename" && dialog.folder && <FolderDialog place={place} folder={dialog.folder} onClose={() => setDialog(null)} />}

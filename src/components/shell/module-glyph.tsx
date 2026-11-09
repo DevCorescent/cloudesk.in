@@ -1,5 +1,5 @@
 // One icon per workspace feature, shared by the shell, settings and onboarding.
-import { BadgeCheck, BarChart3, BookOpenCheck, Bot, Boxes, CalendarDays, MessagesSquare, Code2, Contact, Database, Factory, ShieldCheck, Handshake, KanbanSquare, Megaphone, ReceiptText, ScanLine, ShoppingBag, UtensilsCrossed, Workflow, Wrench, FileSignature, Send, Truck, PieChart, Sparkles, LifeBuoy, DoorOpen, ShieldAlert, GraduationCap, Stethoscope, HardHat, Shapes, Mail, type LucideIcon } from "lucide-react";
+import { BadgeCheck, BarChart3, BookOpenCheck, Bot, ClipboardCheck, Boxes, CalendarDays, MessagesSquare, Code2, Contact, Database, Factory, ShieldCheck, Handshake, KanbanSquare, Megaphone, ReceiptText, ScanLine, ShoppingBag, UtensilsCrossed, Workflow, Wrench, FileSignature, Send, Truck, PieChart, Sparkles, LifeBuoy, DoorOpen, ShieldAlert, GraduationCap, Stethoscope, HardHat, Shapes, Mail, type LucideIcon } from "lucide-react";
 import type { ModuleId } from "@/lib/workspace/modules";
 
 const ICONS: Record<ModuleId, LucideIcon> = {
@@ -19,6 +19,7 @@ const ICONS: Record<ModuleId, LucideIcon> = {
   bi: PieChart,
   copilot: Sparkles,
   helpdesk: LifeBuoy,
+  requisitions: ClipboardCheck,
   mail: Mail,
   calendar: CalendarDays,
   chat: MessagesSquare,

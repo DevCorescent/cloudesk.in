@@ -54,6 +54,11 @@ export function FileViewer({ file: start, files, onClose }: { file: DriveFile; f
     [list, at],
   );
 
+  // Opening it is logged (and a Drive QR uploader is told); the server keeps one a minute per person.
+  useEffect(() => {
+    void api(`${base}/files/${file.id}/event`, { method: "POST", body: { kind: "viewed" } }).catch(() => {});
+  }, [base, file.id]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (dialog || (e.target as HTMLElement).closest("input,textarea,select")) return;
@@ -71,6 +76,7 @@ export function FileViewer({ file: start, files, onClose }: { file: DriveFile; f
   }, [dialog, move, onClose]);
 
   const print = async () => {
+    void api(`${base}/files/${file.id}/event`, { method: "POST", body: { kind: "printed" } }).catch(() => {});
     try {
       const blob = await (await fetch(src, { credentials: "same-origin" })).blob();
       const url = URL.createObjectURL(blob);

@@ -119,7 +119,7 @@ export const FREE_MODULES: ModuleId[] = ["mail", "calendar", "chat", "invoicing"
 // campaign email and storage a few percent more — so no plan, used to its
 // limits, costs more than it earns (tests/unit/subscription-pricing.test.ts).
 const STARTER: ModuleId[] = ["store", "pos", "bookings", "promotions", "invoicing", "crm", "chatbot", "helpdesk", "portal", ...WORKDAY_MODULES];
-const GROWTH: ModuleId[] = [...STARTER, "sales", "accounting", "hr", "inventory", "work", "marketing", "documents", "automations", "bi", "copilot", "growth", "data", "objects", "logistics"];
+const GROWTH: ModuleId[] = [...STARTER, "requisitions", "sales", "accounting", "hr", "inventory", "work", "marketing", "documents", "automations", "bi", "copilot", "growth", "data", "objects", "logistics"];
 const BUSINESS: ModuleId[] = [...GROWTH, "horeca", "clinic", "education", "construction", "manufacturing", "quality", "maintenance", "grc"];
 
 export const DEFAULT_PLANS: CatalogPlan[] = [

@@ -11,6 +11,7 @@ import { DOC_TEMPLATES, SHARE_ROLES, TRASH_DAYS, docJsonSchema, emptyDoc, kindOf
 import { ApiError, notFound } from "../http/errors";
 import { notify } from "../notify/notify";
 import { audit } from "../services/audit";
+import { expireTick, liveDrop, tellUploader } from "./drop";
 import { appUrl } from "../services/mail";
 import { contains } from "../security/like";
 import { atLeast, check, getFileAs, openFolders, requireWrite, roleFor, team, type Access, type FileRole, type Scope } from "./access";
@@ -25,6 +26,8 @@ const isId = (x: unknown): x is string => typeof x === "string" && /^[0-9a-f-]{3
 
 export async function act(s: Pick<Scope, "orgId" | "userId">, kind: string, target: { fileId?: string | null; folderId?: string | null }, detail: Record<string, unknown> = {}) {
   await db.insert(schema.docActivity).values({ orgId: s.orgId, actorId: s.userId, kind, fileId: target.fileId ?? null, folderId: target.folderId ?? null, detail }).catch(() => {});
+  // Someone who uploaded it by Drive QR hears about it straight away.
+  if (target.fileId) await tellUploader(s.orgId, target.fileId, s.userId, kind, detail).catch(() => {});
 }
 
 // ── Shaping rows for the drive ──────────────────────────────────────────────
@@ -66,6 +69,8 @@ async function shapeFiles(s: Scope, rows: FileRow[], a: Access) {
       createdAt: f.createdAt.toISOString(),
       updatedAt: f.updatedAt.toISOString(),
       deletedAt: f.deletedAt?.toISOString() ?? null,
+      deleteAt: f.deleteAt?.toISOString() ?? null,
+      dropped: f.dropId ? { name: f.dropFrom?.name ?? "", email: f.dropFrom?.email ?? "" } : null,
       starred: starred.has(f.id),
       shared: (shares.find((x) => x.fileId === f.id)?.n ?? 0) > 0 || !!f.shareNonce,
       linkShared: !!f.shareNonce,
@@ -148,6 +153,8 @@ export async function list(s: Scope, raw: unknown) {
   const q = check(listSchema, raw);
   const trash = q.section === "trash";
   if (trash) await purgeExpired(s.orgId);
+  // Files past their delete time go now, even between the minute ticks.
+  await expireTick().catch(() => {});
   const a = await openFolders(s, { trashed: trash });
   const live = (f: FileRow) => !f.deletedAt && !(f.folderId && a.byId.get(f.folderId) && a.inTrash(a.byId.get(f.folderId)!));
   let files: FileRow[] = [];
@@ -205,7 +212,9 @@ export async function list(s: Scope, raw: unknown) {
   if (q.type && q.type !== "doc") {
     shaped = shaped.filter((f) => kindOf(f) === q.type || (q.type === "other" && ["archive", "other"].includes(kindOf(f))));
   }
+  const qrLive = q.section === "folder" || q.section === "team" || q.section === "mine" ? await liveDrop(s.orgId, q.section === "folder" ? (q.folderId ?? null) : null, q.section === "mine" ? "mine" : "team", s.userId) : false;
   return {
+    qrLive,
     section: q.section,
     folder: current ? (await shapeFolders(s, [current], a))[0] : null,
     path: crumbs,
@@ -504,7 +513,9 @@ export async function purge(s: Scope, raw: unknown) {
   const all = [...files, ...inside];
   const signed = all.length ? await db.select({ fileId: schema.docSignRequests.fileId }).from(schema.docSignRequests).where(and(inArray(schema.docSignRequests.fileId, all.map((f) => f.id)), inArray(schema.docSignRequests.status, ["sent", "completed"]))) : [];
   if (signed.length) throw new ApiError("conflict", `“${all.find((f) => f.id === signed[0]!.fileId)?.title}” has been sent for signature, so it's kept. Restore it and archive it instead.`);
+  for (const f of all) if (f.dropFrom?.email) await tellUploader(s.orgId, f.id, s.userId, "deleted");
   await db.transaction(async (tx) => {
+    if (all.length) await tx.delete(schema.docStars).where(inArray(schema.docStars.itemId, all.map((f) => f.id)));
     if (all.length) await tx.delete(F).where(inArray(F.id, all.map((f) => f.id)));
     if (folderIds.size) await tx.delete(D).where(inArray(D.id, [...folderIds]));
   });

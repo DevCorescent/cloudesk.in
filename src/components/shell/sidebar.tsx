@@ -8,7 +8,7 @@
 // web app's own tools only, with a way back.
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
-import { AppWindow, ArrowLeft, BadgeCheck, Blocks, BookOpenCheck, Bot, Boxes, Building2, Calculator, NotebookPen, CalendarDays, ChevronDown, Code2, Contact, Database, DoorOpen, Factory, FileSignature, Gauge, GraduationCap, Handshake, HardHat, Home, Inbox, KanbanSquare, Landmark, LayoutGrid, LayoutTemplate, LifeBuoy, Lightbulb, Lock, Mail, Megaphone, MessagesSquare, Palette, PanelLeftClose, PanelLeftOpen, PanelsTopLeft, PieChart, ReceiptText, Rocket, ScanLine, Send, Settings, Shapes, ShieldAlert, ShieldCheck, ShoppingBag, Sparkles, Stethoscope, TrendingUp, Truck, Users, UtensilsCrossed, Wand2, Workflow, Wrench } from "lucide-react";
+import { AppWindow, ArrowLeft, ClipboardCheck, BadgeCheck, Blocks, BookOpenCheck, Bot, Boxes, Building2, Calculator, NotebookPen, CalendarDays, ChevronDown, Code2, Contact, Database, DoorOpen, Factory, FileSignature, Gauge, GraduationCap, Handshake, HardHat, Home, Inbox, KanbanSquare, Landmark, LayoutGrid, LayoutTemplate, LifeBuoy, Lightbulb, Lock, Mail, Megaphone, MessagesSquare, Palette, PanelLeftClose, PanelLeftOpen, PanelsTopLeft, PieChart, ReceiptText, Rocket, ScanLine, Send, Settings, Shapes, ShieldAlert, ShieldCheck, ShoppingBag, Sparkles, Stethoscope, TrendingUp, Truck, Users, UtensilsCrossed, Wand2, Workflow, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useShortcuts } from "../ui/shortcut";
@@ -81,6 +81,12 @@ export const SECTIONS: Section[] = [
         label: "Helpdesk",
         icon: <LifeBuoy />,
         module: "helpdesk",
+      },
+      {
+        href: "/requisitions",
+        label: "Requisitions",
+        icon: <ClipboardCheck />,
+        module: "requisitions",
       },
       {
         href: "/portals",

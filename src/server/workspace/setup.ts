@@ -20,6 +20,7 @@ import { ensureSettings as eduSettings } from "../education/access";
 import { ensureSettings as clinicSettings } from "../clinic/access";
 import { ensureSettings as grcSettings } from "../grc/access";
 import { ensureSettings as hdSettings } from "../helpdesk/access";
+import { ensureSettings as rqSettings } from "../requisitions/access";
 import { ensureSettings as docSettings } from "../documents/access";
 import { ensureSettings as mktSettings } from "../marketing/access";
 import { ensureSettings as lgxSettings } from "../logistics/access";
@@ -95,6 +96,10 @@ export const MODULE_SETUP: Record<ModuleId, (c: Ctx) => Promise<string>> = {
   },
   bi: async () => "report builder ready",
   portal: async () => "customers and suppliers can sign in with their email",
+  requisitions: async ({ orgId }) => {
+    await rqSettings(orgId);
+    return "ready to send your first request — connect a mailbox in Mail so replies are read";
+  },
   helpdesk: async ({ orgId }) => {
     await hdSettings(orgId);
     return "ready for your first ticket";

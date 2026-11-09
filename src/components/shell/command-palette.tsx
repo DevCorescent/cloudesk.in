@@ -274,6 +274,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
             { id: "hd-new", label: "Helpdesk — New ticket", group: "Actions", icon: <Contact />, run: go("/helpdesk/tickets/new"), keywords: "log call complaint issue" },
           ]
         : []),
+      ...(visibleTo(org, "requisitions")
+        ? [
+            { id: "rq", label: "Go to Requisitions", group: "Navigate", icon: <Contact />, run: go("/requisitions"), keywords: "documents needed client chase reminders kyc collect follow up" },
+            { id: "rq-new", label: "Requisitions — Ask a client for documents", group: "Actions", icon: <Contact />, run: go("/requisitions/lists/new"), keywords: "request documents kyc itr gst reminder" },
+          ]
+        : []),
       ...(visibleTo(org, "portal")
         ? [{ id: "portal", label: "Go to Customer & supplier portals", group: "Navigate", icon: <Contact />, run: go("/portals"), keywords: "portal self service customer supplier vendor login invoices" }]
         : []),

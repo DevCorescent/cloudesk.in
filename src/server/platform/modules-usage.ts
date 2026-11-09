@@ -172,6 +172,17 @@ const REGISTRY: Record<string, Spec> = {
       { label: "Actions taken (30 d)", format: "count", q: `select count(*) v from copilot_actions where created_at > ${D30}` },
     ],
   },
+  requisitions: {
+    unit: "requisitions & client files",
+    sources: [{ table: "rq_lists", orgVia: "org_id" }, { table: "rq_files", orgVia: "org_id" }],
+    kpis: [
+      { label: "Requisitions sent (30 d)", format: "count", q: `select count(*) v from rq_lists where status <> 'draft' and created_at > ${D30}` },
+      { label: "Completed (30 d)", format: "count", q: `select count(*) v from rq_lists where completed_at > ${D30}` },
+      { label: "Being chased now", format: "count", q: "select count(*) v from rq_lists where status = 'active'" },
+      { label: "Reminders sent (30 d)", format: "count", q: `select count(*) v from rq_messages where direction = 'out' and kind = 'reminder' and created_at > ${D30}` },
+      { label: "Replies read (30 d)", format: "count", q: `select count(*) v from rq_messages where direction = 'in' and created_at > ${D30}` },
+    ],
+  },
   helpdesk: {
     unit: "tickets & messages",
     sources: [{ table: "hd_tickets", orgVia: "org_id" }, { table: "hd_messages", orgVia: "org_id" }],

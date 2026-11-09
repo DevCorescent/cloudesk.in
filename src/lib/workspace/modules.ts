@@ -5,7 +5,7 @@
 // Features. `null` means "everything" — workspaces created before this existed
 // keep every feature.
 
-export type ModuleId = "store" | "pos" | "horeca" | "crm" | "hr" | "inventory" | "sales" | "manufacturing" | "quality" | "maintenance" | "documents" | "marketing" | "logistics" | "bi" | "copilot" | "helpdesk" | "portal" | "grc" | "education" | "clinic" | "construction" | "objects" | "work" | "accounting" | "invoicing" | "bookings" | "promotions" | "growth" | "automations" | "chatbot" | "data" | "ai-ide" | "mail" | "calendar" | "chat";
+export type ModuleId = "store" | "pos" | "horeca" | "crm" | "hr" | "inventory" | "sales" | "manufacturing" | "quality" | "maintenance" | "documents" | "marketing" | "logistics" | "bi" | "copilot" | "helpdesk" | "requisitions" | "portal" | "grc" | "education" | "clinic" | "construction" | "objects" | "work" | "accounting" | "invoicing" | "bookings" | "promotions" | "growth" | "automations" | "chatbot" | "data" | "ai-ide" | "mail" | "calendar" | "chat";
 export type Tint = "peach" | "lavender" | "mint" | "sky" | "butter" | "rose";
 
 export type ModuleDef = {
@@ -63,6 +63,7 @@ export const MODULES: ModuleDef[] = [
   { id: "mail", name: "Mail", short: "Every mailbox you use — Gmail, Outlook, Zoho or your own domain — in one smart inbox that sorts itself, with team inboxes, follow-ups, rules, templates and AI help", adds: ["One inbox for every mailbox", "Smart categories & screener", "Team inboxes & follow-ups"], tint: "sky", feature: "mail", paths: [/^\/mail(\/.*)?$/], group: "customers", api: { org: ["mail"], root: ["mail"] }, uses: ["crm", "helpdesk"] },
   { id: "chat", name: "Chat", short: "Team chat built for work — channels, direct messages and threads, records from every module shared as live cards, polls, decisions and approvals in the conversation, and AI that catches you up", adds: ["Channels, DMs & threads", "Share any record into chat", "AI catch-up & action items"], tint: "lavender", feature: "chat", paths: [/^\/chat(\/.*)?$/], group: "people", api: { org: ["chat"] }, uses: ["work", "calendar", "mail"] },
   { id: "calendar", name: "Calendar", short: "Your meetings in one beautiful calendar — invites and meeting links picked up from your email, reminders through the day, and minutes you can share when it's over", adds: ["Meetings from your email", "Reminders on the day", "Minutes of meeting (MOM)"], tint: "sky", feature: "calendar", paths: [/^\/calendar(\/.*)?$/], group: "people", api: { org: ["calendar"] }, uses: ["mail"] },
+  { id: "requisitions", name: "Requisitions", short: "Ask clients for the documents and details you need, and let email reminders chase them on your schedule until everything's in — replies are read and items ticked off for you", adds: ["Automatic reminders", "Replies read and matched", "Client upload link"], tint: "butter", feature: "requisitions", paths: [/^\/requisitions(\/.*)?$/], group: "customers", api: { org: ["requisitions"] }, uses: ["mail", "crm"] },
   { id: "helpdesk", name: "Helpdesk", short: "Support tickets from email, your customer portal and the phone, with response targets in business hours, saved replies and satisfaction ratings", adds: ["Ticket inbox & SLAs", "Email in and out", "Customer ratings"], tint: "mint", feature: "helpdesk", paths: [/^\/helpdesk(\/.*)?$/], group: "customers", api: { org: ["helpdesk"] }, uses: ["crm"] },
   { id: "portal", name: "Customer & supplier portals", short: "A sign-in page for your customers (their invoices, orders and support tickets) and your suppliers (RFQs to quote, purchase orders to acknowledge and dispatch, invoices to send)", adds: ["Customer self-service", "Supplier quotes & invoices", "Sign-in by email link"], tint: "sky", feature: "portals", paths: [/^\/portals(\/.*)?$/], group: "customers", api: { org: ["portal"] }, uses: ["invoicing", "sales", "helpdesk", "inventory", "accounting"], parts: [
     { id: "customers", name: "Customer portal", short: "Invoices, payments, orders and tickets for your customers", api: ["customers"] },
@@ -163,6 +164,7 @@ export const SETUP_LABEL: Record<ModuleId, string> = {
   mail: "Mail — connect your first mailbox with a step-by-step guide on the Mail page",
   calendar: "Calendar — a Work calendar is ready; meeting invites from Mail show up to add",
   chat: "Chat — a #general channel with everyone in the workspace, and #announcements for news",
+  requisitions: "Requisitions — numbering, a reminder every 2 days at 10:30 on weekdays, and five starter lists (KYC, ITR, GST…)",
   helpdesk: "Helpdesk — ticket numbering, Mon–Sat 9:30–6:30 business hours and response targets",
   hr: "HR & payroll — leave types, the work week and payroll rules",
   inventory: "Inventory — your first store room, ready for stock",

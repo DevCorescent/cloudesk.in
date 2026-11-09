@@ -32,11 +32,14 @@ async function due(minute: number): Promise<Task[]> {
   add("mail-schedules", async () => (await import("@/server/mail/schedules")).mailScheduleTick());
   add("chat", async () => (await import("@/server/chat/tick")).chatTick());
   add("notes", async () => (await import("@/server/notes/core")).notesTick());
+  // Documents past their delete time (Drive QR uploads and others) go completely.
+  add("doc-expiry", async () => (await import("@/server/documents/drop")).expireTick());
   add("reminders", async () => (await import("@/server/notify/notify")).sendDueReminders());
   add("workflows", async () => (await import("@/server/automation/workflows")).scheduleTick());
   if (every(2)) add("mail-sync", async () => (await import("@/server/mail/sync")).mailTick());
   if (every(5)) {
     add("helpdesk", async () => (await import("@/server/helpdesk/core")).tick());
+    add("requisitions", async () => (await import("@/server/requisitions/core")).requisitionsTick());
     add("bi-reports", async () => (await import("@/server/bi/core")).sendDue());
     add("ai-tasks", async () => (await import("@/server/ai/tasks")).recoverInterruptedTasks((Number(process.env.AI_TASK_STALE_MIN) || 20) * 60_000));
     add("stale-jobs", async () => (await import("@/server/jobs/queue")).recoverStaleJobs());

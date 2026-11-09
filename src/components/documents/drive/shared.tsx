@@ -23,6 +23,10 @@ export type DriveFile = {
   status: string;
   tags: string[];
   expiresOn: string | null;
+  /** When it's deleted completely (a Drive QR upload's stay, or set by hand); null keeps it. */
+  deleteAt?: string | null;
+  /** Uploaded by Drive QR: who left it. */
+  dropped?: { name: string; email: string } | null;
   linkType: string | null;
   linkId: string | null;
   filename: string;

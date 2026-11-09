@@ -492,6 +492,25 @@ export const TARGETS = {
       { key: "reference", label: "Reference", type: "text", aliases: ["ticket id", "ticket number", "id", "ref", "number", "ticket #"], hint: "The ticket's number in your old system; kept as a tag so it isn't brought in twice" },
     ],
   },
+  "requisitions.lists": {
+    id: "requisitions.lists",
+    label: "Requisitions",
+    noun: "item",
+    modes: [
+      { value: "draft", label: "Save as drafts to check and send yourself" },
+      { value: "send", label: "Send each request now, and start reminders" },
+    ],
+    defaultMode: "draft",
+    fields: [
+      { key: "clientEmail", label: "Client email", type: "email", required: true, aliases: ["email", "client", "customer email", "to", "recipient"], hint: "Rows with the same client email and title become one requisition" },
+      { key: "clientName", label: "Client name", type: "text", aliases: ["name", "customer", "customer name", "contact"] },
+      { key: "title", label: "Title", type: "text", required: true, aliases: ["requisition", "request", "subject", "list", "for"] },
+      { key: "item", label: "Item", type: "text", required: true, aliases: ["document", "requirement", "what", "item needed", "document name"] },
+      { key: "description", label: "Details", type: "longtext", aliases: ["notes", "description", "instructions"] },
+      { key: "required", label: "Required", type: "bool", aliases: ["mandatory", "must have"], fallback: "true" },
+      { key: "dueDate", label: "Due date", type: "date", aliases: ["due", "deadline", "by"] },
+    ],
+  },
   "hr.card_txns": {
     id: "hr.card_txns",
     label: "Card statement",

@@ -8,7 +8,7 @@ export type ProductGroup = { id: string; title: string; line: string; slugs: str
 
 export const PRODUCT_GROUPS: ProductGroup[] = [
   { id: "build", title: "Build & sell", line: "Websites, stores and the counter", slugs: ["launch", "website-builder", "online-store", "point-of-sale", "bookings", "promotions", "domains"] },
-  { id: "run", title: "Run your business", line: "Customers, money and people", slugs: ["my-work", "mail", "calendar", "chat", "notes", "crm", "sales", "invoicing", "accounting", "hrms", "projects", "inventory", "helpdesk", "marketing", "documents"] },
+  { id: "run", title: "Run your business", line: "Customers, money and people", slugs: ["my-work", "mail", "calendar", "chat", "notes", "crm", "sales", "invoicing", "accounting", "hrms", "projects", "inventory", "helpdesk", "requisitions", "marketing", "documents"] },
   { id: "ops", title: "Operations", line: "Make, check, move and comply", slugs: ["manufacturing", "quality", "maintenance", "logistics", "portals", "compliance"] },
   { id: "industry", title: "Industry suites", line: "Made for how you work", slugs: ["horeca", "clinic", "education", "construction"] },
   { id: "ai", title: "AI, data & automation", line: "Work smarter, not longer", slugs: ["copilot", "automations", "chatbot", "reports", "data", "custom-objects", "ai-ide", "growth", "collaboration"] },
@@ -22,7 +22,7 @@ export const MENU_SECTIONS: Record<string, { title: string; slugs: string[] }[]>
   ],
   run: [
     { title: "Your workday", slugs: ["my-work", "mail", "calendar", "chat", "notes"] },
-    { title: "Customers & sales", slugs: ["crm", "sales", "marketing", "helpdesk"] },
+    { title: "Customers & sales", slugs: ["crm", "sales", "marketing", "helpdesk", "requisitions"] },
     { title: "Money", slugs: ["invoicing", "accounting"] },
     { title: "People & work", slugs: ["hrms", "projects", "inventory", "documents"] },
   ],

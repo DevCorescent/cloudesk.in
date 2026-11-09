@@ -17,7 +17,7 @@ import { moduleById, type ModuleId } from "@/lib/workspace/modules";
 export const SHOTS: Record<ModuleId, string> = {
   store: "store/products", pos: "pos/till", horeca: "horeca/floor", crm: "crm/deals", hr: "hrms/payroll", inventory: "inventory/home", sales: "sales/orders",
   manufacturing: "manufacturing/work-orders", quality: "quality/inspections", maintenance: "maintenance/assets", documents: "documents/live", marketing: "marketing/campaigns",
-  logistics: "logistics/shipments", bi: "reports/dashboard", copilot: "copilot/checks", helpdesk: "helpdesk/inbox", portal: "portals/customer", grc: "compliance/home",
+  logistics: "logistics/shipments", bi: "reports/dashboard", copilot: "copilot/checks", helpdesk: "helpdesk/inbox", requisitions: "requisitions/list", portal: "portals/customer", grc: "compliance/home",
   education: "education/students", clinic: "clinic/patients", construction: "construction/home", objects: "custom-objects/records", work: "projects/board",
   accounting: "accounting/pl", invoicing: "finance/overview", bookings: "bookings/upcoming", promotions: "promotions/list", growth: "growth/overview",
   automations: "automations/list", chatbot: "chatbot/inbox", data: "data/rows", "ai-ide": "ai-ide/editor", mail: "mail/inbox", calendar: "calendar/week", chat: "chat/channel",

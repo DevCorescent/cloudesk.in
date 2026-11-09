@@ -1205,7 +1205,7 @@ export async function quotaUsage(orgId: string, only?: QuotaKey): Promise<Record
     one(want("campaignEmailsPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.mktSends).where(and(eq(schema.mktSends.orgId, orgId), sql`(${schema.mktSends.status} = 'queued' or ${schema.mktSends.sentAt} >= ${since})`)) : null),
     one(want("signaturesPerMonth") ? db.select({ n: sql<number>`count(*)::int` }).from(schema.docSignRequests).where(and(eq(schema.docSignRequests.orgId, orgId), gt(schema.docSignRequests.createdAt, since))) : null),
     want("storageMb")
-      ? db.execute(sql`select (coalesce((select sum(size) from doc_versions where org_id = ${orgId}),0) + coalesce((select sum(size) from doc_assets where org_id = ${orgId}),0) + coalesce((select sum(a.size) from assets a join projects p on p.id = a.project_id where p.org_id = ${orgId}),0))::bigint as n`).then((r) => Number((r.rows[0] as { n?: string | number } | undefined)?.n ?? 0))
+      ? db.execute(sql`select (coalesce((select sum(size) from doc_versions where org_id = ${orgId}),0) + coalesce((select sum(size) from doc_assets where org_id = ${orgId}),0) + coalesce((select sum(a.size) from assets a join projects p on p.id = a.project_id where p.org_id = ${orgId}),0) + coalesce((select sum(size) from rq_files where org_id = ${orgId}),0))::bigint as n`).then((r) => Number((r.rows[0] as { n?: string | number } | undefined)?.n ?? 0))
       : 0,
     one(want("chatGuests") ? db.select({ n: sql<number>`count(distinct ${schema.teamMembers.userId})::int` }).from(schema.teamMembers).where(and(eq(schema.teamMembers.orgId, orgId), eq(schema.teamMembers.role, "guest"))) : null),
   ]);

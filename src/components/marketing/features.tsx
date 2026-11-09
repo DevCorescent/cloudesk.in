@@ -2,7 +2,7 @@
 // Each entry is one feature page (/features/<slug>) and one card on the
 // landing page. Claims here describe what's actually built; limits are
 // stated plainly under "Good to know".
-import { Factory, Handshake, ShieldCheck, KanbanSquare, BadgeCheck, BarChart3, Blocks, BookOpenCheck, Bot, Boxes, CalendarDays, Inbox, MessagesSquare, Code2, Contact, Database, Globe, Landmark, Megaphone, PanelsTopLeft, Rocket, ScanLine, ShoppingBag, Users, UtensilsCrossed, type LucideIcon, Wrench, FileSignature, Send, Truck, PieChart, Sparkles, LifeBuoy, DoorOpen, ShieldAlert, GraduationCap, Stethoscope, HardHat, Shapes, Mail, NotebookPen } from "lucide-react";
+import { ClipboardCheck, Factory, Handshake, ShieldCheck, KanbanSquare, BadgeCheck, BarChart3, Blocks, BookOpenCheck, Bot, Boxes, CalendarDays, Inbox, MessagesSquare, Code2, Contact, Database, Globe, Landmark, Megaphone, PanelsTopLeft, Rocket, ScanLine, ShoppingBag, Users, UtensilsCrossed, type LucideIcon, Wrench, FileSignature, Send, Truck, PieChart, Sparkles, LifeBuoy, DoorOpen, ShieldAlert, GraduationCap, Stethoscope, HardHat, Shapes, Mail, NotebookPen } from "lucide-react";
 
 export type Tint = "peach" | "lavender" | "mint" | "sky" | "butter" | "rose";
 export type Feature = {
@@ -687,6 +687,40 @@ export const FEATURES: Feature[] = [
       { q: "Can someone else reply on a ticket by using its number?", a: "No. Email replies are only added when they come from the ticket's customer; anyone else starts their own ticket." },
     ],
     related: ["crm", "copilot", "reports"],
+  },
+  {
+    slug: "requisitions",
+    photo: "1554224155-6726b3ff858f",
+    name: "Cloudesk Requisitions",
+    icon: ClipboardCheck,
+    tint: "butter",
+    short: "Ask clients for the documents you need once — reminders chase them by email until everything's in, and their replies are read for you.",
+    title: "Stop chasing clients for documents.",
+    mark: "Stop chasing",
+    lede: "List what you need from a client — KYC papers, bank statements, signed forms — and Cloudesk asks for it from your own mailbox, then reminds them on your schedule until it's all in. When they reply, the attachments are filed and the items they cover are ticked off; they can also upload straight to their own link, item by item.",
+    steps: [
+      { title: "List what you need", body: "Start from a template (KYC, income tax return, monthly GST, joining documents) or your own, pick the client from your CRM or type their email, and set a due date." },
+      { title: "Choose how to chase", body: "Gentle, standard or firm — or your own: every how many days, at what time, weekdays only, and when to stop. Reminders get firmer as they go." },
+      { title: "Watch it come in", body: "Replies are read as they arrive: sure matches are marked received, unsure ones wait for you to check. When everything's in, the client gets a thank-you and you get told." },
+    ],
+    highlights: [
+      { title: "From your own mailbox", body: "The request and every reminder go from your connected mailbox in one conversation, so replies come back to you — and are read automatically." },
+      { title: "Replies read for you", body: "Attachments are filed against the items they are; \"I'll send it Friday\" holds the reminders until then. Without AI, files are matched by name." },
+      { title: "The client's link", body: "Every email carries a link where the client sees what's still needed and uploads each file against its item — no sign-in." },
+      { title: "Tracking", body: "Every request, reminder, link view, reply and upload on a timeline; progress, overdue and stalled lists; how long clients take and how many reminders it needs." },
+      { title: "Send back what's wrong", body: "Mark a file as not right with a note, and the next reminder asks for it again with your note." },
+      { title: "Linked to the CRM", body: "Pick a contact, respect do-not-contact, and see a client's requisitions on their CRM page." },
+    ],
+    goodToKnow: [
+      "Replies are read from a mailbox connected in Cloudesk Mail; without one, reminders go from Cloudesk's address and clients can still upload on their link.",
+      "Reading replies with AI uses your plan's AI allowance; with AI off, attachments are matched to items by their file names.",
+      "Files up to 25 MB each count towards your plan's storage.",
+    ],
+    faqs: [
+      { q: "Will clients get emails forever?", a: "No. Reminders stop at the limit you set (8 by default), when everything required is in, or when you pause or cancel — and you're told when they stop without a reply." },
+      { q: "What if the reading gets it wrong?", a: "Only confident matches are marked received; the rest are marked 'check this' for you. You can change any item, and send a wrong file back to the client with a note." },
+    ],
+    related: ["crm", "mail", "documents"],
   },
   {
     slug: "mail",

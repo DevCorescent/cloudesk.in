@@ -24,6 +24,12 @@ export async function register() {
       const tm = setInterval(() => void mailTick().catch(() => {}), 2 * 60_000);
       tm.unref?.();
     }
+    // Worker: documents past their delete time (Drive QR uploads and others) go completely, every minute.
+    if (!webOnly) {
+      const { expireTick } = await import("./server/documents/drop");
+      const tdx = setInterval(() => void expireTick().catch(() => {}), 60_000);
+      tdx.unref?.();
+    }
     // Worker: meeting reminders and "add the minutes" nudges, every minute.
     if (!webOnly && process.env.CALENDAR_REMINDERS !== "off") {
       const { calendarTick } = await import("./server/calendar/tick");
@@ -126,6 +132,12 @@ export async function register() {
       const { tick: helpdeskTick } = await import("./server/helpdesk/core");
       const t9 = setInterval(() => void helpdeskTick().catch(() => {}), 5 * 60_000);
       t9.unref?.();
+    }
+    // Every 5 minutes: requisition reminders that are due.
+    if (!webOnly && process.env.REQUISITIONS_SCHEDULER !== "off") {
+      const { requisitionsTick } = await import("./server/requisitions/core");
+      const tr = setInterval(() => void requisitionsTick().catch(() => {}), 5 * 60_000);
+      tr.unref?.();
     }
     // Hourly: firewall events older than 30 days and expired bans.
     if (!webOnly) {

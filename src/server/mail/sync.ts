@@ -130,6 +130,11 @@ export async function ingest(acc: Account, folder: "INBOX" | "Sent", uid: number
   }
   if (direction === "in" && verdict !== "blocked") {
     await applyRules(acc, threadId, { from: from.address, to: to.map((x) => x.address), subject, text, hasAttachment: files.length > 0 });
+    // A client answering a requisition: file what they sent and tick off what it covers.
+    if (folder === "INBOX")
+      await (await import("../requisitions/core"))
+        .onRequisitionMail(acc, { threadId, mailId: msg.id, headerId: messageId, inReplyTo, refs, from, subject, text, files })
+        .catch((e) => log.warn("requisition_from_mail_failed", { accountId: acc.id, error: String(e) }));
     if (folder === "INBOX")
       await maybeAutoReply(acc, {
         threadId, messageId, references: refs.join(" "), subject, date, from, replyTo, warnings,

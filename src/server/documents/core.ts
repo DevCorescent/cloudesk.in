@@ -152,7 +152,7 @@ async function checkFolder(s: Scope, folderId: string | null) {
 }
 
 /** Room left in the workspace for another file. */
-async function assertRoom(orgId: string, bytes: number) {
+export async function assertRoom(orgId: string, bytes: number) {
   const { assertQuota, entitlementFor } = await import("../billing/subscriptions");
   // The plan's storage (files, versions and site media together); the old flat 1 GB only when plans aren't enforced.
   await assertQuota(orgId, "storageMb", bytes / 1_048_576);
@@ -161,7 +161,7 @@ async function assertRoom(orgId: string, bytes: number) {
   if (Number(used) + bytes > MAX_ORG_BYTES) throw new ApiError("conflict", "Your workspace has used its 1 GB of document storage. Delete old files or versions first.");
 }
 
-function checkBytes(name: string, bytes: Buffer) {
+export function checkBytes(name: string, bytes: Buffer) {
   if (!bytes.length) throw new ApiError("validation_failed", "The file is empty");
   if (bytes.length > MAX_FILE_BYTES) throw new ApiError("payload_too_large", "Files are limited to 25 MB");
   const t = sniffFile(bytes, name);
@@ -231,8 +231,9 @@ export async function deleteFile(s: Scope, id: string) {
   if (!s.manage && f.createdBy !== s.userId) throw new ApiError("forbidden", "Only whoever uploaded it, or an owner or admin, can delete this");
   const [open] = await db.select({ id: schema.docSignRequests.id }).from(schema.docSignRequests).where(and(eq(schema.docSignRequests.fileId, f.id), inArray(schema.docSignRequests.status, ["sent", "completed"])));
   if (open) throw new ApiError("conflict", "This file has been sent for signature. Archive it instead, so the signed record stays.");
-  await db.delete(schema.docFiles).where(eq(schema.docFiles.id, f.id));
-  await audit({ orgId: s.orgId, actorId: s.userId, action: "documents.deleted", targetType: "doc_file", targetId: f.id, metadata: { title: f.title } });
+  // Deleted completely; a Drive QR uploader is told.
+  const { eraseFiles } = await import("./drop");
+  await eraseFiles([f], "deleted", s.userId);
 }
 
 /** A version's bytes, for download (or showing inline, for PDFs and images). */

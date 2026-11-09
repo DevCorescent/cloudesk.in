@@ -771,6 +771,13 @@
       "when": 1793873609688,
       "tag": "0109_quota_topups",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1794169777231,
+      "tag": "0110_requisitions",
+      "breakpoints": true
     }
   ]
 }

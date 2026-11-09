@@ -8188,3 +8188,156 @@ export const noteVersions = pgTable("note_versions", {
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 }, (t) => [index("note_versions_note_idx").on(t.noteId, t.createdAt)]);
+
+// ── Requisitions: what a client owes you, chased by email until it's in ───────
+
+/** A workspace's Requisitions settings (the mailbox reminders go from, the default schedule, how replies are read) and its numbering. */
+export const rqSettings = pgTable("rq_settings", {
+  orgId: uuid("org_id").primaryKey().references(() => organizations.id, { onDelete: "cascade" }),
+  settings: jsonb("settings").$type<Record<string, unknown>>().notNull().default({}),
+  counters: jsonb("counters").$type<Record<string, number>>().notNull().default({}),
+});
+
+/**
+ * One requisition: a client, the list of things asked for, and the reminder
+ * schedule that keeps asking until everything required is in. Replies are
+ * matched to it by the email thread; the client's link (with `nonce`) lets
+ * them see the list and upload.
+ */
+export const rqLists = pgTable(
+  "rq_lists",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    number: text("number").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull().default(""),
+    clientName: text("client_name").notNull().default(""),
+    clientEmail: text("client_email").notNull(),
+    cc: text("cc").array().notNull().default([]),
+    contactId: uuid("contact_id").references(() => crmContacts.id, { onDelete: "set null" }),
+    companyId: uuid("company_id").references(() => crmCompanies.id, { onDelete: "set null" }),
+    /** draft | active | paused | completed | cancelled */
+    status: text("status").notNull().default("draft"),
+    dueDate: date("due_date"),
+    schedule: jsonb("schedule").$type<Record<string, unknown>>().notNull().default({}),
+    /** The connected mailbox reminders go from (replies are read from it); null = the platform's address. */
+    mailAccountId: uuid("mail_account_id").references(() => mailAccounts.id, { onDelete: "set null" }),
+    /** The email conversation, once the first request has gone. */
+    threadId: uuid("thread_id"),
+    lastMailId: uuid("last_mail_id"),
+    nextReminderAt: timestamp("next_reminder_at", { withTimezone: true }),
+    remindersSent: integer("reminders_sent").notNull().default(0),
+    lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+    lastReplyAt: timestamp("last_reply_at", { withTimezone: true }),
+    firstViewedAt: timestamp("first_viewed_at", { withTimezone: true }),
+    lastViewedAt: timestamp("last_viewed_at", { withTimezone: true }),
+    views: integer("views").notNull().default(0),
+    /** Why reminders stopped or paused, in words. */
+    note: text("note").notNull().default(""),
+    nonce: text("nonce").notNull(),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [uniqueIndex("rq_lists_number_uq").on(t.orgId, t.number), index("rq_lists_org_status_idx").on(t.orgId, t.status), index("rq_lists_due_idx").on(t.nextReminderAt).where(sql`status = 'active'`), index("rq_lists_email_idx").on(t.orgId, sql`lower(client_email)`), index("rq_lists_thread_idx").on(t.threadId)],
+);
+
+/** One thing asked for. pending | received | review (looks received — check it) | rejected (asked again) | waived. */
+export const rqItems = pgTable(
+  "rq_items",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    listId: uuid("list_id").notNull().references(() => rqLists.id, { onDelete: "cascade" }),
+    position: integer("position").notNull().default(0),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    required: boolean("required").notNull().default(true),
+    status: text("status").notNull().default("pending"),
+    /** upload | email | manual */
+    receivedVia: text("received_via"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    /** Why it was marked (the AI's reason, or the team's note to the client when rejected). */
+    note: text("note").notNull().default(""),
+    confidence: real("confidence"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("rq_items_list_idx").on(t.listId, t.position)],
+);
+
+/** Emails each way: the request and reminders sent (their Message-ID matches replies), and the client's replies read. */
+export const rqMessages = pgTable(
+  "rq_messages",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    listId: uuid("list_id").notNull().references(() => rqLists.id, { onDelete: "cascade" }),
+    /** out | in */
+    direction: text("direction").notNull(),
+    /** request | reminder | thanks | reply */
+    kind: text("kind").notNull(),
+    n: integer("n").notNull().default(0),
+    /** The message in Mail (when sent from or read in a connected mailbox). */
+    mailMessageId: uuid("mail_message_id"),
+    /** The Message-ID header. */
+    headerId: text("header_id"),
+    fromEmail: text("from_email").notNull().default(""),
+    to: text("to").array().notNull().default([]),
+    subject: text("subject").notNull().default(""),
+    snippet: text("snippet").notNull().default(""),
+    /** For replies: what was understood from them. */
+    analysis: jsonb("analysis").$type<Record<string, unknown>>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("rq_messages_list_idx").on(t.listId, t.createdAt), uniqueIndex("rq_messages_header_uq").on(t.orgId, t.headerId).where(sql`header_id is not null and header_id <> ''`), uniqueIndex("rq_messages_mail_uq").on(t.mailMessageId).where(sql`mail_message_id is not null`)],
+);
+
+/** Files the client sent: uploaded on their link, or attached to a reply. */
+export const rqFiles = pgTable(
+  "rq_files",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    listId: uuid("list_id").notNull().references(() => rqLists.id, { onDelete: "cascade" }),
+    itemId: uuid("item_id").references(() => rqItems.id, { onDelete: "set null" }),
+    filename: text("filename").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    sha256: text("sha256").notNull().default(""),
+    data: bytea("data").notNull(),
+    /** upload | email */
+    source: text("source").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("rq_files_list_idx").on(t.listId)],
+);
+
+/** Everything that happened to a requisition, in order: the tracking timeline. */
+export const rqEvents = pgTable(
+  "rq_events",
+  {
+    id: id(),
+    orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    listId: uuid("list_id").notNull().references(() => rqLists.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
+    actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("rq_events_list_idx").on(t.listId, t.createdAt)],
+);
+
+/** Saved lists to start from (KYC, ITR filing, a monthly GST pack…). */
+export const rqTemplates = pgTable("rq_templates", {
+  id: id(),
+  orgId: uuid("org_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  title: text("title").notNull().default(""),
+  message: text("message").notNull().default(""),
+  items: jsonb("items").$type<{ title: string; description?: string; required?: boolean }[]>().notNull().default([]),
+  createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
