@@ -5,6 +5,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
+import { cx } from "@/components/ui/primitives";
 import { api } from "@/lib/client/api";
 import type { AccountOut, MetaOut, Person } from "@/lib/mail/api";
 
@@ -189,3 +190,16 @@ export const drafts = {
 export const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 /** Pulls every address out of pasted text ("A <a@x.in>, b@y.in"). */
 export const addressesIn = (s: string) => [...new Set(s.match(/[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+/g) ?? [])];
+
+/** A panel's heading: a tinted icon, the title, and one line on what it's for. */
+export function PanelHead({ icon, tone, title, sub, count }: { icon: ReactNode; tone: string; title: string; sub: string; count?: number }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className={cx("grid size-8 shrink-0 place-items-center rounded-[10px] [&>svg]:size-4", tone)}>{icon}</span>
+      <div className="min-w-0">
+        <p className="flex items-center gap-1.5 text-[13.5px] leading-tight font-semibold">{title}{!!count && <span className="rounded-full bg-surface-2 px-1.5 text-[11px] font-semibold text-fg tabular-nums">{count}</span>}</p>
+        <p className="mt-0.5 truncate text-[12px] text-muted">{sub}</p>
+      </div>
+    </div>
+  );
+}

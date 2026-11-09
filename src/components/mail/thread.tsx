@@ -5,7 +5,7 @@
 // every message (HTML in a locked-down frame, attachments, scheduled/sending
 // states), internal notes for team inboxes, the CRM contact, and the reply box.
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, Archive, ArrowLeft, Bell, BellOff, BellRing, BookUser, ChevronDown, Clock, Crown, Download, FileText, Forward, Image as ImageIcon, Inbox, Info, ListChecks, Loader2, Mail, MailOpen, MessageSquareText, MoreHorizontal, Paperclip, Pin, Printer, Reply, ReplyAll, ShieldAlert, ShieldCheck, ShieldOff, Sparkles, Star, Tag, Ticket, Trash2, UserPlus, UserRound, Maximize2, NotebookPen } from "lucide-react";
+import { AlarmClock, ListTodo, Archive, ArrowLeft, Bell, BellOff, BellRing, BookUser, ChevronDown, Clock, Crown, Download, FileText, Forward, Image as ImageIcon, Inbox, Info, ListChecks, Loader2, Mail, MailOpen, MessageSquareText, MoreHorizontal, Paperclip, Pin, Printer, Reply, ReplyAll, ShieldAlert, ShieldCheck, ShieldOff, PenLine, Sparkles, Star, Tag, Ticket, Trash2, UserPlus, UserRound, Maximize2, NotebookPen } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, Menu, useToast, type MenuItem } from "@/components/ui/overlays";
 import { Badge, Button, IconButton, Input, Notice, Skeleton, Textarea, cx } from "@/components/ui/primitives";
@@ -17,7 +17,7 @@ import { ContactEditor } from "./contacts";
 import { MeetingCard } from "./meeting-card";
 import { Composer, type ComposeMode } from "./compose";
 import { SaveToDocuments } from "@/components/documents/picker";
-import { accountOf, Avatar, fileSize, longTime, mailKey, personName, presets, useMailApi, useMailRefresh, useUndoSend } from "./shared";
+import { accountOf, Avatar, fileSize, longTime, mailKey, PanelHead, personName, presets, useMailApi, useMailRefresh, useUndoSend } from "./shared";
 import { useMailLinks } from "./links";
 
 export type ThreadActions = { patch: (id: string, p: ThreadPatch, done?: string) => void; openCompose: (mode: ComposeMode) => void };
@@ -262,19 +262,21 @@ export function ThreadView({ id, meta, onBack, onClosed, replyRequest, noteReque
             )}
 
             {/* AI */}
-            <div className="mt-4 flex flex-wrap items-center gap-1.5">
-              <span className="mr-0.5 inline-flex items-center gap-1 text-[12px] font-semibold text-muted"><Sparkles className="size-3.5 text-violet-500" /> AI</span>
-              <AiChip busy={ai.busy === "summary"} onClick={() => void runAi("summary")}>Summarise</AiChip>
-              <Menu label="Suggest a reply" align="start" trigger={(p) => <AiChip {...p} busy={ai.busy === "reply"}>Suggest a reply <ChevronDown className="size-3" /></AiChip>} items={(["friendly", "formal", "short"] as const).map((tone) => ({ label: tone === "short" ? "Short and direct" : `${tone[0]!.toUpperCase()}${tone.slice(1)}`, onSelect: () => void runAi("reply", tone) }))} />
-              <AiChip busy={ai.busy === "actions"} onClick={() => void runAi("actions")}>To-dos &amp; dates</AiChip>
-            </div>
-            {(t.aiSummary || ai.out?.summary || ai.out?.actions || ai.error) && (
-              <div className="mt-3 rounded-[16px] border border-violet-500/20 bg-violet-500/[0.05] px-4 py-3 text-[13.5px]">
-                {(t.aiSummary || ai.out?.summary) && <p className="leading-relaxed whitespace-pre-line">{ai.out?.summary ?? t.aiSummary}</p>}
-                {ai.out?.actions && (ai.out.actions.length ? <ul className="mt-2 grid gap-1.5 text-[13px]">{ai.out.actions.map((a, i) => <li key={i} className="flex items-start gap-2"><Badge>{a.kind}</Badge><span>{a.text}</span></li>)}</ul> : <p className="mt-1 text-[13px] text-muted">Nothing to act on in this conversation.</p>)}
-                {ai.error && <p className="text-[12.5px] text-muted">{ai.error}</p>}
+            <section aria-label="AI" className="mt-4 rounded-[18px] border border-violet-500/20 bg-[linear-gradient(135deg,rgb(139_92_246/0.08),transparent_55%,rgb(14_165_233/0.06))] p-3.5 sm:p-4">
+              <PanelHead icon={<Sparkles />} tone="bg-violet-500/15 text-violet-600 dark:text-violet-300" title="AI" sub="Catch up, reply and plan in a click" />
+              <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
+                <AiChip icon={<FileText />} busy={ai.busy === "summary"} onClick={() => void runAi("summary")}>Summarise</AiChip>
+                <Menu label="Suggest a reply" align="start" trigger={(p) => <AiChip {...p} icon={<PenLine />} busy={ai.busy === "reply"}><span className="sm:hidden">Suggest reply</span><span className="max-sm:hidden">Suggest a reply</span><ChevronDown className="!size-3 shrink-0 opacity-60 max-sm:hidden" /></AiChip>} items={(["friendly", "formal", "short"] as const).map((tone) => ({ label: tone === "short" ? "Short and direct" : `${tone[0]!.toUpperCase()}${tone.slice(1)}`, onSelect: () => void runAi("reply", tone) }))} />
+                <AiChip icon={<ListTodo />} busy={ai.busy === "actions"} onClick={() => void runAi("actions")}>To-dos &amp; dates</AiChip>
               </div>
-            )}
+              {(t.aiSummary || ai.out?.summary || ai.out?.actions || ai.error) && (
+                <div className="mt-3 rounded-[14px] border border-violet-500/15 bg-[var(--surface-solid)] px-4 py-3 text-[13.5px]">
+                  {(t.aiSummary || ai.out?.summary) && <p className="leading-relaxed whitespace-pre-line">{ai.out?.summary ?? t.aiSummary}</p>}
+                  {ai.out?.actions && (ai.out.actions.length ? <ul className="mt-2 grid gap-1.5 text-[13px]">{ai.out.actions.map((a, i) => <li key={i} className="flex items-start gap-2"><Badge>{a.kind}</Badge><span>{a.text}</span></li>)}</ul> : <p className="mt-1 text-[13px] text-muted">Nothing to act on in this conversation.</p>)}
+                  {ai.error && <p className="text-[12.5px] text-muted">{ai.error}</p>}
+                </div>
+              )}
+            </section>
 
             {/* Messages */}
             <div className="mt-5 grid gap-3">
@@ -326,7 +328,7 @@ export function ThreadView({ id, meta, onBack, onClosed, replyRequest, noteReque
           <aside className="hidden @4xl/thread:block">
             <div className="sticky top-0 grid gap-3">
               <SenderPanel {...sender} card />
-              {links.panel()}
+              {links.panel(undefined, true)}
             </div>
           </aside>
         </div>
@@ -360,63 +362,52 @@ export function ThreadView({ id, meta, onBack, onClosed, replyRequest, noteReque
 
 type SenderProps = { name: string; address: string; vip: boolean; contact: ThreadOut["contact"]; ticketId: string | null; crm: boolean; helpdesk: boolean; onLink: (k: "contact" | "ticket") => void; onVip: () => void };
 
-/** Who sent it, and the business actions on them: a strip in the flow, or a side card. */
+/** Who sent it, and the business actions on them: a card in the flow, or in the side column. */
 function SenderPanel({ name, address, vip, contact, ticketId, crm, helpdesk, onLink, onVip, card, className }: SenderProps & { card?: boolean; className?: string }) {
   const [saving, setSaving] = useState(false);
   const saveDialog = saving && <ContactEditor contact={null} groups={[]} initial={{ name: name === address ? "" : name, email: address, company: contact?.company ?? "" }} onClose={() => setSaving(false)} onSaved={() => setSaving(false)} />;
-  const actions = (
-    <>
-      {contact ? (
-        <a href={`/crm/contacts/${contact.id}`} className={pill}><UserRound className="size-3.5" /> Open in CRM</a>
-      ) : crm ? (
-        <button type="button" onClick={() => onLink("contact")} className={pill}><UserPlus className="size-3.5" /> Add to CRM</button>
-      ) : null}
-      {helpdesk && (ticketId ? <a href={`/helpdesk/tickets/${ticketId}`} className={pill}><Ticket className="size-3.5" /> Open ticket</a> : <button type="button" onClick={() => onLink("ticket")} className={pill}><Ticket className="size-3.5" /> Make a ticket</button>)}
-      <button type="button" onClick={() => setSaving(true)} className={pill}><BookUser className="size-3.5" /> Save contact</button>
-      <button type="button" aria-pressed={vip} onClick={onVip} className={cx(pill, vip && "border-amber-400/50 bg-amber-400/15 text-amber-800 dark:text-amber-300")}><Crown className="size-3.5" /> {vip ? "VIP" : "Mark VIP"}</button>
-    </>
-  );
-  const deals = contact?.deals.length ? (
-    <div className={cx("grid gap-1.5", card ? "mt-4" : "mt-3")}>
-      {contact.deals.map((x) => <a key={x.id} href={`/crm/deals/${x.id}`} className="flex items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3 py-1.5 text-[12.5px] hover:bg-fg/10"><span className="truncate">{x.title}</span><span className="shrink-0 text-muted capitalize">{x.status}</span></a>)}
-    </div>
-  ) : null;
-  if (card)
-    return (
-      <div className={cx("rounded-[18px] border border-border bg-surface p-4", className)}>
-        <Avatar p={{ name, address }} size={44} />
-        <p className="mt-3 truncate text-[14.5px] font-semibold">{name}</p>
-        <p className="truncate text-[12.5px] text-muted">{address}</p>
-        {contact?.company && <p className="mt-0.5 truncate text-[12.5px] text-muted">{contact.company}</p>}
-        <div className="mt-4 flex flex-col items-stretch gap-1.5 [&>*]:justify-start">{actions}</div>
-        {deals}
-        {saveDialog}
-      </div>
-    );
   return (
-    <div className={cx("rounded-[18px] border border-border bg-surface px-3.5 py-3", className)}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5">
-        <div className="flex min-w-0 flex-1 basis-[200px] items-center gap-3">
-          <Avatar p={{ name, address }} size={38} />
-          <div className="min-w-0">
-            <p className="truncate text-[13.5px] font-semibold">{name}</p>
-            <p className="truncate text-[12px] text-muted">{address}{contact?.company ? ` · ${contact.company}` : ""}</p>
-          </div>
+    <section aria-label="Sender" className={cx("rounded-[18px] border border-border bg-surface p-3.5 sm:p-4", className)}>
+      <div className="flex items-center gap-3">
+        <Avatar p={{ name, address }} size={card ? 44 : 40} />
+        <div className="min-w-0 flex-1">
+          <p className="flex min-w-0 items-center gap-1.5 text-[14px] font-semibold">
+            <span className="truncate">{name}</span>
+            {vip && <Crown className="size-3.5 shrink-0 text-amber-500" aria-label="VIP" />}
+          </p>
+          <p className="truncate text-[12.5px] text-muted">{address}</p>
+          {contact?.company && <p className="truncate text-[12px] text-subtle">{contact.company}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">{actions}</div>
+        {contact && <span className="shrink-0 rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-semibold text-success">In CRM</span>}
       </div>
-      {deals}
+      <div className={cx("mt-3 grid grid-cols-2 gap-1.5 sm:gap-2", !card && "@xl/thread:grid-cols-4")}>
+        {contact ? (
+          <a href={`/crm/contacts/${contact.id}`} className={tile}><UserRound /><span>Open in CRM</span></a>
+        ) : crm ? (
+          <button type="button" onClick={() => onLink("contact")} className={tile}><UserPlus /><span>Add to CRM</span></button>
+        ) : null}
+        {helpdesk && (ticketId ? <a href={`/helpdesk/tickets/${ticketId}`} className={tile}><Ticket /><span>Open ticket</span></a> : <button type="button" onClick={() => onLink("ticket")} className={tile}><Ticket /><span>Make a ticket</span></button>)}
+        <button type="button" onClick={() => setSaving(true)} className={tile}><BookUser /><span>Save contact</span></button>
+        <button type="button" aria-pressed={vip} onClick={onVip} className={cx(tile, vip && "!border-amber-400/50 !bg-amber-400/15 text-amber-800 dark:text-amber-300")}><Crown /><span>{vip ? "VIP" : "Mark VIP"}</span></button>
+      </div>
+      {contact?.deals.length ? (
+        <div className="mt-3 grid gap-1.5">
+          {contact.deals.map((x) => <a key={x.id} href={`/crm/deals/${x.id}`} className="flex items-center justify-between gap-2 rounded-[10px] bg-surface-2 px-3 py-2 text-[12.5px] hover:bg-fg/10"><span className="truncate">{x.title}</span><span className="shrink-0 text-muted capitalize">{x.status}</span></a>)}
+        </div>
+      ) : null}
       {saveDialog}
-    </div>
+    </section>
   );
 }
-const pill = "inline-flex h-8 items-center gap-1.5 rounded-full border border-border bg-[var(--surface-solid)] px-3 text-[12.5px] font-medium transition-colors hover:bg-surface-2";
 
-function AiChip({ busy, children, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean }) {
+/** One even-sized action in a panel's grid: icon and label, centred, never wrapping. */
+const tile = "inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-[12px] border border-border bg-[var(--surface-solid)] px-2.5 text-[12.5px] font-medium text-fg/85 transition-colors hover:border-fg/20 hover:bg-surface-2 hover:text-fg active:scale-[0.98] [&>span]:truncate [&>svg]:size-[15px] [&>svg]:shrink-0";
+
+function AiChip({ busy, icon, children, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { busy?: boolean; icon: React.ReactNode }) {
   return (
-    <button type="button" {...rest} disabled={busy || rest.disabled} className={cx("inline-flex h-8 items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-500/[0.06] px-3 text-[12.5px] font-medium text-fg/85 transition-colors hover:bg-violet-500/[0.12] disabled:opacity-60", className)}>
-      {busy && <Loader2 className="size-3.5 animate-spin" />}
-      {children}
+    <button type="button" {...rest} disabled={busy || rest.disabled} className={cx("flex min-h-10 w-full min-w-0 flex-col items-center justify-center gap-1 rounded-[12px] border border-violet-500/15 bg-[var(--surface-solid)] px-1.5 py-2 text-center text-[11.5px] leading-tight font-medium text-fg/85 transition-colors hover:border-violet-500/35 hover:bg-violet-500/[0.08] hover:text-fg active:scale-[0.98] disabled:opacity-60 sm:flex-row sm:gap-1.5 sm:px-2.5 sm:text-[12.5px] [&>svg]:size-[15px] [&>svg]:shrink-0 [&>svg:first-child]:text-violet-600 dark:[&>svg:first-child]:text-violet-300", className)}>
+      {busy ? <Loader2 className="animate-spin" /> : icon}
+      <span className="inline-flex items-center gap-1">{children}</span>
     </button>
   );
 }

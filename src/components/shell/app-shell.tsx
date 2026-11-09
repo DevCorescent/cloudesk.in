@@ -4,7 +4,7 @@ import { ChatLayer } from "@/components/chat/share";
 import { ComposeAnywhereButton, MailComposeProvider } from "@/components/mail/compose-provider";
 import { PageNotesButton } from "@/components/notes/page-notes";
 import clsx from "clsx";
-import { Check, ChevronsUpDown, FileText, Handshake, LogOut, Monitor, Moon, Plus, Search, Settings, Sun, Users } from "lucide-react";
+import { Check, ChevronsUpDown, FileText, Handshake, LogOut, Monitor, Moon, Search, Settings, Sun, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -19,6 +19,7 @@ import { PlanChip, SubscriptionBanner } from "@/components/billing/status";
 import { PaywallDialog } from "@/components/billing/upsell";
 import { CommandPalette } from "./command-palette";
 import { MobileNav } from "./mobile-nav";
+import { NewMenu } from "./new-menu";
 import { ModuleOff } from "./module-off";
 import { PlatformNotices } from "./notices";
 import { PendingInvites } from "./pending-invites";
@@ -202,11 +203,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="hidden lg:inline-flex"><Keys k="mod+k" /></span>
           </button>
           <div className="flex shrink-0 items-center gap-0.5 lg:ml-auto">
-            <span className="hidden lg:inline-flex">
-              <Link href="/create" className={buttonClasses("primary", "md")}>
-                <Plus className="size-3.5" aria-hidden /> New web app
-              </Link>
-            </span>
+            <NewMenu />
             <span className="mx-1.5 hidden h-5 w-px bg-fg/10 lg:block" aria-hidden />
             <Link href="/documents" aria-label="Documents" title="Documents" aria-current={pathname.startsWith("/documents") ? "page" : undefined} className="bar-icon">
               <FileText aria-hidden />
