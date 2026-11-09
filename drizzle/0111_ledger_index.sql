@@ -1,0 +1,1 @@
+CREATE INDEX "acc_lines_org_account_idx" ON "acc_lines" USING btree ("org_id","account_id");

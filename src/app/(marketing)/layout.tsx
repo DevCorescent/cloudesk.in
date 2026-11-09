@@ -8,11 +8,13 @@ import { groupFeatures, PRODUCT_GROUPS, shortName } from "@/components/marketing
 import { OneLineHeadings } from "@/components/marketing/one-line";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { TrustStrip } from "@/components/marketing/trust-strip";
-import { getPageSession } from "@/server/auth/page-session";
 import { settings } from "@/server/platform/settings";
 
+// Built once and served from the edge; rebuilt every five minutes, and on the
+// next visit after an admin changes what the site shows (platform/public-pages).
+export const revalidate = 300;
+
 export default async function MarketingLayout({ children }: { children: React.ReactNode }) {
-  const signedIn = !!(await getPageSession());
   // The legal name in the copyright line when it's set (Admin → Settings → Legal).
   const owner = await settings().then((s) => s.legal.companyName || s.general.productName, () => "Cloudesk");
   return (
@@ -29,7 +31,7 @@ export default async function MarketingLayout({ children }: { children: React.Re
         <span />
       </div>
       <div className="relative">
-        <SiteHeader signedIn={signedIn} />
+        <SiteHeader />
         <main>{children}</main>
         <footer className="mt-24 border-t border-fg/5">
           <div className="mx-auto w-full max-w-[1600px] border-b border-fg/5 px-5 py-12 sm:px-8 sm:py-14 lg:px-14 xl:px-20">

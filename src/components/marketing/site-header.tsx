@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Wordmark } from "@/components/brand";
 import { bestAnswer, businessOf, featureOf, groupFeatures, INDUSTRY_GROUPS, MENU_FEATURE, MENU_SECTIONS, PRODUCT_GROUPS, searchIndex, searchSite, shortName, type SearchEntry } from "./nav";
 import { useShortcuts } from "@/components/ui/shortcut";
+import { useSignedIn } from "@/lib/client/use-signed-in";
 
 /** The everyday workspace, one tab each in the header. */
 export const WORKDAY_TABS = [
@@ -26,7 +27,8 @@ export const WORKDAY_TABS = [
 type MenuId = "products" | "industries";
 const SUITES = ["horeca", "clinic", "education", "construction"];
 
-export function SiteHeader({ signedIn }: { signedIn: boolean }) {
+export function SiteHeader() {
+  const signedIn = useSignedIn();
   const searchKeys = useShortcuts().keys("mod+k");
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);

@@ -6,7 +6,7 @@
 // else as a sheet. It steps aside while the on-screen keyboard is up.
 import clsx from "clsx";
 import { Calculator, CalendarDays, Home, Inbox, LogOut, Mail, MessagesSquare, Monitor, Moon, MoreHorizontal, NotebookPen, PenSquare, Rocket, Settings, Sparkles, StickyNote, Sun, X, BadgeCheck, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/ui/intent-link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";

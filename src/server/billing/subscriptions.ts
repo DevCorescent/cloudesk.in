@@ -49,6 +49,7 @@ import { couponOfOrg, discountFor, earnFromInvoice, useDiscount } from "../partn
 import { audit } from "../services/audit";
 import { safeEqual } from "../security/tokens";
 import { providerApi, providerKey, type BillingProvider } from "./billing";
+import { refreshPublicPages } from "../platform/public-pages";
 
 type Exec = Pick<typeof db, "select" | "insert" | "update" | "execute">;
 export type Sub = typeof schema.orgSubscriptions.$inferSelect;
@@ -993,6 +994,7 @@ export async function savePlan(adminId: string, plan: CatalogPlan) {
   const modules = plan.modules ? (await import("@/lib/workspace/modules")).withRequirements(plan.modules) : null;
   const values = { ...plan, modules, quotas: (plan.quotas ?? {}) as Record<string, number>, updatedAt: new Date() };
   await db.insert(schema.planCatalog).values(values).onConflictDoUpdate({ target: schema.planCatalog.id, set: values });
+  refreshPublicPages();
   clearCatalogCache();
   await audit({ actorId: adminId, action: "platform.plan_saved", targetType: "plan", targetId: plan.id, metadata: { name: plan.name, monthly: plan.monthly, yearly: plan.yearly, active: plan.active, modules: modules?.length ?? "all" } });
   return allPlans();
@@ -1043,6 +1045,7 @@ export async function applyRecommendedPlans(adminId: string) {
     await db.insert(schema.planCatalog).values(values).onConflictDoUpdate({ target: schema.planCatalog.id, set: values });
   }
   clearCatalogCache();
+  refreshPublicPages();
   await audit({ actorId: adminId, action: "platform.plans_recommended", targetType: "plan", targetId: "catalogue", metadata: { plans: DEFAULT_PLANS.map((p) => p.id) } });
   return allPlans();
 }

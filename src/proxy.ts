@@ -32,6 +32,18 @@ function isCustomHost(host: string) {
   return true;
 }
 
+// The website is served from the edge cache, so its pages can't read the
+// private session cookie. A readable flag mirrors whether one is set (never
+// whose it is), so the header can offer "Open app" instead of "Log in".
+const HINT = "cc_in";
+function withHint(request: NextRequest, res: NextResponse) {
+  const has = request.cookies.has("cc_session");
+  const hinted = request.cookies.get(HINT)?.value === "1";
+  if (has && !hinted) res.cookies.set(HINT, "1", { path: "/", sameSite: "lax", secure: request.nextUrl.protocol === "https:" });
+  else if (!has && request.cookies.has(HINT)) res.cookies.delete(HINT);
+  return res;
+}
+
 // Paths with their own handling: never rewritten to a customer domain's site.
 const OWN = /^\/(api|sites|s|d|assets|mail-img)(\/|$)/;
 
@@ -56,7 +68,7 @@ export async function proxy(request: NextRequest) {
   if (OWN.test(path)) {
     const headers = new Headers(request.headers);
     headers.set("x-pathname", path + request.nextUrl.search);
-    return NextResponse.next({ request: { headers } });
+    return withHint(request, NextResponse.next({ request: { headers } }));
   }
   // Customer domains are served by /d/…, which looks the domain up and serves
   // that site's live deployment.
@@ -70,7 +82,7 @@ export async function proxy(request: NextRequest) {
   // sent back to the page they asked for after logging in.
   const headers = new Headers(request.headers);
   headers.set("x-pathname", request.nextUrl.pathname + request.nextUrl.search);
-  return NextResponse.next({ request: { headers } });
+  return withHint(request, NextResponse.next({ request: { headers } }));
 }
 
 export const config = {

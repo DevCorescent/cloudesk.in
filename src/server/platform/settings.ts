@@ -13,6 +13,7 @@ import { PLAN_IDS } from "@/lib/platform/plans";
 import { MODULE_IDS } from "@/lib/workspace/modules";
 import { ApiError } from "../http/errors";
 import { audit } from "../services/audit";
+import { refreshPublicPages } from "./public-pages";
 
 const url = z.union([z.literal(""), z.url({ protocol: /^https?$/ }).max(300)]).default("");
 const domain = z.string().trim().toLowerCase().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/, "Enter domains like example.com");
@@ -213,6 +214,7 @@ export async function saveSection(adminId: string, section: string, raw: unknown
   await db.insert(schema.platformSettings).values({ key: section, value, updatedBy: adminId }).onConflictDoUpdate({ target: schema.platformSettings.key, set: { value, updatedBy: adminId, updatedAt: new Date() } });
   await audit({ actorId: adminId, action: `platform.settings_${section}`, targetType: "platform_settings", targetId: section, metadata: section === "golive" ? { items: Object.keys((value as { done: object }).done).length } : value });
   clearSettingsCache();
+  refreshPublicPages();
   return (await settings())[section];
 }
 

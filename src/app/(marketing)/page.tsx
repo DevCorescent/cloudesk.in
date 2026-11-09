@@ -11,7 +11,6 @@ import { isDiwali, launchOffer } from "@/lib/festive";
 import { PlatformTrio } from "@/components/marketing/platform-trio";
 import { SiteJsonLd } from "@/components/legal/json-ld";
 import { MobileIntro } from "@/components/marketing/mobile-intro";
-import { getPageSession } from "@/server/auth/page-session";
 
 export const metadata: Metadata = {
   title: "Cloudesk — your website, store and business software, ready in minutes",
@@ -20,14 +19,13 @@ export const metadata: Metadata = {
 
 // The homepage: the hero, the intelligence, the feature films, then one idea
 // per section (the footer and trust strip come from the marketing layout).
-export default async function Landing() {
-  const session = await getPageSession();
+export default function Landing() {
   const diwali = isDiwali();
   return (
     <>
       <SiteJsonLd />
       {/* Phones open on a swipeable intro instead of the long page. */}
-      <MobileIntro signedIn={!!session} diwali={diwali} offer={diwali && !!launchOffer()} />
+      <MobileIntro diwali={diwali} offer={diwali && !!launchOffer()} />
       <HomeHero diwali={diwali} />
       <IntelligenceHighlight />
       {/* ── The feature films ── */}

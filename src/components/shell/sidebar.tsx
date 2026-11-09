@@ -9,7 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import { AppWindow, ArrowLeft, ClipboardCheck, BadgeCheck, Blocks, BookOpenCheck, Bot, Boxes, Building2, Calculator, NotebookPen, CalendarDays, ChevronDown, Code2, Contact, Database, DoorOpen, Factory, FileSignature, Gauge, GraduationCap, Handshake, HardHat, Home, Inbox, KanbanSquare, Landmark, LayoutGrid, LayoutTemplate, LifeBuoy, Lightbulb, Lock, Mail, Megaphone, MessagesSquare, Palette, PanelLeftClose, PanelLeftOpen, PanelsTopLeft, PieChart, ReceiptText, Rocket, ScanLine, Send, Settings, Shapes, ShieldAlert, ShieldCheck, ShoppingBag, Sparkles, Stethoscope, TrendingUp, Truck, Users, UtensilsCrossed, Wand2, Workflow, Wrench } from "lucide-react";
-import Link from "next/link";
+import { IntentLink as Link } from "@/components/ui/intent-link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useShortcuts } from "../ui/shortcut";
 import { createPortal } from "react-dom";

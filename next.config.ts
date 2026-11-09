@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "images.unsplash.com", pathname: "/photo-**" }],
   },
+  experimental: {
+    // App screens are thin (their data comes from the client's query cache), so
+    // one opened in the last 30 seconds comes back instantly instead of asking the server again.
+    staleTimes: { dynamic: 30 },
+  },
   serverExternalPackages: ["@node-rs/argon2", "pg", "quickjs-emscripten", "quickjs-emscripten-core", "@jitl/quickjs-wasmfile-release-sync"],
   turbopack: {
     rules: {

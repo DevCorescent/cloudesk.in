@@ -3504,7 +3504,7 @@ export const accLines = pgTable(
     /** Matched to a bank statement line. */
     reconciledAt: timestamp("reconciled_at", { withTimezone: true }),
   },
-  (t) => [index("acc_lines_account_idx").on(t.accountId), index("acc_lines_journal_idx").on(t.journalId)],
+  (t) => [index("acc_lines_account_idx").on(t.accountId), index("acc_lines_journal_idx").on(t.journalId), index("acc_lines_org_account_idx").on(t.orgId, t.accountId)],
 );
 
 /** Supplier bills and expenses: what you owe (or paid on the spot). */

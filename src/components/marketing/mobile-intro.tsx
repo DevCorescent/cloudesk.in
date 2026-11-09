@@ -19,6 +19,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Wordmark } from "@/components/brand";
 import { IPhone17, type IPhoneColor } from "@/components/marketing/iphone";
+import { useSignedIn } from "@/lib/client/use-signed-in";
 
 // AI mode loads only when it's opened.
 const PublicAiMode = dynamic(() => import("@/components/ai-mode/public-ai").then((m) => m.PublicAiMode), { ssr: false });
@@ -145,7 +146,8 @@ const SLIDES: Slide[] = [
 const FINAL_TONE = "#f08a4b";
 const DIWALI_TONE = "#e0a03a";
 
-export function MobileIntro({ signedIn, diwali = false, offer = false }: { signedIn: boolean; diwali?: boolean; offer?: boolean }) {
+export function MobileIntro({ diwali = false, offer = false }: { diwali?: boolean; offer?: boolean }) {
+  const signedIn = useSignedIn();
   // During Diwali the story opens on the gift (lib/festive.ts), and every screen wears the festival.
   const lead = diwali ? 1 : 0;
   const LAST = SLIDES.length + lead; // the final "start" screen comes after the story
