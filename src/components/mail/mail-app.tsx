@@ -16,7 +16,7 @@ import { Badge, Button, EmptyState, ErrorState, IconButton, Skeleton, cx } from 
 import { KeyboardOnly, Keys, useShortcuts } from "@/components/ui/shortcut";
 import { ApiClientError, errorMessage } from "@/lib/client/api";
 import type { BulkIn, MetaOut, ThreadRow, ThreadsOut } from "@/lib/mail/api";
-import { CATEGORIES, CATEGORY_LABEL, parseSearch, REPLY_CATEGORIES, slaState, type Category, type View } from "@/lib/mail/model";
+import { CATEGORIES, CATEGORY_LABEL, parseSearch, REPLY_CATEGORIES, slaState, VIEWS, type Category, type View } from "@/lib/mail/model";
 import { Composer } from "./compose";
 import { ConnectWizard, MailWelcome } from "./connect";
 import { MailSettings, ShortcutList } from "./settings";
@@ -133,7 +133,9 @@ function Inbox3({ meta, onAdd, initialOpen }: { meta: MetaOut; onAdd: () => void
   const toast = useToast();
   const refresh = useMailRefresh();
   const [account, setAccount] = useState<string>("all");
-  const [view, setView] = useState<View>("inbox");
+  // A link can open a view straight away (/mail?view=needsreply from analytics).
+  const startView = useSearchParams().get("view");
+  const [view, setView] = useState<View>(() => ((VIEWS as readonly string[]).includes(startView ?? "") ? (startView as View) : "inbox"));
   const [category, setCategory] = useState<Category | "all">("all");
   const [label, setLabel] = useState<string | null>(null);
   const [q, setQ] = useState("");

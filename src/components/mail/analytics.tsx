@@ -5,7 +5,7 @@
 // owed right now, and per mailbox and per teammate. Every number comes from
 // the stored mail for the chosen period; the previous period is shown beside it.
 import { useQuery } from "@tanstack/react-query";
-import { AlarmClock, ArrowDown, ArrowLeft, ArrowUp, Clock, Gauge, Inbox, Mail, MessageSquareReply, Send, Target } from "lucide-react";
+import { AlarmClock, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CalendarClock, ChevronRight, Clock, Gauge, Inbox, Lightbulb, Mail, MessageSquareReply, Newspaper, Send, Target, TrendingDown, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { ChartView, type Result } from "@/components/bi/chart";
@@ -85,7 +85,9 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
             <Kpi icon={<AlarmClock />} hue="rose" label="Needs reply now" value={num(a.totals.needsReply)} tone={a.totals.overdue ? "danger" : undefined} hint={a.totals.overdue ? `${num(a.totals.overdue)} past the target` : "None overdue"} />
           </div>
 
-          <Card title="Mail in and out" sub="Received and sent each day (auto-replies left out)">
+          <Highlights a={a} noTarget={noTarget} />
+
+          <Card title="Mail in and out" sub="Received and sent each day (auto-replies left out)" aside={<span>{num(a.totals.received)} in · {num(a.totals.sent)} out</span>}>
             <ChartView kind="line" r={dailyResult(a)} />
           </Card>
 
@@ -99,34 +101,35 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card title="Needs a reply — oldest first" sub="Personal mail where they wrote last" className="lg:col-span-1">
+            <Card title="Needs a reply" sub="Personal mail where they wrote last — oldest first" aside={a.totals.needsReply ? <span className={cx(a.totals.overdue && "font-semibold text-danger")}>{num(a.totals.needsReply)} waiting</span> : undefined}>
               {a.oldestWaiting.length ? (
-                <ul className="-mx-1 grid gap-0.5">
+                <ul className="-mx-1.5 grid grid-cols-[minmax(0,1fr)] gap-0.5">
                   {a.oldestWaiting.map((w) => (
-                    <li key={w.id}>
-                      <Link href={`/mail/t/${w.id}`} className="flex items-center gap-3 rounded-[12px] px-2 py-2 hover:bg-surface-2">
-                        <Avatar p={{ name: w.from, address: w.from }} size={30} />
+                    <li key={w.id} className="min-w-0">
+                      <Link href={`/mail/t/${w.id}`} title={w.subject || "(no subject)"} className="group flex min-w-0 items-center gap-3 rounded-[12px] px-1.5 py-2 transition-colors hover:bg-surface-2">
+                        <Avatar p={{ name: w.from, address: w.from }} size={32} />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-medium">{w.subject || "(no subject)"}</span>
                           <span className="block truncate text-[12px] text-muted">{w.from}</span>
                         </span>
-                        <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-medium tabular-nums", w.overdue ? "bg-danger-soft text-danger" : "bg-surface-2 text-muted")}>{fmtMinutes(w.waitingMin)}</span>
+                        <span className={cx("shrink-0 rounded-full px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap tabular-nums", w.overdue || w.waitingMin >= 7 * 1440 ? "bg-danger-soft text-danger" : w.waitingMin >= 1440 ? "bg-warning/12 text-warning" : "bg-surface-2 text-muted")}>{fmtMinutes(w.waitingMin)}</span>
+                        <ChevronRight className="size-4 shrink-0 text-subtle opacity-0 transition-opacity group-hover:opacity-100 max-sm:hidden" aria-hidden />
                       </Link>
                     </li>
                   ))}
                 </ul>
               ) : <Quiet>Nobody is waiting on you. 🎉</Quiet>}
             </Card>
-            <Card title="Top senders" sub="Who sent the most">
-              <Ranked rows={a.senders.map((x) => ({ key: x.address, label: x.name || x.address, sub: x.name ? x.address : undefined, n: x.n }))} />
-              <Link href="/mail/cleanup" className="mt-3 inline-flex text-[12.5px] font-medium text-sky-700 hover:underline dark:text-sky-400">Clean up senders →</Link>
+            <Card title="Top senders" sub="Who sent you the most" aside={a.senders.length ? <span title="Share of received mail from these senders">Top {a.senders.length} · {share(a.senders.reduce((t, x) => t + x.n, 0), a.totals.received)}</span> : undefined}>
+              <Ranked total={a.totals.received} avatars rows={a.senders.map((x) => ({ key: x.address, label: x.name || x.address, sub: x.address, n: x.n }))} />
+              <Link href="/mail/cleanup" className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-medium text-sky-700 hover:underline dark:text-sky-400">Clean up senders <ArrowRight className="size-3.5" /></Link>
             </Card>
-            <Card title="By category" sub="Where received mail was sorted">
-              <Ranked rows={a.categories.map((x) => ({ key: x.category, label: CATEGORY_LABEL[x.category] ?? x.category, n: x.n }))} />
+            <Card title="By category" sub="Where received mail was sorted" aside={<span>{num(a.totals.received)} emails</span>}>
+              <Ranked total={a.totals.received} rows={a.categories.map((x) => ({ key: x.category, label: CATEGORY_LABEL[x.category] ?? x.category, n: x.n }))} />
               {a.domains.length > 0 && (
                 <>
-                  <p className="mt-4 mb-1.5 text-[11.5px] font-semibold tracking-[0.08em] text-subtle uppercase">Top domains</p>
-                  <Ranked rows={a.domains.slice(0, 5).map((x) => ({ key: x.domain, label: x.domain, n: x.n }))} />
+                  <p className="mt-5 mb-2 text-[11px] font-semibold tracking-[0.1em] text-subtle uppercase">Top domains</p>
+                  <Ranked total={a.totals.received} rows={a.domains.slice(0, 5).map((x) => ({ key: x.domain, label: x.domain, n: x.n }))} />
                 </>
               )}
             </Card>
@@ -176,10 +179,10 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
               </div>
             </Card>
             {a.people.length > 0 && (
-              <Card title="Who replied" sub="Replies to personal mail, by person">
-                <ul className="grid gap-2">
+              <Card title="Who replied" sub="Replies to personal mail, by person" aside={<span>{num(a.people.reduce((t, p) => t + p.replies, 0))} replies</span>}>
+                <ul className="grid grid-cols-[minmax(0,1fr)] gap-3">
                   {a.people.map((p) => (
-                    <li key={p.id ?? "outside"} className="flex min-w-0 items-center gap-3 text-[13px]">
+                    <li key={p.id ?? "outside"} className="flex min-w-0 items-center gap-3 text-[13px]" title={p.name}>
                       <Avatar p={{ name: p.name, address: p.name }} size={30} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-medium">{p.name}</span>
@@ -202,15 +205,22 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
   );
 }
 
-function Card({ title, sub, children, className }: { title: string; sub?: string; children: ReactNode; className?: string }) {
+function Card({ title, sub, aside, children, className }: { title: string; sub?: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx("min-w-0 rounded-[20px] border border-border bg-surface p-4 sm:p-5", className)}>
-      <h2 className="text-[14.5px] font-semibold tracking-[-0.01em]">{title}</h2>
-      {sub && <p className="mt-0.5 text-[12px] text-muted">{sub}</p>}
-      <div className="mt-3">{children}</div>
+    <section className={cx("min-w-0 overflow-hidden rounded-[20px] border border-border bg-surface p-4 sm:p-5", className)}>
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-[14.5px] font-semibold tracking-[-0.01em]">{title}</h2>
+          {sub && <p className="mt-0.5 text-[12px] text-muted">{sub}</p>}
+        </div>
+        {aside && <div className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-[11.5px] font-medium whitespace-nowrap text-muted tabular-nums">{aside}</div>}
+      </div>
+      <div className="mt-4 min-w-0">{children}</div>
     </section>
   );
 }
+
+const share = (n: number, of: number) => (of > 0 ? `${Math.round((n / of) * 100)}%` : "—");
 
 const Stat = ({ k, v, wide }: { k: string; v: string; wide?: boolean }) => (
   <div className={cx("min-w-0", wide && "col-span-2")}>
@@ -271,22 +281,59 @@ function simple(dim: string, measure: string, rows: [string, number][]): Result 
   return { dims: 1, columns: [{ key: "k", label: dim, type: "text" }, { key: "n", label: measure, type: "count" }], rows, totals: [null, rows.reduce((s, r) => s + r[1], 0)], range: { from: null, to: null }, truncated: false };
 }
 
-/** Ranked list with a magnitude bar in one hue. */
-function Ranked({ rows }: { rows: { key: string; label: string; sub?: string; n: number }[] }) {
+/** Ranked list with a magnitude bar in one hue, each row's share of the total beside its count. */
+function Ranked({ rows, total, avatars }: { rows: { key: string; label: string; sub?: string; n: number }[]; total: number; avatars?: boolean }) {
   if (!rows.length) return <Quiet>Nothing yet.</Quiet>;
   const max = Math.max(...rows.map((r) => r.n), 1);
   return (
-    <ul className="grid gap-2.5">
+    <ul className="grid grid-cols-[minmax(0,1fr)] gap-3">
       {rows.map((r) => (
-        <li key={r.key} className="text-[13px]">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="min-w-0 truncate font-medium" title={r.sub ?? r.label}>{r.label}</span>
-            <span className="shrink-0 tabular-nums text-muted">{num(r.n)}</span>
+        <li key={r.key} className="flex min-w-0 items-center gap-2.5 text-[13px]" title={r.sub && r.sub !== r.label ? `${r.label} <${r.sub}>` : r.label}>
+          {avatars && <Avatar p={{ name: r.label, address: r.sub ?? r.label }} size={26} />}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-baseline justify-between gap-3">
+              <span className="min-w-0 truncate font-medium">{r.label}</span>
+              <span className="shrink-0 tabular-nums"><span className="font-semibold">{num(r.n)}</span><span className="ml-1.5 text-[11.5px] text-subtle">{share(r.n, total)}</span></span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-[var(--viz-1)]" style={{ width: `${Math.max(3, (r.n / max) * 100)}%` }} /></div>
           </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2"><div className="h-full rounded-full bg-[var(--viz-1)]" style={{ width: `${Math.max(3, (r.n / max) * 100)}%` }} /></div>
         </li>
       ))}
     </ul>
+  );
+}
+
+/** What the numbers say, in plain words: the few things worth acting on this period. */
+function Highlights({ a, noTarget }: { a: MailStats; noTarget: boolean }) {
+  const out: { icon: ReactNode; tone: string; text: ReactNode; href?: string; cta?: string }[] = [];
+  const waiting = a.oldestWaiting[0];
+  if (a.totals.needsReply)
+    out.push({ icon: <AlarmClock />, tone: a.totals.overdue ? "bg-rose-500/12 text-rose-700 dark:text-rose-300" : "bg-amber-500/14 text-amber-700 dark:text-amber-300", text: <><b className="font-semibold text-fg">{num(a.totals.needsReply)} {a.totals.needsReply === 1 ? "person is" : "people are"} waiting</b> for a reply{waiting ? <> — the longest for {fmtMinutes(waiting.waitingMin)}</> : null}.</>, href: "/mail?view=needsreply", cta: "Answer them" });
+  const noisy = a.categories.filter((c) => ["updates", "newsletters", "promotions", "social"].includes(c.category)).reduce((t, c) => t + c.n, 0);
+  if (a.totals.received && noisy / a.totals.received >= 0.3)
+    out.push({ icon: <Newspaper />, tone: "bg-sky-500/12 text-sky-700 dark:text-sky-300", text: <><b className="font-semibold text-fg">{share(noisy, a.totals.received)} of your mail</b> is updates, newsletters and promotions{a.senders[0] ? <> — {a.senders[0].name || a.senders[0].address} alone sent {num(a.senders[0].n)}</> : null}.</>, href: "/mail/cleanup", cta: "Clean up" });
+  const flat = a.hours.flatMap((row, d) => row.map((v, h) => ({ d, h, v }))).sort((x, y) => y.v - x.v)[0];
+  if (flat && flat.v > 1) out.push({ icon: <CalendarClock />, tone: "bg-violet-500/12 text-violet-700 dark:text-violet-300", text: <>Most mail lands on <b className="font-semibold text-fg">{["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"][flat.d]} around {String(flat.h).padStart(2, "0")}:00</b> — a good hour to keep free for replies.</> });
+  const now = a.totals.medianReplyMin, before = a.prev.medianReplyMin;
+  if (now !== null && before !== null && before > 0 && Math.abs(now - before) / before >= 0.15) {
+    const faster = now < before;
+    out.push({ icon: faster ? <TrendingDown /> : <TrendingUp />, tone: faster ? "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" : "bg-rose-500/12 text-rose-700 dark:text-rose-300", text: <>You reply <b className="font-semibold text-fg">{faster ? "faster" : "slower"} than before</b> — typically {fmtMinutes(now)}, against {fmtMinutes(before)} the {a.range.days} days before.</> });
+  }
+  if (noTarget) out.push({ icon: <Target />, tone: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300", text: <>Set a <b className="font-semibold text-fg">reply target</b> (say, 24 hours) to see how much mail you answer in time.</>, href: "/mail/settings", cta: "Set one" });
+  if (!out.length) return null;
+  return (
+    <section aria-label="Highlights" className="min-w-0 rounded-[20px] border border-border bg-[linear-gradient(135deg,rgb(14_165_233/0.06),transparent_45%,rgb(139_92_246/0.06))] p-4 sm:p-5">
+      <h2 className="flex items-center gap-2 text-[14.5px] font-semibold tracking-[-0.01em]"><span className="grid size-7 place-items-center rounded-[9px] bg-amber-500/14 text-amber-700 dark:text-amber-300"><Lightbulb className="size-3.5" /></span>Highlights</h2>
+      <ul className="mt-3 grid grid-cols-[minmax(0,1fr)] gap-2 md:grid-cols-2">
+        {out.slice(0, 4).map((x, i) => (
+          <li key={i} className="flex min-w-0 flex-wrap items-start gap-x-3 gap-y-2 rounded-[14px] bg-[var(--surface-solid)] p-3 shadow-[inset_0_0_0_1px_var(--border)]">
+            <span className={cx("grid size-8 shrink-0 place-items-center rounded-[10px] [&>svg]:size-4", x.tone)}>{x.icon}</span>
+            <p className="min-w-0 flex-1 basis-[calc(100%-44px)] text-[13px] leading-relaxed text-muted sm:basis-0">{x.text}</p>
+            {x.href && <Link href={x.href} className="shrink-0 self-center rounded-full border border-border px-2.5 py-1 max-sm:ml-11 max-sm:self-start text-[12px] font-medium whitespace-nowrap text-fg transition-colors hover:bg-surface-2">{x.cta}</Link>}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
