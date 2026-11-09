@@ -140,9 +140,9 @@ export function OrderEditor({ init, onDone }: { init?: Order; onDone?: () => voi
     <div>
       {!init && <Link href="/sales/orders" className="mb-2 inline-flex items-center gap-1 text-[13px] text-muted hover:text-fg"><ArrowLeft className="size-3.5" /> Orders</Link>}
       <PageHeader title={init ? `Edit ${init.number}` : "New sales order"} description={deal.data ? `From the deal “${deal.data.title}”${deal.data.clientId ? "" : ` — add ${deal.data.customer} as a client in your invoicing books to pick them`}` : "Prices come from the customer's price list; you can change them."} actions={<div className="flex gap-2">{onDone && <Button size="sm" onClick={onDone}>Cancel</Button>}<Button size="sm" variant="primary" loading={save.isPending} disabled={!body.clientId || !body.ownerId || !body.lines.length} onClick={() => save.mutate()}>Save draft</Button></div>} />
-      <div className="grid gap-5">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-5">
         <Section title="Customer">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-[repeat(3,minmax(0,1fr))]">
             <Field label="Customer" className="sm:col-span-2">
               {(a) => (
                 <Select {...a} value={clientId} disabled={!!init} onChange={(e) => setF({ ...f, clientId: e.target.value })}>

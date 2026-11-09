@@ -49,16 +49,16 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
           <h1 className="text-[24px] font-semibold tracking-[-0.025em]">Mail analytics</h1>
           <p className="mt-0.5 text-[13px] text-muted">{a ? `${new Date(`${a.range.from}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" })} – ${new Date(`${a.range.to}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })} · compared with the ${days} days before` : "How much mail comes and goes, and how fast it's answered."}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {meta.accounts.length > 1 && (
-            <Select aria-label="Mailbox" value={account} onChange={(e) => setAccount(e.target.value)} className="!h-9 !w-auto">
+            <Select aria-label="Mailbox" value={account} onChange={(e) => setAccount(e.target.value)} className="!h-9 max-sm:!w-full sm:!w-auto">
               <option value="all">All mailboxes</option>
               {meta.accounts.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
             </Select>
           )}
-          <div role="radiogroup" aria-label="Period" className="inline-flex rounded-full bg-surface-2 p-1">
+          <div role="radiogroup" aria-label="Period" className="grid w-full grid-cols-3 rounded-full bg-surface-2 p-1 sm:inline-flex sm:w-auto">
             {[7, 30, 90].map((d) => (
-              <button key={d} type="button" role="radio" aria-checked={days === d} onClick={() => setDays(d)} className={cx("h-7 rounded-full px-3.5 text-[12.5px] font-medium transition-colors", days === d ? "bg-[var(--surface-solid)] text-fg shadow-sm" : "text-muted hover:text-fg")}>{d} days</button>
+              <button key={d} type="button" role="radio" aria-checked={days === d} onClick={() => setDays(d)} className={cx("h-8 rounded-full px-3.5 text-[12.5px] font-medium transition-colors sm:h-7", days === d ? "bg-[var(--surface-solid)] text-fg shadow-sm" : "text-muted hover:text-fg")}>{d} days</button>
             ))}
           </div>
         </div>
@@ -77,12 +77,12 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
         <div className="mt-6 grid gap-4">
           {/* Headline numbers */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <Kpi icon={<Inbox />} label="Received" value={num(a.totals.received)} now={a.totals.received} before={a.prev.received} />
-            <Kpi icon={<Send />} label="Sent" value={num(a.totals.sent)} now={a.totals.sent} before={a.prev.sent} hint={a.totals.autoReplies ? `+ ${a.totals.autoReplies} auto-replies` : undefined} />
-            <Kpi icon={<Clock />} label="Typical reply time" value={fmtMinutes(a.totals.medianReplyMin)} now={a.totals.medianReplyMin} before={a.prev.medianReplyMin} lowerIsBetter hint="Median, personal mail" />
-            <Kpi icon={<MessageSquareReply />} label="Reply rate" value={pct(a.totals.replyRate)} now={a.totals.replyRate} before={a.prev.replyRate} points hint={`${num(a.totals.replied)} of ${num(a.totals.owed)} answered`} />
-            <Kpi icon={<Target />} label="Within target" value={noTarget ? "No target" : pct(a.totals.withinSla)} hint={noTarget ? undefined : "Answered inside each mailbox's target"} action={noTarget ? <Link href="/mail/settings" className="text-[12px] font-medium text-sky-700 hover:underline dark:text-sky-400">Set a reply target</Link> : undefined} />
-            <Kpi icon={<AlarmClock />} label="Needs reply now" value={num(a.totals.needsReply)} tone={a.totals.overdue ? "danger" : undefined} hint={a.totals.overdue ? `${num(a.totals.overdue)} past the target` : "None overdue"} />
+            <Kpi icon={<Inbox />} hue="sky" label="Received" value={num(a.totals.received)} now={a.totals.received} before={a.prev.received} />
+            <Kpi icon={<Send />} hue="violet" label="Sent" value={num(a.totals.sent)} now={a.totals.sent} before={a.prev.sent} hint={a.totals.autoReplies ? `+ ${a.totals.autoReplies} auto-replies` : undefined} />
+            <Kpi icon={<Clock />} hue="amber" label="Typical reply time" value={fmtMinutes(a.totals.medianReplyMin)} now={a.totals.medianReplyMin} before={a.prev.medianReplyMin} lowerIsBetter hint="Median, personal mail" />
+            <Kpi icon={<MessageSquareReply />} hue="emerald" label="Reply rate" value={pct(a.totals.replyRate)} now={a.totals.replyRate} before={a.prev.replyRate} points hint={`${num(a.totals.replied)} of ${num(a.totals.owed)} answered`} />
+            <Kpi icon={<Target />} hue="indigo" label="Within target" value={noTarget ? "No target" : pct(a.totals.withinSla)} hint={noTarget ? undefined : "Answered inside each mailbox's target"} action={noTarget ? <Link href="/mail/settings" className="text-[12px] font-medium text-sky-700 hover:underline dark:text-sky-400">Set a reply target</Link> : undefined} />
+            <Kpi icon={<AlarmClock />} hue="rose" label="Needs reply now" value={num(a.totals.needsReply)} tone={a.totals.overdue ? "danger" : undefined} hint={a.totals.overdue ? `${num(a.totals.overdue)} past the target` : "None overdue"} />
           </div>
 
           <Card title="Mail in and out" sub="Received and sent each day (auto-replies left out)">
@@ -134,8 +134,22 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
 
           <div className={cx("grid gap-4", a.people.length > 0 && "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]")}>
             <Card title="By mailbox" sub="Mail, reply times and what's owed">
-              <div className="-mx-4 overflow-x-auto px-4">
-                <table className="w-full min-w-[560px] text-[13px]">
+              <ul className="grid gap-2 sm:hidden">
+                {a.mailboxes.map((m) => (
+                  <li key={m.id} className="rounded-[14px] border border-border p-3">
+                    <p className="flex min-w-0 items-center gap-2 text-[13.5px] font-medium"><span className="size-2.5 shrink-0 rounded-full" style={{ background: m.color }} /><span className="truncate">{m.name}</span>{m.overdue > 0 && <span className="ml-auto shrink-0 rounded-full bg-danger-soft px-1.5 text-[11px] font-medium text-danger">{m.overdue} late</span>}</p>
+                    <dl className="mt-2.5 grid grid-cols-3 gap-x-3 gap-y-2.5 text-[12px] tabular-nums">
+                      <Stat k="Received" v={num(m.received)} />
+                      <Stat k="Sent" v={num(m.sent)} />
+                      <Stat k="Owed now" v={num(m.needsReply)} />
+                      <Stat k="Typical reply" v={fmtMinutes(m.medianReplyMin)} />
+                      <Stat k="Within target" v={m.slaHours ? `${pct(m.withinSla)} · ${m.slaHours}h` : "No target"} wide />
+                    </dl>
+                  </li>
+                ))}
+              </ul>
+              <div className="-mx-4 hidden overflow-x-auto px-4 sm:block">
+                <table className="w-full min-w-[520px] text-[13px]">
                   <thead>
                     <tr className="text-left text-[11.5px] text-muted">
                       <th className="py-2 pr-3 font-medium">Mailbox</th>
@@ -165,18 +179,23 @@ export function MailAnalytics({ meta }: { meta: MetaOut }) {
               <Card title="Who replied" sub="Replies to personal mail, by person">
                 <ul className="grid gap-2">
                   {a.people.map((p) => (
-                    <li key={p.id ?? "outside"} className="flex items-center gap-3 text-[13px]">
-                      <Avatar p={{ name: p.name, address: p.name }} size={28} />
-                      <span className="min-w-0 flex-1 truncate font-medium">{p.name}{!p.id && <span className="ml-1 font-normal text-muted">(from another app)</span>}</span>
-                      <span className="tabular-nums text-muted">{num(p.replies)} {p.replies === 1 ? "reply" : "replies"}</span>
-                      <span className="w-20 text-right tabular-nums">{fmtMinutes(p.medianReplyMin)}</span>
+                    <li key={p.id ?? "outside"} className="flex min-w-0 items-center gap-3 text-[13px]">
+                      <Avatar p={{ name: p.name, address: p.name }} size={30} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{p.name}</span>
+                        <span className="block truncate text-[12px] text-muted">{num(p.replies)} {p.replies === 1 ? "reply" : "replies"}{!p.id && " · from another app"}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-[13px] font-semibold tabular-nums">{fmtMinutes(p.medianReplyMin)}</span>
+                        <span className="block text-[11px] text-subtle">typical</span>
+                      </span>
                     </li>
                   ))}
                 </ul>
               </Card>
             )}
           </div>
-          <p className="flex items-center gap-1.5 text-[12px] text-muted"><Gauge className="size-3.5" /> Reply times count from their first unanswered email to your first real reply; auto-replies don&apos;t count. Reply rate and targets look at personal mail (Primary, People and New senders).</p>
+          <p className="flex items-start gap-1.5 text-[12px] leading-relaxed text-muted"><Gauge className="mt-0.5 size-3.5 shrink-0" /> Reply times count from their first unanswered email to your first real reply; auto-replies don&apos;t count. Reply rate and targets look at personal mail (Primary, People and New senders).</p>
         </div>
       )}
     </div>
@@ -193,20 +212,39 @@ function Card({ title, sub, children, className }: { title: string; sub?: string
   );
 }
 
+const Stat = ({ k, v, wide }: { k: string; v: string; wide?: boolean }) => (
+  <div className={cx("min-w-0", wide && "col-span-2")}>
+    <dt className="text-[11px] text-muted">{k}</dt>
+    <dd className="truncate font-medium">{v}</dd>
+  </div>
+);
+
 const Quiet = ({ children }: { children: ReactNode }) => <p className="py-8 text-center text-[13px] text-muted">{children}</p>;
 
 /** A headline number with its change from the period before; arrows say which way, words say whether that's good. */
-function Kpi({ icon, label, value, now, before, lowerIsBetter, points, hint, action, tone }: { icon: ReactNode; label: string; value: string; now?: number | null; before?: number | null; lowerIsBetter?: boolean; points?: boolean; hint?: string; action?: ReactNode; tone?: "danger" }) {
+const HUE = {
+  sky: "bg-sky-500/12 text-sky-700 dark:text-sky-300",
+  violet: "bg-violet-500/12 text-violet-700 dark:text-violet-300",
+  amber: "bg-amber-500/14 text-amber-700 dark:text-amber-300",
+  emerald: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
+  indigo: "bg-indigo-500/12 text-indigo-700 dark:text-indigo-300",
+  rose: "bg-rose-500/12 text-rose-700 dark:text-rose-300",
+} as const;
+
+function Kpi({ icon, hue, label, value, now, before, lowerIsBetter, points, hint, action, tone }: { icon: ReactNode; hue: keyof typeof HUE; label: string; value: string; now?: number | null; before?: number | null; lowerIsBetter?: boolean; points?: boolean; hint?: string; action?: ReactNode; tone?: "danger" }) {
   let change: { text: string; good: boolean; up: boolean } | null = null;
   if (now !== undefined && now !== null && before !== undefined && before !== null && (before > 0 || points)) {
     const diff = points ? now - before : ((now - before) / before) * 100;
     if (Math.abs(diff) >= 0.5) change = { text: points ? `${Math.abs(diff).toFixed(1)} pts` : `${Math.abs(Math.round(diff))}%`, up: diff > 0, good: lowerIsBetter ? diff < 0 : diff > 0 };
   }
   return (
-    <div className="rounded-[18px] border border-border bg-surface p-4">
-      <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted [&>svg]:size-3.5">{icon}{label}</p>
-      <p className={cx("mt-2 text-[22px] leading-none font-semibold tracking-[-0.02em] tabular-nums", tone === "danger" && "text-danger")}>{value}</p>
-      <div className="mt-2 min-h-[18px] text-[11.5px] text-muted">
+    <div className="flex min-w-0 flex-col rounded-[18px] border border-border bg-surface p-3.5 sm:p-4">
+      <p className="flex min-w-0 items-center gap-2 text-[12px] font-medium text-muted">
+        <span className={cx("grid size-7 shrink-0 place-items-center rounded-[9px] [&>svg]:size-3.5", HUE[hue])}>{icon}</span>
+        <span className="truncate">{label}</span>
+      </p>
+      <p className={cx("mt-3 truncate text-[22px] leading-none font-semibold tracking-[-0.02em] tabular-nums sm:text-[24px]", tone === "danger" && "text-danger")}>{value}</p>
+      <div className="mt-2 min-h-[18px] text-[11.5px] leading-snug text-muted">
         {change ? (
           <span className={cx("inline-flex items-center gap-0.5 font-medium", change.good ? "text-success" : "text-danger")}>
             {change.up ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />}{change.text}
@@ -263,8 +301,8 @@ function Heatmap({ hours }: { hours: number[][] }) {
   const range = (h: number) => `${String(h).padStart(2, "0")}:00–${String((h + 1) % 24).padStart(2, "0")}:00`;
   return (
     <div>
-      <div className="overflow-x-auto">
-        <div className="grid min-w-[440px] grid-cols-[34px_repeat(24,minmax(0,1fr))] gap-[3px]" onMouseLeave={() => setHover(null)}>
+      <div>
+        <div className="grid grid-cols-[28px_repeat(24,minmax(0,1fr))] gap-[2px] sm:grid-cols-[34px_repeat(24,minmax(0,1fr))] sm:gap-[3px]" onMouseLeave={() => setHover(null)}>
           {hours.map((row, d) => (
             <div key={d} className="contents">
               <span className="pr-1 text-right text-[11px] leading-[16px] text-muted">{WEEKDAYS[d]}</span>
@@ -276,7 +314,7 @@ function Heatmap({ hours }: { hours: number[][] }) {
                   aria-label={`${WEEKDAYS[d]} ${range(h)}: ${v} emails`}
                   onMouseEnter={() => setHover({ d, h })}
                   onFocus={() => setHover({ d, h })}
-                  className={cx("h-4 rounded-[3px] outline-none", hover?.d === d && hover.h === h && "ring-2 ring-fg/60")}
+                  className={cx("h-3.5 rounded-[2px] outline-none sm:h-4 sm:rounded-[3px]", hover?.d === d && hover.h === h && "ring-2 ring-fg/60")}
                   style={{ background: fill[level(v)] }}
                 />
               ))}

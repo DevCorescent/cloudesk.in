@@ -328,7 +328,7 @@ export function Stat({ label, value, sub, tone, onClick }: { label: string; valu
 
 export function Section({ title, action, children, className }: { title: ReactNode; action?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-[20px] border border-border bg-surface p-4 shadow-sm sm:p-5", className)}>
+    <section className={cx("min-w-0 rounded-[20px] border border-border bg-surface p-4 shadow-sm sm:p-5", className)}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="text-[14px] font-semibold">{title}</h2>
         {action}

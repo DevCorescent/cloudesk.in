@@ -1689,6 +1689,8 @@ dialog.stat-pop { background: var(--glass-strong) !important; }
    nothing is squeezed into a column a few letters wide. */
 @media (max-width: 639.98px) {
   table.form-lines, table.form-lines tbody, table.form-lines tfoot { display: block; width: 100%; }
+  /* Cards fit the phone: the sideways width the table needs on bigger screens doesn't apply. */
+  table.form-lines { min-width: 0 !important; }
   table.form-lines thead { display: none; }
   table.form-lines tbody tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 10px; margin-bottom: 10px; padding: 12px 12px 12px; border-radius: 16px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--border); }
   table.form-lines tbody td { display: block; min-width: 0; width: auto !important; padding: 0 !important; text-align: left !important; }
