@@ -5,18 +5,21 @@
 // the copilot, which answers from the workspace's data within the person's
 // role. Setup shortcuts lead the screen while the workspace is still new.
 import { useQuery } from "@tanstack/react-query";
-import { BadgeIndianRupee, BookOpen, Boxes, Brain, Briefcase, Building2, CalendarDays, ChartColumn, ChevronDown, ChevronRight, ClipboardList, Compass, Contact, FileSearch, FileSignature, Inbox, Landmark, Mail, MessageSquareWarning, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
+import { AlarmClock, BadgeIndianRupee, BookOpen, Boxes, Brain, Briefcase, Building2, CalendarDays, ChartColumn, ChartLine, ChevronDown, ChevronRight, ClipboardList, Compass, Contact, CornerDownRight, FileSearch, FileSignature, Inbox, Landmark, LayoutDashboard, Mail, MailCheck, MessageSquareWarning, PenLine, Receipt, Scale, Sparkles, TrendingUp, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/components/shell/session-context";
 import { api, apiStream, errorMessage } from "@/lib/client/api";
 import { ADVISORS, advisorById, DOC_KIND_INFO, type AdvisorId, type DocKind } from "@/lib/copilot/advisors";
+import type { ChartSpec } from "@/lib/copilot/model";
+import { AnswerChart } from "@/components/copilot/answer-chart";
 import { industryById, visibleTo } from "@/lib/workspace/modules";
 import { ActionCard, confirmAll, type CopilotAction } from "./action-card";
 import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
 import { AiHome, type Pulse } from "./ai-home";
 import { InboxCard } from "./inbox-card";
+import { HistorySheet } from "./history-sheet";
 import { KnowledgeSheet } from "./knowledge-sheet";
 
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
@@ -26,7 +29,16 @@ type BriefItem = { text: string; sub?: string; href?: string; tone?: "danger" | 
 type BriefTip = { label: string; prompt: string };
 type Brief = { today: BriefItem[]; attention: BriefItem[]; suggestions: BriefTip[]; updates: BriefTip[]; counts: { meetings: number; replies: number; overdueInvoices: number; overdueTasks: number } };
 type Doc = { attachmentId: string; kind: string; title: string; facts: string[] };
-type Thread = { id: string; items: ({ role: "user" | "assistant"; text: string } | { role: "tool"; label: string; doc?: Doc })[]; actions: CopilotAction[] };
+type Item = { role: "user"; text: string; files?: { name: string; mime: string }[] } | { role: "assistant"; text: string } | { role: "tool"; label: string; toolUseId?: string; doc?: Doc } | { role: "chart"; chart: ChartSpec } | { role: "next"; prompts: string[] };
+type Thread = { id: string; items: Item[]; actions: (CopilotAction & { toolUseId?: string })[] };
+/** The conversation open in AI mode, so a reload (or coming back to the tab) picks it up again. */
+const KEEP = (orgId: string) => `cc-ai-thread:${orgId}`;
+const keep = (orgId: string, id: string | null) => {
+  try {
+    if (id) sessionStorage.setItem(KEEP(orgId), id);
+    else sessionStorage.removeItem(KEEP(orgId));
+  } catch {}
+};
 const ADVISOR_ICON: Record<string, LucideIcon> = { sparkles: Sparkles, landmark: Landmark, scale: Scale, trending: TrendingUp, boxes: Boxes, users: Users, compass: Compass };
 
 /** Photos are shrunk before they're sent (a phone photo is 3–8 MB; 1,800 px is plenty to read). */
@@ -105,6 +117,9 @@ export function AppAiMode() {
   const [advisor, setAdvisor] = useState<AdvisorId>("general");
   const [picking, setPicking] = useState(false);
   const [knowing, setKnowing] = useState<"" | "business" | "memory">("");
+  // Open with the conversation that was showing, so it can be marked in the list.
+  const [history, setHistory] = useState<false | { current: string | null }>(false);
+  const params = useSearchParams();
   const adv = advisorById(advisor);
   const has = (m: Parameters<typeof visibleTo>[1]) => visibleTo(org, m);
   const copilotOn = has("copilot");
@@ -239,34 +254,12 @@ export function AppAiMode() {
       const t = files.length ? await apiStream<Thread>(url, { form: formOf(text, await Promise.all(files.map(shrink)), advisor) }, onEvent) : await apiStream<Thread>(url, { body: { text, advisor } }, onEvent);
       dropLive();
       thread.current = t.id;
+      keep(org.id, t.id);
       // The answer is everything after the last thing they asked.
       const lastAsk = t.items.map((x) => x.role).lastIndexOf("user");
-      const answer = t.items.slice(lastAsk + 1).filter((x): x is { role: "assistant"; text: string } => x.role === "assistant").map((x) => x.text).join("\n\n");
-      const looked = t.items.slice(lastAsk + 1).filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:"));
-      const docs = t.items.slice(lastAsk + 1).flatMap((x) => (x.role === "tool" && "doc" in x && x.doc ? [x.doc] : []));
       const proposed = t.actions.filter((a) => !shown.current.has(a.id));
       proposed.forEach((a) => shown.current.add(a.id));
-      add({
-        role: "assistant",
-        text: answer || (proposed.length ? "Here's what I've prepared — check it and confirm." : "Done."),
-        node:
-          looked.length || proposed.length || docs.length ? (
-            <>
-              {looked.length > 0 && <p className="ai-looked">{looked.slice(0, 6).join(" · ")}</p>}
-              {docs.map((d) => (
-                <DocCard key={d.attachmentId} doc={d} onAct={(prompt) => void ask(prompt)} />
-              ))}
-              {proposed.map((a) => (
-                <ActionCard key={a.id} orgId={org.id} action={a} />
-              ))}
-              {proposed.filter((a) => a.kind === "send_email" && a.status === "proposed").length > 1 && (
-                <button type="button" className="ai-btn ai-send-all" onClick={() => confirmAll(proposed.filter((a) => a.kind === "send_email").map((a) => a.id))}>
-                  <Mail className="size-4" /> Send all {proposed.filter((a) => a.kind === "send_email").length} emails
-                </button>
-              )}
-            </>
-          ) : undefined,
-      });
+      add(answerOf(t.items.slice(lastAsk + 1), proposed));
     } catch (e) {
       dropLive();
       add({ role: "assistant", text: errorMessage(e) });
@@ -274,6 +267,105 @@ export function AppAiMode() {
       setBusy(false);
     }
   };
+
+  /** One answer: what was said, what was looked up, charts, files it read, suggestions to confirm and follow-ups to tap. */
+  const answerOf = (items: Item[], proposed: Thread["actions"], live = true): Omit<AiMsg, "id"> => {
+    const answer = items.filter((x): x is { role: "assistant"; text: string } => x.role === "assistant").map((x) => x.text).join("\n\n");
+    const looked = items.filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:") && !l.startsWith("Drew a chart") && l !== "Suggested next steps");
+    const docs = items.flatMap((x) => (x.role === "tool" && x.doc ? [x.doc] : []));
+    const charts = items.flatMap((x) => (x.role === "chart" ? [x.chart] : []));
+    const next = items.flatMap((x) => (x.role === "next" ? x.prompts : [])).slice(0, 4);
+    const emails = proposed.filter((a) => a.kind === "send_email" && a.status === "proposed");
+    return {
+      role: "assistant",
+      text: answer || (proposed.length ? "Here's what I've prepared — check it and confirm." : charts.length ? "" : "Done."),
+      node:
+        looked.length || proposed.length || docs.length || charts.length || next.length ? (
+          <>
+            {looked.length > 0 && <p className="ai-looked">{looked.slice(0, 6).join(" · ")}</p>}
+            {charts.map((c, i) => (
+              <AnswerChart key={i} chart={c} />
+            ))}
+            {docs.map((d) => (
+              <DocCard key={d.attachmentId} doc={d} onAct={(prompt) => void ask(prompt)} />
+            ))}
+            {proposed.map((a) => (
+              <ActionCard key={a.id} orgId={org.id} action={a} />
+            ))}
+            {emails.length > 1 && (
+              <button type="button" className="ai-btn ai-send-all" onClick={() => confirmAll(emails.map((a) => a.id))}>
+                <Mail className="size-4" /> Send all {emails.length} emails
+              </button>
+            )}
+            {live && next.length > 0 && (
+              <div className="ai-follow" aria-label="Follow-ups">
+                {next.map((q) => (
+                  <button key={q} type="button" onClick={() => void ask(q)}>
+                    <CornerDownRight className="size-3.5" aria-hidden />
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : undefined,
+    };
+  };
+
+  /** Open an earlier conversation where it was left: each question, then its answer as it was given. */
+  const open = async (tid: string) => {
+    setHistory(false);
+    setBusy(true);
+    try {
+      const t = await api<Thread>(`/api/v1/orgs/${org.id}/copilot/threads/${tid}`);
+      thread.current = t.id;
+      keep(org.id, t.id);
+      shown.current = new Set(t.actions.map((a) => a.id));
+      const out: AiMsg[] = [];
+      let group: Item[] = [];
+      const flush = (last: boolean) => {
+        if (!group.length) return;
+        const ids = new Set(group.flatMap((x) => (x.role === "tool" && x.toolUseId ? [x.toolUseId] : [])));
+        out.push({ id: id(), ...answerOf(group, t.actions.filter((a) => a.toolUseId && ids.has(a.toolUseId)), last) });
+        group = [];
+      };
+      for (const it of t.items) {
+        if (it.role === "user") {
+          flush(false);
+          out.push({ id: id(), role: "user", text: it.text, files: it.files?.map((f) => ({ name: f.name, mime: f.mime })) });
+        } else group.push(it);
+      }
+      flush(true);
+      setMsgs(out);
+    } catch (e) {
+      keep(org.id, null);
+      add({ role: "assistant", text: errorMessage(e) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // A question sent from elsewhere (the dashboard's "Ask AI"), or the conversation that was open before a reload.
+  useEffect(() => {
+    const q = params.get("q")?.trim();
+    const tid = params.get("thread");
+    let kept: string | null = null;
+    try {
+      kept = sessionStorage.getItem(KEEP(org.id));
+    } catch {}
+    if (q || tid) router.replace("/ai", { scroll: false });
+    // Straight after the first paint, so the screen shows before the answer starts.
+    const t = setTimeout(() => {
+      if (tid && /^[0-9a-f-]{36}$/i.test(tid)) void open(tid);
+      else if (q) {
+        keep(org.id, null);
+        void ask(q.slice(0, 4000));
+      } else if (kept) void open(kept);
+    }, 0);
+    return () => clearTimeout(t);
+    // Runs once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Switch advisor, and let them introduce themselves with what to ask. */
   const meet = (id: AdvisorId) => {
@@ -304,6 +396,18 @@ export function AppAiMode() {
       { id: "inbox", title: "Catch me up on email", sub: "What's new, what needs a reply, and drafts ready to send.", icon: Inbox, tone: "#2ec4b6", onPick: () => void ask("Catch me up on my inbox: what's new, and what needs a reply from me? Offer to draft the replies.") },
       { id: "week", title: "Plan my week", sub: "Meetings, overdue invoices and follow-ups in one view.", icon: CalendarDays, tone: "#8b7bff", onPick: () => void ask("What's on my calendar this week, which invoices are overdue, and what should I follow up on?") },
       { id: "ask", title: "Ask about my sales", sub: "This month against last, answered from your own data.", icon: Sparkles, tone: "#ff7aa2", onPick: () => void ask("How did sales do this month compared with last month?") },
+    ],
+  };
+  const analyse: AiSection = {
+    title: "See where the business is heading.",
+    label: "Analyse",
+    cards: [
+      { id: "dash", title: "Explain my dashboard", sub: "What moved, why it matters and what to do.", icon: LayoutDashboard, tone: "#4f5ef7", onPick: () => void ask("Walk me through my dashboard: what moved since the last period, why it matters, and the three things I should do about it.") },
+      { id: "forecast", title: "Forecast my sales", sub: "12 months of trend, this month's pace and the next three.", icon: ChartLine, tone: "#3ccf91", onPick: () => void ask("Show my sales trend for the last 12 months as a chart, how this month is pacing, and a projection for the next three months.") },
+      { id: "mailstats", title: "How am I doing on email?", sub: "Reply times, who's waiting and the noise to clear.", icon: MailCheck, tone: "#2ec4b6", onPick: () => void ask("Analyse my email for the last 30 days: reply times, who's been waiting longest, and how much is newsletters or promotions. Then offer to tidy the inbox.") },
+      { id: "tidy", title: "Tidy my inbox", sub: "Archive the noise and set follow-ups, in one confirm.", icon: Inbox, tone: "#8b7bff", onPick: () => void ask("Tidy my inbox: find newsletters, promotions and notifications I've read and prepare to archive them, and list emails I should follow up on.") },
+      { id: "remind", title: "Remind me", sub: "“Remind me to call Sharma on Friday at 11.”", icon: AlarmClock, tone: "#f5a35c", onPick: () => void ask("I want to set a reminder. Ask me what and when, then set it.") },
+      { id: "cash", title: "Cash and collections", sub: "Who owes what, ageing, and reminders to send.", icon: BadgeIndianRupee, tone: "#ff7aa2", onPick: () => void ask("Who owes me money? Break it down by how overdue it is, show it as a chart, and draft reminder emails for the oldest ones.") },
     ],
   };
   const doIt: AiSection = {
@@ -405,8 +509,9 @@ export function AppAiMode() {
     <AiScreen
       lead={home}
       moreLabel="More ways to use AI"
-      sections={copilotOn ? (fresh ? [finish, teach, doIt, savers, files, advisors, launch, ahead] : [ahead, savers, advisors, files, doIt, teach, launch, finish]) : fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
-      overlay={knowing ? <KnowledgeSheet orgId={org.id} start={knowing} onClose={() => setKnowing("")} /> : undefined}
+      sections={copilotOn ? (fresh ? [finish, teach, doIt, analyse, savers, files, advisors, launch, ahead] : [ahead, analyse, savers, advisors, files, doIt, teach, launch, finish]) : fresh ? [finish, doIt, files, advisors, launch, ahead] : [ahead, advisors, files, doIt, launch, finish]}
+      overlay={knowing ? <KnowledgeSheet orgId={org.id} start={knowing} onClose={() => setKnowing("")} /> : history ? <HistorySheet orgId={org.id} current={history.current} onOpen={(tid) => void open(tid)} onClose={() => setHistory(false)} /> : undefined}
+      onHistory={copilotOn ? () => setHistory({ current: thread.current }) : undefined}
       onSaveDoc={has("documents") ? (f) => saveDoc(org.id, f) : undefined}
       messages={msgs}
       busy={busy}
@@ -443,11 +548,12 @@ export function AppAiMode() {
       onClose={() => (window.history.length > 1 ? router.back() : router.push("/home"))}
       onNew={() => {
         thread.current = null;
+        keep(org.id, null);
         shown.current.clear();
         setMsgs([]);
       }}
       placeholder={adv.id === "general" ? "Ask, or add a file" : `Ask your ${adv.name.toLowerCase()}`}
-      quick={["Reply to my latest email", "Who are my top customers?", "How much am I owed?", "Schedule a call tomorrow at 4pm", "Remember: our payment terms are 30 days"]}
+      quick={["Reply to my latest email", "Chart my sales by month", "How much am I owed?", "Remind me tomorrow at 10 to call Sharma", "Archive my newsletters", "What did we discuss last time?"]}
     />
   );
 }

@@ -15,7 +15,7 @@ const INVITE_ROLES = ["admin", "billing", "developer", "designer", "editor", "vi
 
 // ── What it may suggest ─────────────────────────────────────────────────────
 
-export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member", "record_bill", "inventory_items", "save_document"] as const;
+export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member", "record_bill", "inventory_items", "save_document", "mail_tidy", "reminder", "note"] as const;
 export type WorkspaceAction = (typeof WORKSPACE_ACTIONS)[number];
 export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   send_email: "Email",
@@ -28,7 +28,12 @@ export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   record_bill: "Bill for Accounts",
   inventory_items: "Inventory items",
   save_document: "Save to Documents",
+  mail_tidy: "Tidy email",
+  reminder: "Reminder",
+  note: "Note",
 };
+
+export const MAIL_TIDY = ["archive", "read", "star", "trash", "snooze", "label", "followup"] as const;
 
 export const WORKSPACE_INPUT = {
   send_email: z.object({
@@ -81,6 +86,12 @@ export const WORKSPACE_INPUT = {
       .max(200),
   }),
   save_document: z.object({ attachmentId: z.string().regex(/^f\d+$/), title: z.string().trim().min(1).max(200), description: z.string().trim().max(1000).default("") }),
+  mail_tidy: z
+    .object({ threadIds: z.array(z.uuid()).min(1, "Pick at least one email").max(200), action: z.enum(MAIL_TIDY), value: z.string().trim().max(100).default("") })
+    .refine((x) => !["snooze", "followup"].includes(x.action) || !Number.isNaN(Date.parse(x.value)), { message: "Say when — an ISO time like 2026-11-14T10:00:00+05:30", path: ["value"] })
+    .refine((x) => x.action !== "label" || x.value.length > 0, { message: "Name the label", path: ["value"] }),
+  reminder: z.object({ title: z.string().trim().min(1).max(200), at: iso, details: z.string().max(2000).default("") }),
+  note: z.object({ title: z.string().trim().min(1).max(300), body: z.string().trim().min(1).max(20_000), tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]) }),
 } as const;
 
 /** How each suggestion is described to the model (the `input` of propose_action). */
@@ -94,6 +105,9 @@ export const WORKSPACE_PROMPT = [
   'kind "invite_member": input { email, role?: ' + INVITE_ROLES.join("|") + " } — emails them an invitation.",
   'kind "inventory_items": input { items: [{ name, sku?, unit? (' + UNITS.join("|") + '), category?, hsn?, gstRate? (' + GST_RATES.join("|") + '), cost? (rupees per unit) }] } — new items in inventory.',
   'kind "save_document": input { attachmentId (f1, f2…), title, description? } — files the upload in Documents.',
+  'kind "mail_tidy": input { threadIds: [thread ids from mail_search], action: ' + MAIL_TIDY.join("|") + ', value? (snooze/followup: ISO time with +05:30 — snooze hides it until then, followup reminds them if nobody replies by then; label: the label name) } — one proposal can cover many emails (archive every newsletter, mark a batch read).',
+  'kind "reminder": input { title, at (ISO time with +05:30), details? } — a reminder in Notes that notifies them at that time.',
+  'kind "note": input { title, body (plain text; blank lines between paragraphs, "- " for list items), tags? } — saves a note, e.g. meeting minutes, a plan or a summary they want to keep.',
   "Bills and receipts are never typed by you: use the extract_bill tool, which reads the file and prepares them.",
 ].join(" ");
 
@@ -150,6 +164,36 @@ export const WORKSPACE_TOOLS = [
     name: "knowledge_search",
     description: "Search the business's knowledge base (its own policies, price lists, FAQs, processes, product details) for passages matching a question. Use it before answering anything about how this business works that the records don't hold.",
     input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+  },
+  {
+    name: "dashboard_overview",
+    description: "The person's Home dashboard as they see it right now: headline figures with change against the previous period (sales, money owed, cash, stock, pipeline, team…), the alerts it raises, what's waiting on them (approvals, overdue tasks), and recent activity. Start here for \"how is the business doing\", recaps and \"what needs my attention\".",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "trend",
+    description: "A month-by-month series for one measure of a dataset (from list_datasets), with growth, the average month, the best and worst months, the current run rate and a simple 3-month projection. Use it for trends, growth, seasonality and forecasts. measure: { field? (omit to count rows), agg: sum|count|avg|min|max|distinct }. months: 3–24 (default 12). filters: as in run_report.",
+    input_schema: { type: "object", properties: { dataset: { type: "string" }, measure: { type: "object" }, months: { type: "integer" }, filters: { type: "array", items: { type: "object" } } }, required: ["dataset", "measure"], additionalProperties: false },
+  },
+  {
+    name: "mail_analytics",
+    description: "Email analytics for the person's mailboxes over 7, 30 or 90 days: mail received and sent, typical reply time and the slowest 10%, reply rate, how much is answered within the reply target, who's waiting longest, top senders and domains, categories, the busiest hours, and per-mailbox and per-teammate figures — each compared with the period before.",
+    input_schema: { type: "object", properties: { days: { type: "integer", enum: [7, 30, 90] } }, additionalProperties: false },
+  },
+  {
+    name: "recall_conversations",
+    description: "Search this person's earlier conversations with you, newest first, for what was asked, answered or decided (\"what did we decide about Sharma's discount\", \"the quote I made last week\"). Returns each conversation's title, date and the matching passages.",
+    input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"], additionalProperties: false },
+  },
+  {
+    name: "show_chart",
+    description: "Draw a chart inside your answer from figures you've already looked up (never invented). kind: bar (comparisons, rankings), line or area (over time), pie (shares of a whole, 2–6 parts). unit: money (values in rupees), number or percent. labels: the x-axis or slice names. series: 1–4 named series, each with one value per label. Use it whenever a trend, comparison or breakdown is clearer as a picture, then explain the takeaway in words.",
+    input_schema: { type: "object", properties: { title: { type: "string" }, kind: { type: "string", enum: ["bar", "line", "area", "pie"] }, unit: { type: "string", enum: ["money", "number", "percent"] }, labels: { type: "array", items: { type: "string" } }, series: { type: "array", items: { type: "object", properties: { name: { type: "string" }, values: { type: "array", items: { type: "number" } } }, required: ["name", "values"] } } }, required: ["title", "kind", "unit", "labels", "series"], additionalProperties: false },
+  },
+  {
+    name: "suggest_next",
+    description: "At the end of an answer, offer 2–4 short follow-ups the person can tap (each a complete request in their voice, under 60 characters, e.g. \"Draft reminders for the overdue ones\", \"Show this as a chart by month\"). Use it after most answers.",
+    input_schema: { type: "object", properties: { prompts: { type: "array", items: { type: "string" } } }, required: ["prompts"], additionalProperties: false },
   },
   {
     name: "remember",

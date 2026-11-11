@@ -84,9 +84,18 @@ Business problems of any kind (sales, pricing, cash flow, collections, costs, co
 - Know the Indian context: GST (returns, ITC, e-invoicing, e-way bills), TDS, the MSME 45-day payment rule, labour codes, PF/ESI, state rules. Flag when a CA or lawyer should confirm before acting.
 - When they need a document — quotation, proposal, policy, job description, offer letter, SOP, contract clause, payment reminder, apology to a customer, social post — write it in full, ready to use, with [brackets] only for facts you don't have.
 
+Analytics:
+- For "how is the business doing", recaps and what needs attention, start with dashboard_overview — it's what the person sees on Home.
+- For trends, growth, seasonality and forecasts use trend; for breakdowns and comparisons use run_report. Say what changed, by how much and why it matters, then what to do about it.
+- Show it: call show_chart whenever a picture helps (a series over time, a comparison of 3+ items, shares of a whole) — with the real figures you looked up — and keep the words to the takeaway.
+- A forecast is a straight-line projection from recent months; say so, and that seasonality or one-offs can move it.
+- For email performance (reply times, backlog, who's waiting, noisy senders) use mail_analytics.
+
 What you know:
 - The business's knowledge base and what you've learned from this person (below, when there is any) tell you how this business works: prices, policies, terms, preferences. Rely on it, and use knowledge_search when the answer may be in it. If it disagrees with the records, the records win — mention the difference.
-- When the person tells you something lasting (a key client, a pricing rule, how they like reports, their sign-off), call remember. Don't remember one-off details or anything secret.
+- When the person tells you something lasting (a key client, a pricing rule, how they like reports, their sign-off), call remember. When they correct you or change a preference, remember the corrected version. Don't remember one-off details or anything secret.
+- You keep their conversations: when they refer to something from before ("like last time", "the quote we made", "what did we decide"), use recall_conversations before answering.
+- Below may also be how they've responded to your suggestions before; lean towards what they accept, and ask before proposing kinds they usually dismiss.
 
 How you work:
 - Answer from the workspace's data using your tools. Never invent numbers, names or records; if a tool can't answer, say what you could not find.
@@ -105,6 +114,12 @@ Email:
 - Never say an email was sent — say the draft is ready for them to check and send.
 - For "what needs my attention" in mail, use mail_briefing or mail_search with view needsreply.
 - To clear the inbox, read each email waiting for a reply and draft every reply as its own send_email proposal, so the person can send each with one click.
+- To tidy it, find the threads (newsletters, promotions, read notifications) with mail_search and propose one mail_tidy per action (archive, mark read, label, snooze) covering all of them; say how many emails and from whom.
+- For "remind me if they don't reply", propose mail_tidy with action followup on that thread.
+
+Reminders and notes: "remind me to…" is a reminder proposal (ask for the time if they didn't give one); "make a note of…", minutes and plans worth keeping are a note proposal.
+
+Finishing an answer: end most answers by calling suggest_next with 2–4 useful follow-ups.
 
 Calendar and invoices: use calendar_upcoming and invoices_list for questions about the schedule, money owed or overdue invoices; suggest events and draft invoices with propose_action. Ask for a missing time, client or price rather than guessing.
 
@@ -135,7 +150,29 @@ export function titleFrom(text: string) {
 
 type Block = { type: string; text?: string; name?: string; id?: string; input?: unknown; tool_use_id?: string; is_error?: boolean; content?: unknown; cc_file?: { id: string; name: string; mime: string } };
 type Message = { role: "user" | "assistant"; content: string | Block[] };
-export type ViewItem = { role: "user"; text: string; files?: { id: string; name: string; mime: string }[] } | { role: "assistant"; text: string } | { role: "tool"; name: string; label: string; toolUseId: string; failed: boolean; doc?: { attachmentId: string; kind: string; title: string; facts: string[] } };
+export type ChartSpec = { title: string; kind: "bar" | "line" | "area" | "pie"; unit: "money" | "number" | "percent"; labels: string[]; series: { name: string; values: number[] }[] };
+export type ViewItem =
+  | { role: "user"; text: string; files?: { id: string; name: string; mime: string }[] }
+  | { role: "assistant"; text: string }
+  | { role: "tool"; name: string; label: string; toolUseId: string; failed: boolean; doc?: { attachmentId: string; kind: string; title: string; facts: string[] } }
+  | { role: "chart"; chart: ChartSpec }
+  | { role: "next"; prompts: string[] };
+
+/** A chart the model asked to show, checked and trimmed so a bad one is dropped rather than drawn wrong. */
+export function chartOf(input: unknown): ChartSpec | null {
+  const i = (input ?? {}) as Record<string, unknown>;
+  const labels = Array.isArray(i.labels) ? i.labels.slice(0, 60).map((x) => String(x).slice(0, 40)) : [];
+  const series = Array.isArray(i.series)
+    ? (i.series as { name?: unknown; values?: unknown }[]).slice(0, 4).map((x) => ({ name: String(x?.name ?? "").slice(0, 40) || "Value", values: Array.isArray(x?.values) ? x.values.slice(0, labels.length).map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0)) : [] }))
+    : [];
+  if (!labels.length || !series.length || series.some((x) => x.values.length !== labels.length)) return null;
+  const kind = ["bar", "line", "area", "pie"].includes(String(i.kind)) ? (i.kind as ChartSpec["kind"]) : "bar";
+  const unit = ["money", "number", "percent"].includes(String(i.unit)) ? (i.unit as ChartSpec["unit"]) : "number";
+  return { title: String(i.title ?? "").slice(0, 120), kind, unit, labels, series };
+}
+
+/** Follow-ups the model offered, tidied. */
+export const nextOf = (input: unknown) => (Array.isArray((input as { prompts?: unknown })?.prompts) ? ((input as { prompts: unknown[] }).prompts.map((p) => String(p).trim().slice(0, 80)).filter(Boolean).slice(0, 4)) : []);
 
 const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   list_datasets: () => "Looked at the available data",
@@ -154,6 +191,12 @@ const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   extract_bill: () => "Read the bill into Accounts' format",
   knowledge_search: (i) => `Checked the knowledge base for “${String(i.query ?? "")}”`,
   remember: (i) => `Remembered: ${String(i.fact ?? "")}`,
+  dashboard_overview: () => "Looked at your dashboard",
+  trend: (i) => `Worked out the trend in ${String(i.dataset ?? "the data")}`,
+  mail_analytics: (i) => `Analysed your email (${Number(i.days) || 30} days)`,
+  recall_conversations: (i) => `Looked back at earlier conversations about “${String(i.query ?? "")}”`,
+  show_chart: (i) => `Drew a chart: ${String(i.title ?? "")}`,
+  suggest_next: () => "Suggested next steps",
 };
 
 /** How a tool's use reads to people ("Ran a report on sales"). */
@@ -177,7 +220,13 @@ export function toView(messages: unknown[]): ViewItem[] {
           asked = true;
         } else out.push({ role: m.role, text: b.text } as ViewItem);
       }
-      else if (b.type === "tool_use" && m.role === "assistant") {
+      else if (b.type === "tool_use" && m.role === "assistant" && b.name === "show_chart") {
+        const chart = chartOf(b.input);
+        if (chart) out.push({ role: "chart", chart });
+      } else if (b.type === "tool_use" && m.role === "assistant" && b.name === "suggest_next") {
+        const prompts = nextOf(b.input);
+        if (prompts.length) out.push({ role: "next", prompts });
+      } else if (b.type === "tool_use" && m.role === "assistant") {
         const input = (b.input ?? {}) as Record<string, unknown>;
         const doc = b.name === "identify_document" ? { attachmentId: String(input.attachmentId ?? ""), kind: String(input.kind ?? "other"), title: String(input.title ?? ""), facts: Array.isArray(input.facts) ? (input.facts as unknown[]).map(String).slice(0, 6) : [] } : undefined;
         out.push({ role: "tool", name: b.name ?? "", label: (TOOL_LABEL[b.name ?? ""] ?? (() => `Used ${b.name}`))(input), toolUseId: b.id ?? "", failed: failed.has(b.id ?? ""), ...(doc ? { doc } : {}) });

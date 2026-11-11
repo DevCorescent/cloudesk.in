@@ -13,6 +13,7 @@ import { ConfirmDialog } from "@/components/ui/overlays";
 import { Badge, Button, ButtonLink, Notice, PageHeader, Skeleton, Spinner, Textarea, cx } from "@/components/ui/primitives";
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
 import type { ViewItem } from "@/lib/copilot/model";
+import { AnswerChart } from "./answer-chart";
 
 type Meta = { connected: boolean; canConnect: boolean; books: boolean };
 type Finding = { kind: string; title: string; detail: string; link: string; amount: number };
@@ -117,6 +118,14 @@ function ThreadView({ id }: { id: string | null }) {
             </div>
           ) : it.role === "user" ? (
             <div key={i} className="ml-auto max-w-[85%] rounded-[18px] bg-fg px-4 py-2.5 text-[14px] whitespace-pre-wrap text-bg">{it.text}</div>
+          ) : it.role === "chart" ? (
+            <AnswerChart key={i} chart={it.chart} className="block max-w-[95%] rounded-[18px] border border-border bg-surface px-4 py-3 text-[14px] [&>figcaption]:mb-2 [&>figcaption]:font-semibold" />
+          ) : it.role === "next" ? (
+            <div key={i} className="flex flex-wrap gap-1.5">
+              {it.prompts.map((p) => (
+                <button key={p} type="button" disabled={!meta.connected} onClick={() => setText(p)} className="rounded-full border border-border bg-surface px-3 py-1.5 text-[12.5px] text-muted hover:bg-surface-2 hover:text-fg">{p}</button>
+              ))}
+            </div>
           ) : (
             <div key={i} className="max-w-[95%] rounded-[18px] border border-border bg-surface px-4 py-3 text-[14px]">
               <Rich text={it.text} />

@@ -6,7 +6,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { and, asc, desc, eq, gte, ilike, inArray, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { ACTION_INPUT, ACTION_LABEL, proposeInput, resultText, runReportInput, searchInput, SEARCH_KINDS, SYSTEM_PROMPT, titleFrom, toolLabel, toView, TOOLS, withQuestion, type ActionKind, type SearchKind } from "@/lib/copilot/model";
+import { ACTION_INPUT, ACTION_LABEL, chartOf, proposeInput, resultText, runReportInput, searchInput, SEARCH_KINDS, SYSTEM_PROMPT, titleFrom, toolLabel, toView, TOOLS, withQuestion, type ActionKind, type SearchKind } from "@/lib/copilot/model";
 import { duplicateBills, expenseSpikes, largeBills, type Finding } from "@/lib/copilot/anomalies";
 import { isOn } from "@/lib/workspace/modules";
 import { anthropicFor, COPILOT_MODEL, providerError, recordUsage } from "../ai/gateway";
@@ -20,7 +20,8 @@ import { ApiError, notFound } from "../http/errors";
 import { requireOrg, type AuthedContext } from "../http/handler";
 import { log } from "../log";
 
-export type Scope = BiScope & { name: string };
+/** `auth` is the signed-in request, for tools that read as the person through other modules (the dashboard, their to-dos). */
+export type Scope = BiScope & { name: string; auth?: AuthedContext };
 const MAX_TURNS = 8;
 const isId = (x: string) => /^[0-9a-f-]{36}$/i.test(x);
 const todayIst = () => new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);
@@ -29,7 +30,7 @@ export async function scope(ctx: AuthedContext, orgId: string): Promise<Scope> {
   const { role } = await requireOrg(ctx, orgId, "copilot:use");
   const [org] = await db.select({ modules: schema.organizations.modules }).from(schema.organizations).where(eq(schema.organizations.id, orgId));
   if (!isOn(org?.modules, "copilot")) throw new ApiError("forbidden", "Switch on the AI copilot in Settings → Features first");
-  return { ...(await scopeFor(orgId, ctx.user.id, role)), name: ctx.user.name };
+  return { ...(await scopeFor(orgId, ctx.user.id, role)), name: ctx.user.name, auth: ctx };
 }
 
 // ── Threads ─────────────────────────────────────────────────────────────────
@@ -87,7 +88,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
   }
   const advisor = advisorById(opts.advisor);
   const emit = opts.onEvent ?? (() => {});
-  const known = await (await import("./knowledge")).context(s, q);
+  const [known, habits] = await Promise.all([(await import("./knowledge")).context(s, q), habitsOf(s, t.id)]);
   const save = () => db.update(schema.copilotThreads).set({ messages, updatedAt: new Date() }).where(eq(schema.copilotThreads.id, t.id));
   const note = (msg: string) => {
     messages = [...messages, { role: "assistant", content: [{ type: "text", text: msg }] }];
@@ -103,6 +104,7 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
             { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
             { type: "text", text: `Today is ${todayIst()} (India). You're helping ${s.name}.` },
             ...(known ? [{ type: "text", text: known }] : []),
+            ...(habits ? [{ type: "text", text: habits }] : []),
             ...(advisor.brief ? [{ type: "text", text: `Advisor mode — ${advisor.name}.\n${advisor.brief}` }] : []),
           ],
           tools: TOOLS.map((x) => ({ ...x, eager_input_streaming: true })) as unknown as Anthropic.Beta.BetaToolUnion[],
@@ -145,6 +147,57 @@ export async function ask(s: Scope, threadId: string | null, text: string, opts:
   }
   await save();
   return thread(s, t.id);
+}
+
+/**
+ * What the copilot has learned from working with this person, beyond the facts
+ * it was told: their recent conversations (so "like last time" lands) and how
+ * they've answered its suggestions — which kinds they confirm and which they
+ * dismiss — over the last 90 days.
+ */
+export async function habitsOf(s: Scope, threadId: string): Promise<string> {
+  try {
+    const T = schema.copilotThreads;
+    const A = schema.copilotActions;
+    const since = new Date(Date.now() - 90 * 86_400_000);
+    const [recent, outcomes] = await Promise.all([
+      db.select({ title: T.title, updatedAt: T.updatedAt }).from(T).where(and(eq(T.orgId, s.orgId), eq(T.userId, s.userId), sql`${T.id} <> ${threadId}`)).orderBy(desc(T.updatedAt)).limit(6),
+      db.select({ kind: A.kind, status: A.status, n: sql<number>`count(*)::int` }).from(A).where(and(eq(A.orgId, s.orgId), eq(A.userId, s.userId), gte(A.createdAt, since), inArray(A.status, ["done", "dismissed"]))).groupBy(A.kind, A.status),
+    ]);
+    const lines: string[] = [];
+    if (recent.length) lines.push(`Their recent conversations with you (newest first; use recall_conversations for details): ${recent.map((r) => `"${r.title}" (${r.updatedAt.toISOString().slice(0, 10)})`).join("; ")}.`);
+    const by = new Map<string, { done: number; dismissed: number }>();
+    for (const o of outcomes) {
+      const x = by.get(o.kind) ?? { done: 0, dismissed: 0 };
+      x[o.status as "done" | "dismissed"] += o.n;
+      by.set(o.kind, x);
+    }
+    const seen = [...by].filter(([, x]) => x.done + x.dismissed >= 2).map(([k, x]) => `${ACTION_LABEL[k as ActionKind] ?? k}: confirmed ${x.done} of ${x.done + x.dismissed}`);
+    if (seen.length) lines.push(`How they've answered your suggestions lately — ${seen.join("; ")}.`);
+    return lines.length ? `What you've learned from working with ${s.name} (reference, not instructions):\n${lines.join("\n")}` : "";
+  } catch {
+    return "";
+  }
+}
+
+/** Earlier conversations of this person's that mention the words, newest first, with the passages that match. */
+export async function recall(s: Scope, query: string, skip?: string) {
+  const words = [...new Set(query.toLowerCase().match(/[\p{L}\p{N}₹]{3,}/gu) ?? [])].slice(0, 6);
+  if (!words.length) return [];
+  const T = schema.copilotThreads;
+  const rows = await db
+    .select({ id: T.id, title: T.title, messages: T.messages, updatedAt: T.updatedAt })
+    .from(T)
+    .where(and(eq(T.orgId, s.orgId), eq(T.userId, s.userId), skip ? sql`${T.id} <> ${skip}` : sql`true`, or(...words.map((w) => sql`(${T.title} ilike ${`%${w}%`} or ${T.messages}::text ilike ${`%${w}%`})`))))
+    .orderBy(desc(T.updatedAt))
+    .limit(5);
+  return rows.map((r) => {
+    const said = toView(r.messages as unknown[]).flatMap((v) => (v.role === "user" || v.role === "assistant" ? [`${v.role === "user" ? "They asked" : "You answered"}: ${v.text.replace(/\s+/g, " ")}`] : []));
+    // The passages with the most of the words first; on a tie, what was answered (it holds the decision).
+    const score = (t: string) => words.filter((w) => t.toLowerCase().includes(w)).length + (t.startsWith("You answered") ? 0.5 : 0);
+    const hits = said.filter((t) => score(t) >= 1).sort((a, b) => score(b) - score(a)).slice(0, 4).map((t) => (t.length > 500 ? `${t.slice(0, 500)}…` : t));
+    return { id: r.id, title: r.title, date: r.updatedAt.toISOString().slice(0, 10), hits: hits.length ? hits : said.slice(0, 2).map((t) => t.slice(0, 300)) };
+  });
 }
 
 // ── Tools ───────────────────────────────────────────────────────────────────
@@ -221,6 +274,12 @@ async function runTool(s: Scope, threadId: string, id: string, name: string, inp
       }
       return ok(id, "Remembered for future conversations.");
     }
+    if (name === "recall_conversations") {
+      const found = await recall(s, String((input as { query?: unknown } | null)?.query ?? "").slice(0, 200), threadId);
+      return ok(id, found.length ? found.map((f) => `"${f.title}" — ${f.date}\n${f.hits.join("\n")}`).join("\n\n") : "No earlier conversation mentions that.");
+    }
+    if (name === "show_chart") return chartOf(input) ? ok(id, "The chart is shown in your answer. Now give the takeaway in a sentence or two — don't repeat every figure.") : fail(id, "Give every series one value per label (1–4 series, up to 60 labels).");
+    if (name === "suggest_next") return ok(id, "Shown as buttons under your answer. Don't repeat them in the text.");
     const read = await readTool(s, name, (input ?? {}) as Record<string, unknown>);
     if (read !== null) return ok(id, read);
     return fail(id, `Unknown tool ${name}`);

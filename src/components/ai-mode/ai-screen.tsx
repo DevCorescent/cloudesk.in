@@ -6,7 +6,7 @@
 // draws; whoever uses it decides what the suggestions do and how to answer.
 import "./ai-screen.css";
 import clsx from "clsx";
-import { ArrowUp, Camera, ChevronLeft, FileText, ImagePlus, MessageCirclePlus, Paperclip, Plus, X, type LucideIcon } from "lucide-react";
+import { ArrowUp, Camera, ChevronLeft, FileText, History, ImagePlus, MessageCirclePlus, Paperclip, Plus, type LucideIcon, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -61,7 +61,7 @@ const PhotoEditor = dynamic(() => import("./photo-editor").then((m) => m.PhotoEd
 /** What the composer takes: free text, an email address, or a password (masked, never shown back). */
 export type AiInput = "text" | "email" | "password" | "name";
 
-export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; /** The "thinking" dots (default: while busy); off once an answer is streaming in. */ typing?: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; moreLabel?: string; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
+export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages: AiMsg[]; busy: boolean; /** The "thinking" dots (default: while busy); off once an answer is streaming in. */ typing?: boolean; onSend: (text: string, files: File[]) => void; onClose: () => void; onNew: () => void; /** Shows a button for earlier conversations. */ onHistory?: () => void; closeLabel?: string; placeholder?: string; quick?: string[]; className?: string; input?: AiInput; showHome?: boolean; attach?: boolean; mark?: ReactNode; below?: ReactNode; lead?: ReactNode; moreLabel?: string; overlay?: ReactNode; onSaveDoc?: (file: File) => Promise<string | void> }) {
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const pick = useRef<HTMLInputElement>(null);
@@ -148,9 +148,16 @@ export function AiScreen(p: { greeting?: string; sections: AiSection[]; messages
           <ChevronLeft className="size-[22px]" strokeWidth={2} />
         </button>
         {p.mark ?? <span className="ai-mark">AI mode</span>}
-        <button type="button" className="ai-round" onClick={p.onNew} aria-label="New conversation">
-          <MessageCirclePlus className="size-[21px]" strokeWidth={1.9} />
-        </button>
+        <span className="ai-top-r">
+          {p.onHistory && (
+            <button type="button" className="ai-round" onClick={p.onHistory} aria-label="Your conversations" title="Your conversations">
+              <History className="size-[20px]" strokeWidth={1.9} />
+            </button>
+          )}
+          <button type="button" className="ai-round" onClick={p.onNew} aria-label="New conversation" title="New conversation">
+            <MessageCirclePlus className="size-[21px]" strokeWidth={1.9} />
+          </button>
+        </span>
         </div>
       </header>
 

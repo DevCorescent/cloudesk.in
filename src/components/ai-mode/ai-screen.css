@@ -791,3 +791,35 @@
 .ai-live { animation: ai-live 1.4s ease-in-out infinite; }
 @keyframes ai-live { 50% { opacity: 0.45; } }
 @media (prefers-reduced-motion: reduce) { .ai-live { animation: none; } }
+
+/* Header: history and a new conversation, side by side. */
+.ai-top-r { display: flex; align-items: center; gap: 8px; }
+
+/* Your conversations (history-sheet.tsx). */
+.ai-hist-title { display: inline-flex; align-items: center; gap: 8px; }
+.ai-hist-search { display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 12px; border-radius: 12px; color: var(--ai-muted); background: var(--ai-card); border: 1px solid var(--ai-line); }
+.ai-hist-search:focus-within { border-color: color-mix(in srgb, var(--ai-blue) 55%, transparent); }
+.ai-hist-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 14px; color: var(--fg); outline: none; }
+.ai-hist-list { flex: 1; gap: 0; }
+.ai-hist-group h3 { margin: 12px 6px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ai-muted); }
+.ai-hist-group:first-child h3 { margin-top: 2px; }
+.ai-hist-row { display: flex; align-items: center; gap: 4px; border-radius: 12px; transition: background 0.15s; }
+.ai-hist-row:hover, .ai-hist-row.is-on { background: var(--ai-soft); }
+.ai-hist-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 10px; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.ai-hist-open > svg { color: var(--ai-muted); }
+.ai-hist-open span { display: grid; gap: 2px; min-width: 0; }
+.ai-hist-open b { overflow: hidden; font-size: 14px; font-weight: 560; text-overflow: ellipsis; white-space: nowrap; }
+.ai-hist-open small { overflow: hidden; font-size: 12px; color: var(--ai-muted); text-overflow: ellipsis; white-space: nowrap; }
+.ai-hist-del { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin-right: 4px; border: 0; border-radius: 10px; background: none; color: var(--ai-muted); cursor: pointer; opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s; }
+.ai-hist-row:hover .ai-hist-del, .ai-hist-del:focus-visible { opacity: 1; }
+@media (hover: none) { .ai-hist-del { opacity: 1; } }
+.ai-hist-del:hover { color: #ff6b6b; background: color-mix(in srgb, #ff6b6b 12%, transparent); }
+
+/* A chart inside an answer (answer-chart.tsx), and the follow-ups under it. */
+.ai-chart { min-width: 0; margin: 12px 0 0; padding: 14px 14px 10px; border-radius: 18px; background: var(--ai-card); border: 1px solid var(--ai-line); }
+.ai-chart figcaption { margin: 0 0 6px; font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; }
+.ai-follow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.ai-follow button { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 7px 12px; border-radius: 999px; font: inherit; font-size: 13px; line-height: 1.25; text-align: left; color: var(--fg); background: var(--ai-card); border: 1px solid var(--ai-line); cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.15s; }
+.ai-follow button:hover { border-color: color-mix(in srgb, var(--ai-blue) 45%, transparent); background: var(--ai-soft); }
+.ai-follow button:active { transform: scale(0.97); }
+.ai-follow button > svg { flex: none; color: var(--ai-blue); }

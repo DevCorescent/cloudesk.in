@@ -45,7 +45,7 @@ describe("copilot model", () => {
   it("needs a record for a note, and offers its tools", () => {
     expect(crmNoteInput.safeParse({ body: "Called" }).success).toBe(false);
     expect(crmNoteInput.safeParse({ body: "Called", dealId: "7b1c1c55-8d0e-4c43-9c39-1d2f6d6c1e10" }).success).toBe(true);
-    expect(TOOLS.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "identify_document", "extract_bill", "setup_status", "knowledge_search", "remember"]);
+    expect(TOOLS.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "identify_document", "extract_bill", "setup_status", "knowledge_search", "dashboard_overview", "trend", "mail_analytics", "recall_conversations", "show_chart", "suggest_next", "remember"]);
   });
 });
 
@@ -85,5 +85,34 @@ describe("checks on the books", () => {
     // Rent tripled, but only by ₹4,000: under the ₹10,000 floor.
     expect(f.map((x) => x.title)).toEqual(["Travel is running high"]);
     expect(f[0].detail).toBe("₹45,000 so far this month against an average of ₹15,000 over the 2 month(s) before.");
+  });
+});
+
+describe("charts and follow-ups in answers", () => {
+  it("keeps a chart only when every series has a value per label, trimmed to sane sizes", async () => {
+    const { chartOf, nextOf } = await import("@/lib/copilot/model");
+    expect(chartOf({ title: "Sales", kind: "line", unit: "money", labels: ["Sep", "Oct"], series: [{ name: "Sales", values: [1200, "1500"] }] })).toEqual({ title: "Sales", kind: "line", unit: "money", labels: ["Sep", "Oct"], series: [{ name: "Sales", values: [1200, 1500] }] });
+    expect(chartOf({ title: "x", kind: "bar", unit: "number", labels: ["a", "b"], series: [{ name: "y", values: [1] }] })).toBeNull();
+    expect(chartOf({ title: "x", kind: "bar", unit: "number", labels: [], series: [] })).toBeNull();
+    // Unknown kinds and units fall back rather than failing.
+    expect(chartOf({ title: "x", kind: "radar", unit: "kg", labels: ["a"], series: [{ name: "", values: [Number.NaN] }] })).toEqual({ title: "x", kind: "bar", unit: "number", labels: ["a"], series: [{ name: "Value", values: [0] }] });
+    expect(nextOf({ prompts: ["  One ", "", "Two", "Three", "Four", "Five"] })).toEqual(["One", "Two", "Three", "Four"]);
+    expect(nextOf({})).toEqual([]);
+  });
+
+  it("shows a chart and the follow-ups where the model drew them, and hides their tool calls", async () => {
+    const { toView } = await import("@/lib/copilot/model");
+    const view = toView([
+      { role: "user", content: "Chart it" },
+      { role: "assistant", content: [{ type: "tool_use", id: "c1", name: "show_chart", input: { title: "T", kind: "pie", unit: "percent", labels: ["A", "B"], series: [{ name: "Share", values: [60, 40] }] } }, { type: "tool_use", id: "n1", name: "suggest_next", input: { prompts: ["More"] } }] },
+      { role: "user", content: [{ type: "tool_result", tool_use_id: "c1", content: "ok" }, { type: "tool_result", tool_use_id: "n1", content: "ok" }] },
+      { role: "assistant", content: [{ type: "text", text: "A leads." }] },
+    ]);
+    expect(view).toEqual([
+      { role: "user", text: "Chart it" },
+      { role: "chart", chart: { title: "T", kind: "pie", unit: "percent", labels: ["A", "B"], series: [{ name: "Share", values: [60, 40] }] } },
+      { role: "next", prompts: ["More"] },
+      { role: "assistant", text: "A leads." },
+    ]);
   });
 });

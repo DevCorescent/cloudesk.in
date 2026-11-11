@@ -486,6 +486,12 @@ function KpiDetail({ k, d }: { k: Kpi; d: Dash }) {
             ))}
           </dl>
         )}
+        <Link
+          href={`/ai?q=${encodeURIComponent(`Explain my ${k.label.toLowerCase()}${k.sub ? ` (${k.sub})` : ""}: it's ${show(k, k.value)}${c != null ? `, ${c > 0 ? "up" : c < 0 ? "down" : "flat"}${c ? ` ${Math.abs(c)}%` : ""} on the previous period` : ""}. What's driving it? Show the trend as a chart, and tell me what I should do about it.`)}`}
+          className="ai-entry mt-4 inline-flex h-8 items-center gap-1.5 rounded-full pr-3 pl-2.5 text-[12.5px] font-medium"
+        >
+          <Sparkles className="ai-entry-ic size-3.5" aria-hidden /> Ask AI about this
+        </Link>
         {!!notes.length && (
           <ul className="mt-4 grid gap-1.5">
             {notes.slice(0, 3).map((i) => (

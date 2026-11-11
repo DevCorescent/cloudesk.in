@@ -89,7 +89,95 @@ export async function readTool(s: Scope, name: string, input: Record<string, unk
     return out.length ? out.join("\n") : "No invoices match.";
   }
   if (name === "setup_status") return setupStatus(s);
+  if (name === "dashboard_overview") return dashboardOverview(s);
+  if (name === "trend") return trend(s, input);
+  if (name === "mail_analytics") {
+    const m = await mailScope(s);
+    const { analytics } = await import("../mail/analytics");
+    const days = [7, 30, 90].includes(Number(input.days)) ? Number(input.days) : 30;
+    const a = await analytics(m, { days: String(days), account: "all", tz: "Asia/Kolkata" });
+    const mins = (v: number | null) => (v === null ? "—" : v < 60 ? `${Math.round(v)} min` : v < 1440 ? `${(v / 60).toFixed(1)} h` : `${(v / 1440).toFixed(1)} days`);
+    const pct = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)}%`);
+    const t = a.totals;
+    const busiest = a.hours.flatMap((row, d) => row.map((v, h) => ({ d, h, v }))).sort((x, y) => y.v - x.v)[0];
+    return [
+      `Email, last ${days} days (${a.range.from} to ${a.range.to}), with the ${days} days before in brackets:`,
+      `Received ${t.received} (${a.prev.received}); sent ${t.sent} (${a.prev.sent})${t.autoReplies ? ` plus ${t.autoReplies} auto-replies` : ""}.`,
+      `Typical reply time ${mins(t.medianReplyMin)} (${mins(a.prev.medianReplyMin)}); slowest 10% take over ${mins(t.p90ReplyMin)}. Reply rate ${pct(t.replyRate)} (${pct(a.prev.replyRate)}) — ${t.replied} of ${t.owed} personal emails answered.`,
+      `Within reply target: ${pct(t.withinSla)}. Waiting for a reply now: ${t.needsReply}${t.overdue ? `, ${t.overdue} past the target` : ""}.`,
+      a.oldestWaiting.length ? `Longest waiting: ${a.oldestWaiting.slice(0, 5).map((w) => `“${cut(w.subject || "(no subject)", 80)}” from ${w.from}, ${mins(w.waitingMin)} (thread ${w.id})`).join("; ")}.` : "",
+      a.senders.length ? `Top senders: ${a.senders.slice(0, 8).map((x) => `${x.name || x.address} ${x.n}`).join(", ")}.` : "",
+      a.categories.length ? `By category: ${a.categories.map((c) => `${c.category} ${c.n}`).join(", ")}.` : "",
+      busiest && busiest.v ? `Busiest hour: ${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][busiest.d]} ${String(busiest.h).padStart(2, "0")}:00 (${busiest.v} emails).` : "",
+      a.mailboxes.length > 1 ? `By mailbox: ${a.mailboxes.map((x) => `${x.name} — in ${x.received}, out ${x.sent}, typical reply ${mins(x.medianReplyMin)}, waiting ${x.needsReply}`).join("; ")}.` : "",
+      a.people.length ? `Who replied: ${a.people.map((x) => `${x.name} ${x.replies} (typical ${mins(x.medianReplyMin)})`).join(", ")}.` : "",
+    ].filter(Boolean).join("\n");
+  }
   return null;
+}
+
+/** The Home dashboard, as text: what this person sees there right now. */
+async function dashboardOverview(s: Scope) {
+  if (!s.auth) return "The dashboard isn't available here.";
+  const { dashboard } = await import("../dashboard/core");
+  const d = (await dashboard(s.auth, s.orgId)) as unknown as {
+    kpis: { label: string; value: number; format: string; sub?: string; change?: number | null; good?: "up" | "down" }[];
+    insights: { tone: string; title: string; detail: string; href: string }[];
+    waiting: { approvals: { title?: string }[]; todo: { title?: string; due?: string | null }[]; counts: { approvals: number; todo: number; overdue: number } } | null;
+    activity: { text?: string; title?: string; at?: string }[];
+    charts: { id: string; title?: string }[];
+  };
+  const val = (k: { value: number; format: string }) => (k.format === "money" ? fmtRupees(k.value) : k.format === "percent" ? `${k.value}%` : k.format === "hours" ? `${k.value} h` : k.value.toLocaleString("en-IN"));
+  const lines = [
+    d.kpis.length ? `Headline figures:\n${d.kpis.map((k) => `- ${k.label}${k.sub ? ` (${k.sub})` : ""}: ${val(k)}${typeof k.change === "number" ? ` — ${k.change > 0 ? "up" : "down"} ${Math.abs(Math.round(k.change))}% on the previous period${k.good ? ` (${(k.change > 0) === (k.good === "up") ? "good" : "worse"})` : ""}` : ""}`).join("\n")}` : "No headline figures yet — nothing recorded in the modules on Home.",
+    d.insights.length ? `Alerts:\n${d.insights.map((i) => `- [${i.tone}] ${i.title} — ${i.detail} (${i.href})`).join("\n")}` : "No alerts.",
+    d.waiting ? `Waiting on them: ${d.waiting.counts.approvals} approvals, ${d.waiting.counts.todo} to-dos (${d.waiting.counts.overdue} overdue).${d.waiting.todo.length ? ` To-dos: ${d.waiting.todo.slice(0, 6).map((x) => `${x.title ?? ""}${x.due ? ` (due ${x.due})` : ""}`).join("; ")}.` : ""}${d.waiting.approvals.length ? ` Approvals: ${d.waiting.approvals.slice(0, 6).map((x) => x.title ?? "").join("; ")}.` : ""}` : "",
+    d.activity.length ? `Recent activity: ${d.activity.slice(0, 6).map((x) => x.text ?? x.title ?? "").filter(Boolean).join("; ")}.` : "",
+  ];
+  return lines.filter(Boolean).join("\n\n");
+}
+
+/** A measure month by month, with growth, best and worst months, run rate and a straight-line projection. */
+async function trend(s: Scope, input: Record<string, unknown>) {
+  const { datasets, preview } = await import("../bi/core");
+  const ds = datasets(s).find((d) => d.id === String(input.dataset ?? ""));
+  if (!ds) return "Unknown dataset — call list_datasets for the ones open to this person.";
+  if (!ds.dateField) return `${ds.label} has no date to trend by; use run_report instead.`;
+  const months = Math.min(Math.max(Number(input.months) || 12, 3), 24);
+  const today = istDay();
+  const [y, m] = today.split("-").map(Number) as [number, number];
+  const from = new Date(Date.UTC(y, m - months, 1)).toISOString().slice(0, 10);
+  const measure = (input.measure ?? {}) as { field?: string | null; agg?: string };
+  const r = await preview(s, { dataset: ds.id, spec: { dims: [{ field: ds.dateField, bucket: "month" }], measures: [{ field: measure.field ?? null, agg: measure.agg ?? (measure.field ? "sum" : "count") }], filters: Array.isArray(input.filters) ? input.filters : [], range: { preset: "custom", from, to: today }, sort: { by: "d0", dir: "asc" }, limit: 100 } });
+  const money = r.columns[1]?.type === "money";
+  const byMonth = new Map(r.rows.map((row) => [String(row[0]).slice(0, 7), Number(row[1]) || 0]));
+  const keys = Array.from({ length: months }, (_, i) => new Date(Date.UTC(y, m - months + i, 1)).toISOString().slice(0, 7));
+  const vals = keys.map((k) => byMonth.get(k) ?? 0);
+  const show = (v: number) => (money ? fmtRupees(Math.round(v)) : Math.round(v * 100) / 100 === Math.round(v) ? Math.round(v).toLocaleString("en-IN") : v.toLocaleString("en-IN", { maximumFractionDigits: 2 }));
+  // The month in progress is shown, but projections use complete months only.
+  const done = vals.slice(0, -1);
+  const n = done.length;
+  const mean = n ? done.reduce((a, b) => a + b, 0) / n : 0;
+  const xm = (n - 1) / 2;
+  const slope = n > 1 ? done.reduce((a, v, i) => a + (i - xm) * (v - mean), 0) / done.reduce((a, _, i) => a + (i - xm) ** 2, 0) : 0;
+  const at = (i: number) => Math.max(0, mean + slope * (i - xm));
+  const last = done[n - 1] ?? 0;
+  const prev = done[n - 2] ?? 0;
+  const yearAgo = n >= 13 ? done[n - 13]! : null;
+  const best = n ? done.indexOf(Math.max(...done)) : -1;
+  const worst = n ? done.indexOf(Math.min(...done)) : -1;
+  const label = (k: string) => new Date(`${k}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric", timeZone: "UTC" });
+  const dayOfMonth = Number(today.slice(8, 10));
+  const daysIn = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const current = vals[vals.length - 1] ?? 0;
+  return [
+    `${ds.label} — ${r.columns[1]?.label ?? "value"} by month (${label(keys[0]!)} to ${label(keys.at(-1)!)}; the last month is still in progress):`,
+    keys.map((k, i) => `${label(k)}: ${show(vals[i]!)}`).join("\n"),
+    n >= 2 ? `Last complete month ${show(last)}, ${prev ? `${last >= prev ? "up" : "down"} ${Math.abs(Math.round(((last - prev) / prev) * 100))}% on the month before` : "the month before had none"}${yearAgo ? `; ${yearAgo ? `${last >= yearAgo ? "up" : "down"} ${Math.abs(Math.round(((last - yearAgo) / yearAgo) * 100))}% on a year earlier` : ""}` : ""}.` : "",
+    n ? `Average month ${show(mean)}; best ${label(keys[best]!)} (${show(done[best]!)}), weakest ${label(keys[worst]!)} (${show(done[worst]!)}).` : "",
+    `This month so far ${show(current)} after ${dayOfMonth} of ${daysIn} days — on pace for about ${show((current / Math.max(dayOfMonth, 1)) * daysIn)}.`,
+    n >= 3 ? `Trend ${slope >= 0 ? "rising" : "falling"} by about ${show(Math.abs(slope))} a month. Straight-line projection: ${[1, 2, 3].map((k) => `${label(new Date(Date.UTC(y, m - 1 + k, 1)).toISOString().slice(0, 7))} ≈ ${show(at(n - 1 + k + 1))}`).join(", ")} (from complete months only; seasonality and one-offs can move it).` : "Too few complete months for a projection.",
+  ].filter(Boolean).join("\n");
 }
 
 async function setupStatus(s: Scope) {
@@ -128,6 +216,40 @@ export type Done = { id: string; link: string };
 /** `messages` is the conversation, for suggestions that use one of its files. */
 export async function execute(ctx: AuthedContext, s: Scope, kind: WorkspaceAction, raw: unknown, messages: unknown[] = []): Promise<Done> {
   if (kind === "record_bill" || kind === "inventory_items" || kind === "save_document") return executeFiles(ctx, s, kind, raw, messages);
+  if (kind === "mail_tidy") {
+    const p = WORKSPACE_INPUT.mail_tidy.parse(raw);
+    const { scope } = await import("../mail/access");
+    const ms = await scope(ctx, s.orgId);
+    const { bulk, update } = await import("../mail/core");
+    if (p.action === "followup") {
+      const at = new Date(p.value).toISOString();
+      for (const tid of p.threadIds) await update(ms, tid, { followUpAt: at });
+    } else {
+      const value = p.action === "snooze" ? new Date(p.value).toISOString() : p.value || undefined;
+      await bulk(ms, { ids: p.threadIds, action: p.action, ...(value ? { value } : {}) });
+    }
+    return { id: p.threadIds[0]!, link: p.threadIds.length === 1 ? `/mail/t/${p.threadIds[0]}` : "/mail" };
+  }
+  if (kind === "reminder" || kind === "note") {
+    const { create, update } = await import("../notes/core");
+    const w = { orgId: s.orgId, userId: s.userId };
+    const blocks = (text: string) =>
+      text
+        .split(/\n{2,}|\n(?=- )/)
+        .map((t) => t.trim())
+        .filter(Boolean)
+        .map((t) => (t.startsWith("- ") ? { id: crypto.randomUUID().slice(0, 12), type: "bullet", text: t.slice(2) } : { id: crypto.randomUUID().slice(0, 12), type: "p", text: t }));
+    if (kind === "note") {
+      const p = WORKSPACE_INPUT.note.parse(raw);
+      const n = (await create(w, { title: p.title, tags: p.tags, content: { blocks: blocks(p.body) } })) as { id: string };
+      return { id: n.id, link: `/notes/${n.id}` };
+    }
+    const p = WORKSPACE_INPUT.reminder.parse(raw);
+    if (Date.parse(p.at) <= Date.now()) throw new ApiError("validation_failed", "Pick a time in the future for the reminder");
+    const n = (await create(w, { title: p.title, tags: ["reminder"], content: { blocks: p.details ? blocks(p.details) : [{ id: crypto.randomUUID().slice(0, 12), type: "p", text: "" }] } })) as { id: string };
+    await update(w, n.id, { remindAt: new Date(p.at).toISOString() });
+    return { id: n.id, link: `/notes/${n.id}` };
+  }
   if (kind === "send_email") {
     const p = WORKSPACE_INPUT.send_email.parse(raw);
     const { scope } = await import("../mail/access");

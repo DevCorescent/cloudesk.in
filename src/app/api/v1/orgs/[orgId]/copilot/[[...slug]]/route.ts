@@ -5,7 +5,7 @@ import { MAX_ATTACH_BYTES, type Upload } from "@/server/copilot/attachments";
 import { readJson, route, type AuthedContext } from "@/server/http/handler";
 import { ApiError, notFound } from "@/server/http/errors";
 import { rateLimit } from "@/server/security/rate-limit";
-import { activity, ask, checks, confirm, deleteThread, dismiss, scope, search, status, thread, threads, type AskEvent } from "@/server/copilot/core";
+import { activity, ask, checks, confirm, deleteThread, dismiss, recall, scope, search, status, thread, threads, type AskEvent } from "@/server/copilot/core";
 import { providerError } from "@/server/ai/gateway";
 import { log } from "@/server/log";
 
@@ -88,8 +88,12 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
       return status(s);
     case "GET briefing":
       return (await import("@/server/copilot/briefing")).briefing(s);
-    case "GET threads":
+    case "GET threads": {
+      // ?q= looks inside the conversations too (what was asked and answered), newest first.
+      const q = new URL(ctx.req.url).searchParams.get("q")?.trim().slice(0, 200);
+      if (q) return { threads: (await recall(s, q)).map((r) => ({ id: r.id, title: r.title, updatedAt: r.date, match: r.hits[0] ?? "" })) };
       return { threads: await threads(s) };
+    }
     case "POST threads": {
       await rateLimit(`copilot:${s.userId}`, 60, 3_600_000);
       const v = await question(ctx.req);
