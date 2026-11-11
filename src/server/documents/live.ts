@@ -108,7 +108,7 @@ export async function liveSince(fileId: string, seq: number, limit = 200) {
 }
 
 /** The shared copy as editor JSON. */
-async function merged(fileId: string) {
+export async function merged(fileId: string) {
   const rows = await docUpdates(fileId);
   if (!rows.length) return null;
   const y = new Y.Doc();

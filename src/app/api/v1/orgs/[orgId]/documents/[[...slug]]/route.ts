@@ -10,6 +10,7 @@ import { contractDetail, contracts, linkOptions, decideContract, deleteFile, del
 import { importContracts } from "@/server/documents/import";
 import { certificate, createRequest, remind, requestDetail, requests, voidRequest } from "@/server/documents/sign";
 import { docAi } from "@/server/documents/ai";
+import { generate, plan, refine } from "@/server/documents/studio";
 import { addComment, comments, deleteComment, editComment, resolveComment } from "@/server/documents/comments";
 import { activity, copyFile, createDoc, createFolder, emptyTrash, list, move, openDoc, patchFile, patchFolder, purge, recentDocs, restore, setLink, setShares, shares, star, storage, trash, tree } from "@/server/documents/drive";
 import { addAsset, assetResponse, exportDoc, getAsset, importDoc, pdfCopy } from "@/server/documents/exporting";
@@ -196,6 +197,16 @@ async function handle(ctx: AuthedContext, { orgId, slug = [] }: P) {
       return pdfCopy(s, id!);
     case "POST docs :id ai":
       return docAi(s, id!, await body(ctx));
+    // The AI document studio: work out what's needed, draft and review it, revise it.
+    case "POST studio plan":
+      await rateLimit(`docstudio:${s.userId}`, 120, 3_600_000);
+      return plan(s, await body(ctx));
+    case "POST studio generate":
+      await rateLimit(`docstudio:${s.userId}`, 120, 3_600_000);
+      return generate(s, await body(ctx));
+    case "POST docs :id refine":
+      await rateLimit(`docstudio:${s.userId}`, 120, 3_600_000);
+      return refine(s, id!, await body(ctx));
     case "GET assets :id":
       return assetResponse(await getAsset(s, id!));
 

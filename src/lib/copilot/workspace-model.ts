@@ -5,7 +5,8 @@
 import { z } from "zod";
 import { companySchema } from "@/lib/org/model";
 import { GST_RATES, UNITS } from "@/lib/inventory/model";
-import { DOC_KINDS } from "./advisors";
+import { DOC_KINDS as ADVISOR_DOC_KINDS } from "./advisors";
+import { DOC_KINDS } from "@/lib/documents/studio";
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const iso = z.iso.datetime({ offset: true, message: "Use an ISO time with offset, like 2026-11-03T15:00:00+05:30" });
@@ -15,7 +16,7 @@ const INVITE_ROLES = ["admin", "billing", "developer", "designer", "editor", "vi
 
 // ── What it may suggest ─────────────────────────────────────────────────────
 
-export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member", "record_bill", "inventory_items", "save_document", "mail_tidy", "reminder", "note"] as const;
+export const WORKSPACE_ACTIONS = ["send_email", "calendar_event", "crm_contact", "crm_deal", "invoice_draft", "business_profile", "invite_member", "record_bill", "inventory_items", "save_document", "mail_tidy", "reminder", "note", "business_document"] as const;
 export type WorkspaceAction = (typeof WORKSPACE_ACTIONS)[number];
 export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   send_email: "Email",
@@ -31,6 +32,7 @@ export const WORKSPACE_LABEL: Record<WorkspaceAction, string> = {
   mail_tidy: "Tidy email",
   reminder: "Reminder",
   note: "Note",
+  business_document: "Business document",
 };
 
 export const MAIL_TIDY = ["archive", "read", "star", "trash", "snooze", "label", "followup"] as const;
@@ -92,6 +94,13 @@ export const WORKSPACE_INPUT = {
     .refine((x) => x.action !== "label" || x.value.length > 0, { message: "Name the label", path: ["value"] }),
   reminder: z.object({ title: z.string().trim().min(1).max(200), at: iso, details: z.string().max(2000).default("") }),
   note: z.object({ title: z.string().trim().min(1).max(300), body: z.string().trim().min(1).max(20_000), tags: z.array(z.string().trim().min(1).max(40)).max(10).default([]) }),
+  business_document: z.object({
+    kindId: z.enum(DOC_KINDS.map((k) => k.id) as [string, ...string[]]),
+    request: z.string().trim().min(3).max(4000),
+    title: z.string().trim().max(200).default(""),
+    answers: z.record(z.string().max(60), z.string().max(4000)).default({}),
+    language: z.enum(["English", "Hindi", "English and Hindi (bilingual)"]).default("English"),
+  }),
 } as const;
 
 /** How each suggestion is described to the model (the `input` of propose_action). */
@@ -108,6 +117,7 @@ export const WORKSPACE_PROMPT = [
   'kind "mail_tidy": input { threadIds: [thread ids from mail_search], action: ' + MAIL_TIDY.join("|") + ', value? (snooze/followup: ISO time with +05:30 — snooze hides it until then, followup reminds them if nobody replies by then; label: the label name) } — one proposal can cover many emails (archive every newsletter, mark a batch read).',
   'kind "reminder": input { title, at (ISO time with +05:30), details? } — a reminder in Notes that notifies them at that time.',
   'kind "note": input { title, body (plain text; blank lines between paragraphs, "- " for list items), tags? } — saves a note, e.g. meeting minutes, a plan or a summary they want to keep.',
+  'kind "business_document": input { kindId (one of: ' + DOC_KINDS.map((k) => k.id).join(", ") + '), request (everything they told you: parties, amounts, dates, places, special terms), title?, answers? ({ key: value } for facts you know), language? } — the document studio drafts it to a legal standard (required clauses, Indian law, their letterhead), reviews it and saves it in Documents to edit, sign or send. Use it whenever they want a contract, letter, notice, policy or other business document to keep or send.',
   "Bills and receipts are never typed by you: use the extract_bill tool, which reads the file and prepares them.",
 ].join(" ");
 
@@ -147,8 +157,8 @@ export const WORKSPACE_TOOLS = [
   },
   {
     name: "identify_document",
-    description: `Say what an attached file is, as soon as you've looked at it — the person sees it labelled with quick actions. kind: ${DOC_KINDS.join(", ")}. title: a short name (e.g. "Menon Traders bill MT/1182"). facts: up to 6 key facts (amounts, dates, parties).`,
-    input_schema: { type: "object", properties: { attachmentId: { type: "string" }, kind: { type: "string", enum: [...DOC_KINDS] }, title: { type: "string" }, facts: { type: "array", items: { type: "string" } } }, required: ["attachmentId", "kind", "title"], additionalProperties: false },
+    description: `Say what an attached file is, as soon as you've looked at it — the person sees it labelled with quick actions. kind: ${ADVISOR_DOC_KINDS.join(", ")}. title: a short name (e.g. "Menon Traders bill MT/1182"). facts: up to 6 key facts (amounts, dates, parties).`,
+    input_schema: { type: "object", properties: { attachmentId: { type: "string" }, kind: { type: "string", enum: [...ADVISOR_DOC_KINDS] }, title: { type: "string" }, facts: { type: "array", items: { type: "string" } } }, required: ["attachmentId", "kind", "title"], additionalProperties: false },
   },
   {
     name: "extract_bill",

@@ -50,6 +50,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { id: "meeting", label: "Meeting", hint: "Put it in the calendar", icon: <CalendarPlus />, tone: TALK, module: "calendar", href: "/calendar", words: "event schedule invite" },
       { id: "note", label: "Note", hint: "Jot something down", icon: <NotebookPen />, tone: TALK, href: "/notes?new=1", words: "memo notes" },
       { id: "document", label: "Document", hint: "A blank page", icon: <FileText />, tone: TALK, module: "documents", href: "/documents/new", words: "doc write page" },
+      { id: "ai-doc", label: "Document with AI", hint: "Any contract, letter or policy", icon: <Wand2 />, tone: TALK, module: "documents", href: "/documents/studio", words: "agreement contract nda offer letter policy notice legal ai draft" },
       { id: "proposal", label: "Proposal", hint: "Start from the template", icon: <FileSignature />, tone: TALK, module: "documents", href: "/documents/new?template=proposal", words: "quote pitch" },
     ],
   },

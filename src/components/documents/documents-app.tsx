@@ -13,6 +13,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { DocsShell, DriveHome, DriveView, type DocsMeta } from "./drive/drive-app";
 import { DocEditorPage } from "./editor/doc-editor";
+import { StudioPage } from "./studio";
 import type { DriveFile } from "./drive/shared";
 import { ConvertDialog } from "./viewer/convert-dialog";
 import { FileViewer } from "./viewer/file-viewer";
@@ -73,6 +74,7 @@ export function DocumentsApp({ path }: { path: string[] }) {
 function DocsSection({ section, id, q }: { section: string; id?: string; q: string }) {
   const { meta } = useModule<DocsMeta>();
   if (section === "new") return <NewDocPage />;
+  if (section === "studio") return <StudioPage />;
   if ((section === "folder" || section === "folders") && isId(id)) return <DriveView key={id} section="folder" folderId={id} meta={meta} />;
   if (section === "") return <DriveHome meta={meta} />;
   if (DRIVE.includes(section) && section !== "folder") return <DriveView key={`${section}:${q}`} section={section} q={q} meta={meta} />;
@@ -219,7 +221,9 @@ function FilePage({ id }: { id: string }) {
   const { meta, orgId, go } = useDocs();
   const q = useModuleQuery<FileDetail>(`files/${id}`);
   const [editing, setEditing] = useState(false);
-  const [sending, setSending] = useState(false);
+  // ?sign=1 (from the AI document studio) opens straight on "Send for signature".
+  const sp = useSearchParams();
+  const [sending, setSending] = useState(sp.get("sign") === "1");
   const [view, setView] = useState<null | "viewer" | "convert" | "tools" | "qr">(null);
   const versionRef = useRef<HTMLInputElement>(null);
   const up = useUpload(`files/${id}/versions`, () => {});

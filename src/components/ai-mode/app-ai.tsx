@@ -422,6 +422,7 @@ export function AppAiMode() {
     title: "Hand me a document.",
     label: "Documents",
     cards: [
+      ...(has("documents") ? [{ id: "studio", title: "Draft a business document", sub: "Contracts, HR letters, notices, policies — legally sound, in minutes.", icon: FileSignature, tone: "#6366f1", onPick: () => router.push("/documents/studio") }] : []),
       { id: "bill", title: "Record a bill or receipt", sub: "Snap or upload it — I read it into Accounts with GST.", icon: Receipt, tone: "#3ccf91", onPick: () => add({ role: "assistant", text: "Tap **+** below and choose **Take a photo** or **Photo or document**, then send it. I'll read the bill — supplier, GSTIN, lines and GST — and prepare it for Accounts." }) },
       { id: "review", title: "Review a contract", sub: "Risks, money, dates and what to negotiate, clause by clause.", icon: FileSearch, tone: "#8b7bff", onPick: () => (setAdvisor("legal"), add({ role: "assistant", text: "Your **Legal & contracts advisor** is on. Tap **+** and add the contract (PDF, Word or photos), and I'll review it in depth." })) },
     ],

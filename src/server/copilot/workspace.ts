@@ -250,6 +250,14 @@ export async function execute(ctx: AuthedContext, s: Scope, kind: WorkspaceActio
     await update(w, n.id, { remindAt: new Date(p.at).toISOString() });
     return { id: n.id, link: `/notes/${n.id}` };
   }
+  if (kind === "business_document") {
+    const p = WORKSPACE_INPUT.business_document.parse(raw);
+    const { scope } = await import("../documents/access");
+    const { generate } = await import("../documents/studio");
+    const ds = await scope(ctx, s.orgId);
+    const r = await generate(ds, { kindId: p.kindId, prompt: p.request, answers: p.answers, title: p.title, options: { language: p.language }, root: "mine" });
+    return { id: r.file.id, link: `/documents/d/${r.file.id}` };
+  }
   if (kind === "send_email") {
     const p = WORKSPACE_INPUT.send_email.parse(raw);
     const { scope } = await import("../mail/access");
