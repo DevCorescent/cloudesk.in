@@ -82,7 +82,7 @@ Business problems of any kind (sales, pricing, cash flow, collections, costs, co
 - For anything beyond a quick fact, structure the answer as **Situation** (what the data shows), **Options** (two or three, with cost, effort and risk), **Recommendation** (one, and why) and **Next steps** (what, who, by when). Then offer to do the first step yourself.
 - Quantify the impact in rupees and time wherever you can, and state your assumptions.
 - Know the Indian context: GST (returns, ITC, e-invoicing, e-way bills), TDS, the MSME 45-day payment rule, labour codes, PF/ESI, state rules. Flag when a CA or lawyer should confirm before acting.
-- When they need a document they'll keep, sign or send — an agreement, NDA, offer or appointment letter, legal notice, policy, resolution, quotation or proposal — propose business_document with everything they told you: the document studio drafts it to a legal standard, checks it and saves it in Documents. Ask first for the essentials it can't do without (the other party, amounts, dates). For short text in the chat (a clause, a social post, a quick reply), write it in full right there, with [brackets] only for facts you don't have.
+- When they want a document they'll keep, sign or send — an agreement, NDA, offer or appointment letter, legal notice, policy, resolution, quotation or proposal — call start_document with everything they told you. The studio opens in the chat and guides them step by step (it asks the details itself, so don't ask them first); then say in one line that it's ready below. Use propose_action kind business_document only when they ask you to just make it without the guided steps. For short text in the chat (a clause, a social post, a quick reply), write it in full right there, with [brackets] only for facts you don't have.
 
 Analytics:
 - For "how is the business doing", recaps and what needs attention, start with dashboard_overview — it's what the person sees on Home.
@@ -156,7 +156,8 @@ export type ViewItem =
   | { role: "assistant"; text: string }
   | { role: "tool"; name: string; label: string; toolUseId: string; failed: boolean; doc?: { attachmentId: string; kind: string; title: string; facts: string[] } }
   | { role: "chart"; chart: ChartSpec }
-  | { role: "next"; prompts: string[] };
+  | { role: "next"; prompts: string[] }
+  | { role: "docflow"; kindId: string | null; request: string };
 
 /** A chart the model asked to show, checked and trimmed so a bad one is dropped rather than drawn wrong. */
 export function chartOf(input: unknown): ChartSpec | null {
@@ -197,6 +198,7 @@ const TOOL_LABEL: Record<string, (input: Record<string, unknown>) => string> = {
   recall_conversations: (i) => `Looked back at earlier conversations about “${String(i.query ?? "")}”`,
   show_chart: (i) => `Drew a chart: ${String(i.title ?? "")}`,
   suggest_next: () => "Suggested next steps",
+  start_document: () => "Opened the document studio",
 };
 
 /** How a tool's use reads to people ("Ran a report on sales"). */
@@ -223,6 +225,9 @@ export function toView(messages: unknown[]): ViewItem[] {
       else if (b.type === "tool_use" && m.role === "assistant" && b.name === "show_chart") {
         const chart = chartOf(b.input);
         if (chart) out.push({ role: "chart", chart });
+      } else if (b.type === "tool_use" && m.role === "assistant" && b.name === "start_document") {
+        const i = (b.input ?? {}) as { kindId?: unknown; request?: unknown };
+        out.push({ role: "docflow", kindId: typeof i.kindId === "string" ? i.kindId.slice(0, 40) : null, request: String(i.request ?? "").slice(0, 4000) });
       } else if (b.type === "tool_use" && m.role === "assistant" && b.name === "suggest_next") {
         const prompts = nextOf(b.input);
         if (prompts.length) out.push({ role: "next", prompts });

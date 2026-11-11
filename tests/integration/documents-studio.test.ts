@@ -190,6 +190,23 @@ describe("the AI document studio", () => {
     expect(f!.title).toBe("Appointment letter — Riya Sen");
   });
 
+  it("opens the guided studio in the chat when the model calls start_document", async () => {
+    let result = "";
+    script = [
+      () => ({ content: [{ type: "tool_use", id: "s1", name: "start_document", input: { kindId: "nda-mutual", request: "An NDA with Infosys before we share our designs" } }], stop_reason: "tool_use" }),
+      (r: Req) => {
+        result = JSON.stringify(r.messages.at(-1));
+        return { content: [{ type: "text", text: "The NDA is ready to fill in below." }], stop_reason: "end_turn" };
+      },
+    ];
+    const t = await K("POST", "threads", { text: "We need something to protect our designs before talking to Infosys" });
+    expect(t.status).toBe(200);
+    expect(result).toContain("The document studio is open below your answer");
+    const items = t.json.items as { role: string }[];
+    expect(items).toContainEqual({ role: "docflow", kindId: "nda-mutual", request: "An NDA with Infosys before we share our designs" });
+    expect(items.at(-1)).toEqual({ role: "assistant", text: "The NDA is ready to fill in below." });
+  });
+
   it("doesn't let a viewer make documents", async () => {
     const r = await D("POST", "studio/generate", { kindId: "nda-mutual", prompt: "An NDA" }, "viewer");
     expect(r.status).toBe(403);

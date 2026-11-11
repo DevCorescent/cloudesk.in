@@ -45,7 +45,7 @@ describe("copilot model", () => {
   it("needs a record for a note, and offers its tools", () => {
     expect(crmNoteInput.safeParse({ body: "Called" }).success).toBe(false);
     expect(crmNoteInput.safeParse({ body: "Called", dealId: "7b1c1c55-8d0e-4c43-9c39-1d2f6d6c1e10" }).success).toBe(true);
-    expect(TOOLS.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "identify_document", "extract_bill", "setup_status", "knowledge_search", "dashboard_overview", "trend", "mail_analytics", "recall_conversations", "show_chart", "suggest_next", "remember"]);
+    expect(TOOLS.map((t) => t.name)).toEqual(["list_datasets", "run_report", "search_records", "find_anomalies", "propose_action", "mail_accounts", "mail_search", "mail_read", "mail_briefing", "calendar_upcoming", "invoices_list", "identify_document", "extract_bill", "setup_status", "knowledge_search", "dashboard_overview", "trend", "mail_analytics", "recall_conversations", "show_chart", "suggest_next", "start_document", "remember"]);
   });
 });
 

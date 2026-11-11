@@ -20,6 +20,8 @@ import { AiScreen, type AiMsg, type AiSection } from "./ai-screen";
 import { AiHome, type Pulse } from "./ai-home";
 import { InboxCard } from "./inbox-card";
 import { HistorySheet } from "./history-sheet";
+import { DocFlow } from "@/components/documents/studio-flow";
+import { wantsDocument } from "@/lib/documents/intent";
 import { KnowledgeSheet } from "./knowledge-sheet";
 
 type Kpi = { id: string; label: string; value: number; format: "money" | "number" | "hours" | "percent"; sub?: string; change?: number | null; good?: "up" | "down"; href: string };
@@ -29,10 +31,11 @@ type BriefItem = { text: string; sub?: string; href?: string; tone?: "danger" | 
 type BriefTip = { label: string; prompt: string };
 type Brief = { today: BriefItem[]; attention: BriefItem[]; suggestions: BriefTip[]; updates: BriefTip[]; counts: { meetings: number; replies: number; overdueInvoices: number; overdueTasks: number } };
 type Doc = { attachmentId: string; kind: string; title: string; facts: string[] };
-type Item = { role: "user"; text: string; files?: { name: string; mime: string }[] } | { role: "assistant"; text: string } | { role: "tool"; label: string; toolUseId?: string; doc?: Doc } | { role: "chart"; chart: ChartSpec } | { role: "next"; prompts: string[] };
+type Item = { role: "user"; text: string; files?: { name: string; mime: string }[] } | { role: "assistant"; text: string } | { role: "tool"; label: string; toolUseId?: string; doc?: Doc } | { role: "chart"; chart: ChartSpec } | { role: "next"; prompts: string[] } | { role: "docflow"; kindId: string | null; request: string };
 type Thread = { id: string; items: Item[]; actions: (CopilotAction & { toolUseId?: string })[] };
 /** The conversation open in AI mode, so a reload (or coming back to the tab) picks it up again. */
 const KEEP = (orgId: string) => `cc-ai-thread:${orgId}`;
+
 const keep = (orgId: string, id: string | null) => {
   try {
     if (id) sessionStorage.setItem(KEEP(orgId), id);
@@ -200,8 +203,17 @@ export function AppAiMode() {
     });
   };
 
+  /** The document studio, opened in the conversation (with or without a request to start from). */
+  const draftHere = (request = "") =>
+    add({
+      role: "assistant",
+      text: request ? "Let's draft it right here. I've filled in what you told me — check the details, then press **Draft**." : "Which document do you need? Pick one, or describe it in the box below.",
+      node: <DocFlow orgId={org.id} prompt={request} />,
+    });
+
   const ask = async (text: string, files: File[] = []) => {
     add({ role: "user", text, files: files.map((f) => ({ name: f.name, mime: f.type })) });
+    if (!files.length && has("documents") && wantsDocument(text)) return draftHere(text);
     if (!copilotOn) {
       return add({
         role: "assistant",
@@ -271,20 +283,24 @@ export function AppAiMode() {
   /** One answer: what was said, what was looked up, charts, files it read, suggestions to confirm and follow-ups to tap. */
   const answerOf = (items: Item[], proposed: Thread["actions"], live = true): Omit<AiMsg, "id"> => {
     const answer = items.filter((x): x is { role: "assistant"; text: string } => x.role === "assistant").map((x) => x.text).join("\n\n");
-    const looked = items.filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:") && !l.startsWith("Drew a chart") && l !== "Suggested next steps");
+    const looked = items.filter((x): x is { role: "tool"; label: string } => x.role === "tool").map((x) => x.label).filter((l) => !l.startsWith("Suggested:") && !l.startsWith("Drew a chart") && l !== "Suggested next steps" && l !== "Opened the document studio");
     const docs = items.flatMap((x) => (x.role === "tool" && x.doc ? [x.doc] : []));
     const charts = items.flatMap((x) => (x.role === "chart" ? [x.chart] : []));
     const next = items.flatMap((x) => (x.role === "next" ? x.prompts : [])).slice(0, 4);
+    const flows = items.flatMap((x) => (x.role === "docflow" ? [x] : []));
     const emails = proposed.filter((a) => a.kind === "send_email" && a.status === "proposed");
     return {
       role: "assistant",
       text: answer || (proposed.length ? "Here's what I've prepared — check it and confirm." : charts.length ? "" : "Done."),
       node:
-        looked.length || proposed.length || docs.length || charts.length || next.length ? (
+        looked.length || proposed.length || docs.length || charts.length || next.length || flows.length ? (
           <>
             {looked.length > 0 && <p className="ai-looked">{looked.slice(0, 6).join(" · ")}</p>}
             {charts.map((c, i) => (
               <AnswerChart key={i} chart={c} />
+            ))}
+            {flows.map((f, i) => (
+              <DocFlow key={`doc${i}`} orgId={org.id} prompt={f.request} kindId={f.kindId ?? undefined} autoStart={live} />
             ))}
             {docs.map((d) => (
               <DocCard key={d.attachmentId} doc={d} onAct={(prompt) => void ask(prompt)} />
@@ -422,7 +438,7 @@ export function AppAiMode() {
     title: "Hand me a document.",
     label: "Documents",
     cards: [
-      ...(has("documents") ? [{ id: "studio", title: "Draft a business document", sub: "Contracts, HR letters, notices, policies — legally sound, in minutes.", icon: FileSignature, tone: "#6366f1", onPick: () => router.push("/documents/studio") }] : []),
+      ...(has("documents") ? [{ id: "studio", title: "Draft a business document", sub: "Contracts, HR letters, notices, policies — legally sound, in minutes.", icon: FileSignature, tone: "#6366f1", onPick: () => draftHere() }] : []),
       { id: "bill", title: "Record a bill or receipt", sub: "Snap or upload it — I read it into Accounts with GST.", icon: Receipt, tone: "#3ccf91", onPick: () => add({ role: "assistant", text: "Tap **+** below and choose **Take a photo** or **Photo or document**, then send it. I'll read the bill — supplier, GSTIN, lines and GST — and prepare it for Accounts." }) },
       { id: "review", title: "Review a contract", sub: "Risks, money, dates and what to negotiate, clause by clause.", icon: FileSearch, tone: "#8b7bff", onPick: () => (setAdvisor("legal"), add({ role: "assistant", text: "Your **Legal & contracts advisor** is on. Tap **+** and add the contract (PDF, Word or photos), and I'll review it in depth." })) },
     ],

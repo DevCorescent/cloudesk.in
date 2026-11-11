@@ -280,6 +280,10 @@ async function runTool(s: Scope, threadId: string, id: string, name: string, inp
     }
     if (name === "show_chart") return chartOf(input) ? ok(id, "The chart is shown in your answer. Now give the takeaway in a sentence or two — don't repeat every figure.") : fail(id, "Give every series one value per label (1–4 series, up to 60 labels).");
     if (name === "suggest_next") return ok(id, "Shown as buttons under your answer. Don't repeat them in the text.");
+    if (name === "start_document") {
+      if (!s.has("documents") || !s.ctx.can("doc:write")) return fail(id, "Documents isn't open to this person for writing — tell them, and offer to write it here in the chat instead.");
+      return ok(id, "The document studio is open below your answer: it asks the details, drafts, reviews and shows the document there. Say in one short sentence that it's ready to fill in below — nothing more.");
+    }
     const read = await readTool(s, name, (input ?? {}) as Record<string, unknown>);
     if (read !== null) return ok(id, read);
     return fail(id, `Unknown tool ${name}`);

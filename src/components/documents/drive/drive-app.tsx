@@ -148,7 +148,7 @@ function DriveLayout({ section, meta, children }: { section: string; meta: DocsM
           <NewButton meta={meta} />
         </div>
         <nav aria-label="Documents" className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-1 sm:px-1 lg:flex-col lg:gap-1 lg:overflow-visible">
-          {link("studio", <span className="bg-gradient-to-r from-violet-600 to-sky-600 bg-clip-text font-semibold text-transparent dark:from-violet-300 dark:to-sky-300">AI document studio</span>, <Sparkles className="text-violet-600 dark:text-violet-300" />, section === "studio")}
+          {link("studio", "AI document studio", <Sparkles className={section === "studio" ? undefined : "text-indigo-600 dark:text-indigo-400"} />, section === "studio")}
           {NAV.map((n) => link(n.id, n.label, n.icon, section === n.id))}
           <p className="hidden px-3 pt-4 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-subtle uppercase lg:block">Team</p>
           <span className="lg:hidden">{link("team", "Team", <Users />, section === "team")}</span>

@@ -206,6 +206,11 @@ export const WORKSPACE_TOOLS = [
     input_schema: { type: "object", properties: { prompts: { type: "array", items: { type: "string" } } }, required: ["prompts"], additionalProperties: false },
   },
   {
+    name: "start_document",
+    description: "Open the guided document studio right here in the chat: it works out the kind, asks the person for the details it needs (prefilled from what they said), drafts it to a legal standard, reviews it and shows the finished document with download, share, email and signing — all inside this conversation. Use it whenever they want a contract, agreement, letter, notice, policy, resolution, quotation, proposal or other business document drafted; don't write the document yourself. kindId: the closest of the studio's kinds if you're confident (" + DOC_KINDS.map((k) => k.id).join(", ") + "), else omit it. request: everything they told you about it, in their words.",
+    input_schema: { type: "object", properties: { kindId: { type: "string" }, request: { type: "string" } }, required: ["request"], additionalProperties: false },
+  },
+  {
     name: "remember",
     description: "Keep one lasting fact or preference this person told you, for future conversations: about their business (key clients, pricing rules, payment terms, suppliers), their role, or how they like things done (tone, sign-off, report format). One short self-contained sentence. Not for one-off details, things already in the records, or anything secret (passwords, codes, card or bank numbers). Saved straight away; say briefly that you'll remember it.",
     input_schema: { type: "object", properties: { fact: { type: "string" } }, required: ["fact"], additionalProperties: false },

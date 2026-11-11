@@ -14,6 +14,7 @@ import { Badge, Button, ButtonLink, Notice, PageHeader, Skeleton, Spinner, Texta
 import { parseMarkdown, type Inline } from "@/lib/copilot/markdown";
 import type { ViewItem } from "@/lib/copilot/model";
 import { AnswerChart } from "./answer-chart";
+import { DocFlow } from "@/components/documents/studio-flow";
 
 type Meta = { connected: boolean; canConnect: boolean; books: boolean };
 type Finding = { kind: string; title: string; detail: string; link: string; amount: number };
@@ -120,6 +121,8 @@ function ThreadView({ id }: { id: string | null }) {
             <div key={i} className="ml-auto max-w-[85%] rounded-[18px] bg-fg px-4 py-2.5 text-[14px] whitespace-pre-wrap text-bg">{it.text}</div>
           ) : it.role === "chart" ? (
             <AnswerChart key={i} chart={it.chart} className="block max-w-[95%] rounded-[18px] border border-border bg-surface px-4 py-3 text-[14px] [&>figcaption]:mb-2 [&>figcaption]:font-semibold" />
+          ) : it.role === "docflow" ? (
+            <DocFlow key={i} orgId={orgId} prompt={it.request} kindId={it.kindId ?? undefined} autoStart={false} />
           ) : it.role === "next" ? (
             <div key={i} className="flex flex-wrap gap-1.5">
               {it.prompts.map((p) => (
