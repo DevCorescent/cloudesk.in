@@ -2,6 +2,7 @@ import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { createChallenge } from "../auth/mfa";
+import { verifyOtp } from "../auth/otp";
 import { createSession, revokeAllSessions } from "../auth/session";
 import { ApiError } from "../http/errors";
 import { randomToken, sha256 } from "../security/tokens";
@@ -189,15 +190,17 @@ export async function resetPassword(token: string, password: string, meta: Meta)
   await audit({ actorId: row.userId, action: "user.password_reset", ip: meta.ip });
 }
 
-export async function changePassword(userId: string, sessionId: string, current: string, next: string) {
+export async function changePassword(userId: string, sessionId: string, current: string, next: string, opts: { code?: string; ip?: string | null } = {}) {
   const [u] = await db.select().from(schema.users).where(eq(schema.users.id, userId));
   if (!u) throw new ApiError("unauthenticated", "Sign in again");
+  // Forgot the current one: a code emailed to the account stands in for it.
+  if (opts.code) await verifyOtp({ purpose: "password", code: opts.code, email: u.email, ip: opts.ip ?? null });
   // Accounts created with GitHub have no password yet and may set one here.
-  if (u.passwordHash && !(await verifyPassword(u.passwordHash, current))) {
+  else if (u.passwordHash && !(await verifyPassword(u.passwordHash, current))) {
     throw new ApiError("validation_failed", "Current password is incorrect", { currentPassword: ["Incorrect password"] });
   }
   await db.update(schema.users).set({ passwordHash: await hashPassword(next) }).where(eq(schema.users.id, userId));
   await expireResetLinks(userId);
   await revokeAllSessions(userId, sessionId);
-  await audit({ actorId: userId, action: "user.password_changed" });
+  await audit({ actorId: userId, action: "user.password_changed", ...(opts.code ? { metadata: { by: "email_code" } } : {}) });
 }

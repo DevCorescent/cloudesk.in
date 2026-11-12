@@ -24,26 +24,10 @@ export function AccountView() {
   const toast = useToast();
   const qc = useQueryClient();
   const theme = useThemePref();
-  const [pw, setPw] = useState({ currentPassword: "", newPassword: "" });
-  const [pwErrors, setPwErrors] = useState<Record<string, string[]>>({});
   const mfa = useMfaStatus();
   const hasPassword = mfa.data?.hasPassword !== false;
   const sessions = useQuery({ queryKey: ["sessions"], queryFn: () => api<{ sessions: Session[] }>("/api/v1/auth/sessions") });
 
-  const change = useMutation({
-    mutationFn: () => api("/api/v1/auth/password", { method: "PATCH", body: pw }),
-    onSuccess: () => {
-      setPw({ currentPassword: "", newPassword: "" });
-      setPwErrors({});
-      qc.invalidateQueries({ queryKey: ["mfa"] });
-      qc.invalidateQueries({ queryKey: ["sessions"] });
-      toast({ tone: "success", title: "Password changed", description: "Other sessions were signed out." });
-    },
-    onError: (e) => {
-      if (e instanceof ApiClientError && e.code === "validation_failed") setPwErrors(e.fieldErrors());
-      else toast({ tone: "error", title: "Could not change password", description: errorMessage(e) });
-    },
-  });
   const revoke = useMutation({
     mutationFn: (body: { id?: string; others?: boolean }) => api("/api/v1/auth/sessions", { method: "DELETE", body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
@@ -75,17 +59,7 @@ export function AccountView() {
         <SignInsCard />
       </Suspense>
 
-      <Card className="p-5">
-        <h2 className="text-sm font-semibold">{hasPassword ? "Change password" : "Set a password"}</h2>
-        {!hasPassword && <p className="mt-1 text-xs text-muted">You signed up with GitHub. A password lets you sign in without it too.</p>}
-        <form className="mt-4 grid max-w-sm gap-4" onSubmit={(e) => { e.preventDefault(); change.mutate(); }}>
-          {hasPassword && <Field label="Current password" error={pwErrors.currentPassword?.[0]}>{(p) => <Input {...p} type="password" autoComplete="current-password" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />}</Field>}
-          <Field label="New password" hint="At least 10 characters, with a number or symbol." error={pwErrors.newPassword?.[0]}>{(p) => <Input {...p} type="password" autoComplete="new-password" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />}</Field>
-          <Button type="submit" variant="primary" className="justify-self-start" loading={change.isPending} disabled={(hasPassword && !pw.currentPassword) || !pw.newPassword}>
-            {hasPassword ? "Update password" : "Set password"}
-          </Button>
-        </form>
-      </Card>
+      <PasswordCard email={user.email} hasPassword={hasPassword} />
 
       <Card className="p-5">
         <div className="flex items-center justify-between gap-3">
@@ -187,6 +161,92 @@ function ProfileCard({ email, verified }: { email: string; verified: boolean }) 
           <Button variant="primary" loading={save.isPending} disabled={!!check && !check.ok} onClick={() => save.mutate()}>Save</Button>
         </div>
       )}
+    </Card>
+  );
+}
+
+/**
+ * Change (or set) the password. Forgot the current one? A six-digit code
+ * emailed to the account stands in for it.
+ */
+function PasswordCard({ email, hasPassword }: { email: string; hasPassword: boolean }) {
+  const toast = useToast();
+  const qc = useQueryClient();
+  const [byCode, setByCode] = useState(false);
+  const [pw, setPw] = useState({ currentPassword: "", code: "", newPassword: "" });
+  const [errors, setErrors] = useState<Record<string, string[]>>({});
+  const [sent, setSent] = useState<{ at: number; devCode?: string } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!sent) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [sent]);
+  const wait = sent ? Math.max(0, 30 - Math.floor((now - sent.at) / 1000)) : 0;
+
+  const send = useMutation({
+    mutationFn: () => api<{ devCode?: string }>("/api/v1/auth/password/code", { method: "POST" }),
+    onSuccess: (r) => {
+      setSent({ at: Date.now(), devCode: r.devCode });
+      setNow(Date.now());
+      toast({ tone: "success", title: "Code sent", description: `Check ${email}.` });
+    },
+    onError: (e) => toast({ tone: "error", title: "Could not send a code", description: errorMessage(e) }),
+  });
+  const change = useMutation({
+    mutationFn: () => api("/api/v1/auth/password", { method: "PATCH", body: byCode ? { code: pw.code, newPassword: pw.newPassword } : { currentPassword: pw.currentPassword, newPassword: pw.newPassword } }),
+    onSuccess: () => {
+      setPw({ currentPassword: "", code: "", newPassword: "" });
+      setErrors({});
+      setByCode(false);
+      setSent(null);
+      qc.invalidateQueries({ queryKey: ["mfa"] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+      toast({ tone: "success", title: "Password changed", description: "Other sessions were signed out." });
+    },
+    onError: (e) => {
+      if (e instanceof ApiClientError && e.code === "validation_failed") setErrors(e.fieldErrors());
+      else if (byCode) setErrors({ code: [errorMessage(e)] });
+      else toast({ tone: "error", title: "Could not change password", description: errorMessage(e) });
+    },
+  });
+  const switchTo = (code: boolean) => {
+    setByCode(code);
+    setErrors({});
+  };
+  const ready = !!pw.newPassword && (byCode ? pw.code.replace(/\D/g, "").length === 6 : !hasPassword || !!pw.currentPassword);
+
+  return (
+    <Card className="p-5">
+      <h2 className="text-sm font-semibold">{byCode ? "Reset your password" : hasPassword ? "Change password" : "Set a password"}</h2>
+      {!hasPassword && !byCode && <p className="mt-1 text-xs text-muted">You signed up with GitHub. A password lets you sign in without it too.</p>}
+      {byCode && <p className="mt-1 text-xs text-muted">We&apos;ll email a six-digit code to <span className="font-medium text-fg">{email}</span>. It works once, for 10 minutes.</p>}
+      <form className="mt-4 grid max-w-sm gap-4" onSubmit={(e) => { e.preventDefault(); if (ready) change.mutate(); }}>
+        {byCode ? (
+          <>
+            <div className="flex items-end gap-2">
+              <Field label="Code from the email" className="min-w-0 flex-1" error={errors.code?.[0]}>
+                {(p) => <Input {...p} inputMode="numeric" autoComplete="one-time-code" maxLength={7} placeholder="123456" value={pw.code} onChange={(e) => setPw({ ...pw, code: e.target.value })} disabled={!sent} className="tracking-[0.3em] tabular-nums" />}
+              </Field>
+              <Button type="button" loading={send.isPending} disabled={wait > 0} onClick={() => send.mutate()}>{!sent ? "Email me a code" : wait > 0 ? `Resend in ${wait}s` : "Resend"}</Button>
+            </div>
+            {sent?.devCode && <p className="text-xs text-muted">Development (no mail service): the code is <span className="font-mono font-medium text-fg">{sent.devCode}</span></p>}
+          </>
+        ) : hasPassword && (
+          <Field label="Current password" error={errors.currentPassword?.[0]}>{(p) => <Input {...p} type="password" autoComplete="current-password" value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />}</Field>
+        )}
+        <Field label="New password" hint="At least 10 characters, with a number or symbol." error={errors.newPassword?.[0]}>{(p) => <Input {...p} type="password" autoComplete="new-password" value={pw.newPassword} onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} disabled={byCode && !sent} />}</Field>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" variant="primary" loading={change.isPending} disabled={!ready}>
+            {byCode ? "Reset password" : hasPassword ? "Update password" : "Set password"}
+          </Button>
+          {hasPassword && (
+            <button type="button" className="text-xs font-medium text-muted underline-offset-2 hover:text-fg hover:underline" onClick={() => switchTo(!byCode)}>
+              {byCode ? "I remember it" : "Forgot your current password?"}
+            </button>
+          )}
+        </div>
+      </form>
     </Card>
   );
 }

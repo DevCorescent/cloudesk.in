@@ -1,4 +1,5 @@
-// One-time codes sent by email, for signing up and signing in. A code is six
+// One-time codes sent by email, for signing up, signing in and changing a
+// forgotten password from account settings. A code is six
 // digits, works once, for 10 minutes, with 5 tries; only an HMAC of it (keyed
 // with the server's secret and the row id) is stored. Asking again replaces the
 // previous code. Sending is rate-limited per address and per IP.
@@ -10,7 +11,7 @@ import { rateLimit } from "../security/rate-limit";
 import { safeEqual } from "../security/tokens";
 import { mailProvider, sendMail } from "../services/mail";
 
-export type OtpPurpose = "signup" | "login";
+export type OtpPurpose = "signup" | "login" | "password";
 const TTL_MS = 10 * 60_000;
 const MAX_TRIES = 5;
 const RESEND_AFTER_MS = 30_000;
@@ -38,7 +39,7 @@ export async function issueOtp(email: string, purpose: OtpPurpose, opts: { ip?: 
   const [row] = await db.insert(schema.emailOtps).values({ email: addr, purpose, codeHash: "pending", expiresAt: new Date(Date.now() + TTL_MS), payload: opts.payload ?? null, ip: opts.ip ?? null }).returning({ id: schema.emailOtps.id, expiresAt: schema.emailOtps.expiresAt });
   await db.update(schema.emailOtps).set({ codeHash: digest(row.id, code) }).where(eq(schema.emailOtps.id, row.id));
   if (opts.send !== false) {
-    const what = purpose === "signup" ? "finish creating your Cloudesk account" : "sign in to Cloudesk";
+    const what = purpose === "signup" ? "finish creating your Cloudesk account" : purpose === "password" ? "change your Cloudesk password" : "sign in to Cloudesk";
     await sendMail({ to: addr, subject: `${code} is your Cloudesk code`, body: `Your code to ${what} is:\n\n${code}\n\nIt works once, for the next 10 minutes. If you didn't ask for it, you can ignore this email — nobody can get in without the code.` });
   }
   return { ticket: row.id, expiresAt: row.expiresAt, devCode: showCodeOnScreen() ? code : undefined };
