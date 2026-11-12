@@ -8373,6 +8373,18 @@ export const poContacts = pgTable(
     clicks: integer("clicks").notNull().default(0),
     /** Emails in a row nobody opened (for the sunset rule). */
     unopenedRun: integer("unopened_run").notNull().default(0),
+    /** Address check: unknown | valid | risky (role address, catch-all) | invalid (no mail server, disposable). */
+    verify: text("verify").notNull().default("unknown"),
+    verifyNote: text("verify_note").notNull().default(""),
+    /** Opens by mail-privacy proxies and security scanners: counted apart, never as interest. */
+    machineOpens: integer("machine_opens").notNull().default(0),
+    /** Where they read mail, from their real opens ("Gmail · mobile"). */
+    client: text("client").notNull().default(""),
+    repliedAt: timestamp("replied_at", { withTimezone: true }),
+    /** Monthly value (₹) of the plan they pay for, once paying. */
+    paidValue: integer("paid_value").notNull().default(0),
+    /** How the sign-up was credited: exact (they clicked through and signed up) or matched (same email address). */
+    attribution: text("attribution").notNull().default(""),
     /** The hour (India time) they most often open, learned from their opens. */
     bestHour: integer("best_hour"),
     lastEmailAt: timestamp("last_email_at", { withTimezone: true }),
@@ -8396,6 +8408,8 @@ export const poTemplates = pgTable("po_templates", {
   category: text("category").notNull(),
   industries: text("industries").array().notNull().default(sql`'{}'::text[]`),
   subjects: text("subjects").array().notNull(),
+  /** Subject lines the engine has retired (losing arms); their history stays. */
+  retired: integer("retired").array().notNull().default(sql`'{}'::int[]`),
   preheader: text("preheader").notNull().default(""),
   body: text("body").notNull(),
   ctaLabel: text("cta_label").notNull().default(""),
@@ -8417,6 +8431,10 @@ export const poFunnels = pgTable("po_funnels", {
   goal: text("goal").notNull().default("signed_up"),
   autoEnroll: boolean("auto_enroll").notNull().default(true),
   autoOptimize: boolean("auto_optimize").notNull().default(true),
+  /** Higher wins: someone matching a higher-priority funnel is moved into it (hot leads jump the queue). */
+  priority: integer("priority").notNull().default(0),
+  /** Percent of people held back (never emailed) to measure the funnel's real lift. */
+  holdoutPct: integer("holdout_pct").notNull().default(0),
   startAt: timestamp("start_at", { withTimezone: true }),
   pausedReason: text("paused_reason").notNull().default(""),
   createdAt: createdAt(),
@@ -8434,6 +8452,8 @@ export const poEnrollments = pgTable(
     status: text("status").notNull().default("active"),
     nextAt: timestamp("next_at", { withTimezone: true }),
     lastSendId: uuid("last_send_id"),
+    /** In the control group: moves through the funnel without being emailed. */
+    holdout: boolean("holdout").notNull().default(false),
     exitReason: text("exit_reason").notNull().default(""),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -8456,16 +8476,31 @@ export const poSends = pgTable(
     industry: text("industry").notNull().default("other"),
     status: text("status").notNull().default("sent"),
     error: text("error").notNull().default(""),
+    /** Real opens and clicks by people; machine ones (privacy proxies, scanners) are counted apart. */
     opens: integer("opens").notNull().default(0),
     clicks: integer("clicks").notNull().default(0),
+    machineOpens: integer("machine_opens").notNull().default(0),
+    machineClicks: integer("machine_clicks").notNull().default(0),
     openedAt: timestamp("opened_at", { withTimezone: true }),
     clickedAt: timestamp("clicked_at", { withTimezone: true }),
+    /** A second try with another subject line, for people who didn't open the first. */
+    resend: boolean("resend").notNull().default(false),
+    repliedAt: timestamp("replied_at", { withTimezone: true }),
     unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
     convertedAt: timestamp("converted_at", { withTimezone: true }),
+    /** Monthly value (₹) won when the person it converted started paying. */
+    revenue: integer("revenue").notNull().default(0),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("po_sends_token_uq").on(t.token), index("po_sends_contact_idx").on(t.contactId, t.sentAt), index("po_sends_funnel_idx").on(t.funnelId, t.sentAt), index("po_sends_template_idx").on(t.templateId, t.variant), index("po_sends_sent_idx").on(t.sentAt)],
 );
+
+/** Mail-server checks per domain, so each is looked up once a month at most. */
+export const poDomains = pgTable("po_domains", {
+  domain: text("domain").primaryKey(),
+  mx: boolean("mx").notNull(),
+  checkedAt: timestamp("checked_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 /** What people did (opens, clicks, unsubscribes, sign-ups…) and what the engine decided. */
 export const poEvents = pgTable(

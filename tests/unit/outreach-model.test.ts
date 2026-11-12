@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BUILT_IN, BUILT_IN_FUNNELS, checkSteps, industryOf, merge, nextSlot, parsePasted, pickArm, renderEmail, scoreOf, stageFromScore, warmupCap, type Step } from "@/lib/outreach/model";
+import { BUILT_IN, BUILT_IN_FUNNELS, checkAddress, checkSteps, classifyHit, clientOf, industryOf, probBest, merge, nextSlot, parsePasted, pickArm, renderEmail, scoreOf, spamCheck, stageFromScore, warmupCap, type Step } from "@/lib/outreach/model";
 
 const asha = { email: "asha@rao.in", name: "Asha Rao", company: "Rao Traders", city: "", industry: "retail", title: "", data: { turnover: "2 Cr" } };
 // 11:00 on Tuesday 10 Nov 2026 in India.
@@ -103,5 +103,59 @@ describe("outreach model", () => {
     expect(warmupCap(s, 4)).toBe(122);
     expect(warmupCap(s, 30)).toBe(500);
     expect(warmupCap({ ...s, warmup: false }, 0)).toBe(500);
+  });
+});
+
+describe("spam check", () => {
+  const base = { subjects: ["{{firstName|there}}, run {{company}} from one place"], preheader: "Billing, stock and staff together", body: "Hi {{firstName|there}},\n\n" + "Cloudesk brings your invoices, stock and team into one simple place so you spend less time on admin and more on customers. ".repeat(3), ctaUrl: "https://cloudesk.in/signup", ctaLabel: "Start free" };
+  it("passes a clean, personal email", () => {
+    expect(spamCheck(base).filter((i) => i.level !== "tip")).toEqual([]);
+  });
+  it("flags what filters punish", () => {
+    const r = spamCheck({ ...base, subjects: ["RE: FREE FREE money!!! act now"], body: "Click here [x](https://bit.ly/abc)", preheader: "" });
+    const text = r.map((i) => i.text).join("\n");
+    expect(r[0]!.level).toBe("bad");
+    expect(text).toMatch(/link shortener/);
+    expect(text).toMatch(/pretends to be a reply/);
+    expect(text).toMatch(/“act now”/);
+    expect(text).toMatch(/Shouting/);
+    expect(text).toMatch(/Only \d+ words/);
+  });
+});
+
+describe("people or machines", () => {
+  const chrome = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+  it("spots privacy proxies, scanners and instant clicks", () => {
+    expect(classifyHit({ kind: "open", ua: "Mozilla/5.0", ip: "17.58.1.2", secondsSinceSend: 600 })).toMatchObject({ machine: true, reason: "Apple Mail Privacy Protection" });
+    expect(classifyHit({ kind: "click", ua: "Mozilla/5.0 Proofpoint URL Defense", ip: "1.2.3.4", secondsSinceSend: 600 }).machine).toBe(true);
+    expect(classifyHit({ kind: "click", ua: chrome, ip: "1.2.3.4", secondsSinceSend: 3 }).machine).toBe(true);
+    expect(classifyHit({ kind: "click", ua: chrome, ip: "1.2.3.4", method: "HEAD", secondsSinceSend: 600 }).machine).toBe(true);
+    expect(classifyHit({ kind: "click", ua: chrome, ip: "1.2.3.4", secondsSinceSend: 600, priorClicksSecondsAgo: [0.4, 0.9] }).machine).toBe(true);
+    expect(classifyHit({ kind: "click", ua: chrome, ip: "1.2.3.4", secondsSinceSend: 600, priorClicksSecondsAgo: [90] })).toEqual({ machine: false, reason: "", client: "Webmail · desktop" });
+  });
+  it("names the mail app", () => {
+    expect(clientOf("Mozilla/5.0 (via ggpht.com GoogleImageProxy)")).toBe("Gmail");
+    expect(clientOf("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148")).toBe("Apple Mail · mobile");
+    expect(clientOf("Microsoft Outlook 16.0; Windows NT 10.0")).toBe("Outlook · desktop");
+  });
+});
+
+describe("list hygiene", () => {
+  it("fixes typos and judges addresses", () => {
+    expect(checkAddress("Asha@Gmial.com")).toEqual({ email: "asha@gmail.com", verify: "unknown", note: "Corrected from gmial.com" });
+    expect(checkAddress("sales@acme.in").verify).toBe("risky");
+    expect(checkAddress("x@yopmail.com").verify).toBe("invalid");
+    expect(checkAddress("a@b").verify).toBe("invalid");
+  });
+});
+
+describe("which subject line is best", () => {
+  it("is sure about a clear loser, unsure about a close race", () => {
+    let s = 3;
+    const rand = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const clear = probBest([{ sends: 200, wins: 30 }, { sends: 200, wins: 4 }], 2000, rand);
+    expect(clear[1]).toBeLessThan(0.02);
+    const close = probBest([{ sends: 200, wins: 20 }, { sends: 200, wins: 18 }], 2000, rand);
+    expect(close[1]).toBeGreaterThan(0.2);
   });
 });

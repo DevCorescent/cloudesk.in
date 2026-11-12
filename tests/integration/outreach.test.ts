@@ -7,7 +7,7 @@ import * as admin from "@/app/api/v1/admin/[[...slug]]/route";
 import * as pixel from "@/app/api/v1/po/o/[token]/route";
 import * as click from "@/app/api/v1/po/c/[token]/route";
 import * as unsub from "@/app/api/v1/po/u/[token]/route";
-import { outreachTick, syncConversions } from "@/server/outreach/core";
+import { outreachTick, setMxResolver, syncConversions } from "@/server/outreach/core";
 import { ORIGIN, call, cookieFrom, resetDb } from "../helpers";
 
 // Outreach end to end: contacts from a spreadsheet and pasted text; the
@@ -37,8 +37,12 @@ const at = tuesdayEleven();
 let seq = 0;
 const rand = () => ((seq = (seq * 9301 + 49297) % 233280) / 233280);
 
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+const req = (url: string, init: RequestInit = {}) => new Request(url, { ...init, headers: { "user-agent": UA, ...(init.headers ?? {}) } });
+
 beforeAll(async () => {
   await resetDb();
+  setMxResolver(async () => true);
   for (const [k, name, role] of [["owner", "Olga Owner", "owner"], ["analyst", "Ana Analyst", "analyst"], ["member", "Max Member", null]] as const) {
     C[k] = cookieFrom(await call(signup.POST, { method: "POST", body: { name, email: `${k}@outreach.example`, password: PW } }));
     const u = (await call(me.GET, { cookie: C[k] })).json;
@@ -138,19 +142,21 @@ describe("outreach", () => {
   });
 
   it("tracks opens, clicks and unsubscribes", async () => {
+    // Read an hour after it arrived (a hit within seconds of delivery is a scanner's).
+    await db.update(schema.poSends).set({ sentAt: new Date(Date.now() - 3_600_000) });
     const [devSend] = await sendsTo("dev@thirdwave.cafe");
     const tok = devSend!.token;
-    const px = await pixel.GET(new Request(`${ORIGIN}/api/v1/po/o/${tok}`), { params: Promise.resolve({ token: tok }) });
+    const px = await pixel.GET(req(`${ORIGIN}/api/v1/po/o/${tok}`), { params: Promise.resolve({ token: tok }) });
     expect(px.headers.get("content-type")).toBe("image/gif");
     const target = Buffer.from("https://cloudesk.in/start?utm_source=outreach&po=" + tok).toString("base64url");
-    const cl = await click.GET(new Request(`${ORIGIN}/api/v1/po/c/${tok}?u=${target}`), { params: Promise.resolve({ token: tok }) });
+    const cl = await click.GET(req(`${ORIGIN}/api/v1/po/c/${tok}?u=${target}`), { params: Promise.resolve({ token: tok }) });
     expect(cl.status).toBe(302);
     expect(cl.headers.get("location")).toBe(`https://cloudesk.in/start?utm_source=outreach&po=${tok}`);
     const dev = await contact("dev@thirdwave.cafe");
     expect(dev).toMatchObject({ opens: 1, clicks: 1, unopenedRun: 0, score: 15, stage: "engaged" });
     expect(dev.bestHour).not.toBeNull();
     // A link that isn't a web address goes home instead.
-    const bad = await click.GET(new Request(`${ORIGIN}/api/v1/po/c/${tok}?u=${Buffer.from("javascript:alert(1)").toString("base64url")}`), { params: Promise.resolve({ token: tok }) });
+    const bad = await click.GET(req(`${ORIGIN}/api/v1/po/c/${tok}?u=${Buffer.from("javascript:alert(1)").toString("base64url")}`), { params: Promise.resolve({ token: tok }) });
     expect(bad.headers.get("location")).not.toContain("javascript");
 
     const sent = await db.select().from(schema.poSends).where(eq(schema.poSends.funnelId, funnelId));
@@ -166,7 +172,8 @@ describe("outreach", () => {
   it("branches on what they did: the clicker gets the offer, the rest a re-engagement", async () => {
     await reauth();
     await A("PUT", "settings", { sending: true, postalAddress: "12 MG Road, Pune 411001", dailyLimit: 50, warmup: false, minGapHours: 24 });
-    const later = new Date(at.getTime() + 2 * 86_400_000 + 3_600_000);
+    // 18:30, so whatever hour the engine learned for them today has come.
+    const later = new Date(at.getTime() + 2 * 86_400_000 + 7.5 * 3_600_000);
     await outreachTick({ now: later, rand });
     const devSends = await db.select({ s: schema.poSends, t: schema.poTemplates }).from(schema.poSends).innerJoin(schema.poTemplates, eq(schema.poTemplates.id, schema.poSends.templateId)).where(eq(schema.poSends.contactId, (await contact("dev@thirdwave.cafe")).id));
     expect(devSends.map((x) => x.t.category)).toEqual(["intro", "offer"]);

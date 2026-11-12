@@ -14,7 +14,8 @@ import { cfg } from "../platform/config";
 /** Attachments travel base64-encoded (they may wait in the retry queue). */
 export type MailAttachment = { filename: string; contentType: string; base64: string };
 /** `body` is the plain text; `html` an optional HTML version (sent alongside it); `headers` extra ones such as List-Unsubscribe. */
-export type MailMessage = { to: string; subject: string; body: string; html?: string; headers?: Record<string, string>; fromName?: string; replyTo?: string; attachments?: MailAttachment[] };
+/** `fromEmail` replaces the From address, but only with one on MAIL_FROM's domain (the one the provider has verified). */
+export type MailMessage = { to: string; subject: string; body: string; html?: string; headers?: Record<string, string>; fromName?: string; fromEmail?: string; replyTo?: string; attachments?: MailAttachment[] };
 export type MailProvider = "resend" | "postmark" | "sendgrid" | "smtp" | "outbox";
 
 type Fetch = typeof fetch;
@@ -40,6 +41,14 @@ export function mailProvider(): MailProvider {
 export const mailConfigured = () => mailProvider() !== "outbox";
 
 export const MAIL_PROVIDER_NAMES: Record<MailProvider, string> = { resend: "Resend", postmark: "Postmark", sendgrid: "SendGrid", smtp: "SMTP", outbox: "Outbox only (not delivered)" };
+
+/** The domain mail is sent from (MAIL_FROM's). */
+export const mailFromDomain = () => /@([^\s>"]+)/.exec(cfg("MAIL_FROM") ?? "")?.[1]?.toLowerCase() ?? "";
+/** The From address for a message: its own when it's on the sending domain, else MAIL_FROM. */
+export function senderAddress(msg: Pick<MailMessage, "fromEmail">) {
+  const own = msg.fromEmail?.trim().toLowerCase();
+  return own && /^[^\s@<>"]+@[^\s@<>"]+$/.test(own) && own.split("@")[1] === mailFromDomain() ? own : cfg("MAIL_FROM")!;
+}
 
 // Display names cannot contain characters that break the From header.
 const displayName = (s: string) => s.replace(/["<>\r\n]/g, "").trim().slice(0, 60);
@@ -75,7 +84,7 @@ async function viaSendgrid(msg: MailMessage, from: string, fromName?: string) {
     headers: { Authorization: `Bearer ${cfg("SENDGRID_API_KEY")}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       personalizations: [{ to: [{ email: msg.to }] }],
-      from: { email: cfg("MAIL_FROM"), ...(fromName ? { name: displayName(fromName) } : {}) },
+      from: { email: senderAddress(msg), ...(fromName ? { name: displayName(fromName) } : {}) },
       subject: msg.subject,
       content: [{ type: "text/plain", value: msg.body }, ...(msg.html ? [{ type: "text/html", value: msg.html }] : [])],
       ...(msg.headers ? { headers: msg.headers } : {}),
@@ -128,7 +137,8 @@ async function viaSmtp(msg: MailMessage, from: string) {
 }
 
 async function deliver(id: string, msg: MailMessage, provider: Exclude<MailProvider, "outbox">) {
-  const from = msg.fromName ? `"${displayName(msg.fromName)}" <${cfg("MAIL_FROM")}>` : cfg("MAIL_FROM")!;
+  const address = senderAddress(msg);
+  const from = msg.fromName ? `"${displayName(msg.fromName)}" <${address}>` : address;
   const providerId = provider === "resend" ? await viaResend(msg, from, id) : provider === "postmark" ? await viaPostmark(msg, from) : provider === "sendgrid" ? await viaSendgrid(msg, from, msg.fromName) : await viaSmtp(msg, from);
   await db.update(schema.outboundEmails).set({ status: "sent", providerId, error: null }).where(eq(schema.outboundEmails.id, id));
   log.info("mail_sent", { to: msg.to, subject: redactMailSecrets(msg.subject), provider });

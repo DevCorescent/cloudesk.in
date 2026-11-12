@@ -5,14 +5,15 @@
 // each person, at the hour they open, within a warming daily limit; opens,
 // clicks, unsubscribes and sign-ups are tracked back to the email that won
 // them; and the engine pauses anything that starts to hurt deliverability.
-import { Activity, ArrowDown, ArrowUp, Brain, ClipboardPaste, FileSpreadsheet, GitBranch, Hourglass, Mail, MousePointerClick, Pause, Play, Plus, Search, Send, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import { Activity, ArrowDown, ArrowUp, Brain, Flame, ClipboardPaste, FileSpreadsheet, GitBranch, Hourglass, Mail, MousePointerClick, Pause, Play, Plus, Search, Send, ShieldCheck, Sparkles, Trash2, Upload, X, Zap } from "lucide-react";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Dialog, Tabs, useToast } from "@/components/ui/overlays";
 import { Badge, Button, Card, ErrorState, Field, IconButton, Input, Notice, Select, Skeleton, Switch, Textarea, cx } from "@/components/ui/primitives";
 import { api, errorMessage } from "@/lib/client/api";
 import { matchColumns, tableFrom, type Target } from "@/lib/import/engine";
 import { ACCEPT, readSheets } from "@/lib/store/read-sheet";
-import { CATEGORY_LABEL, CONDITION_LABEL, CONDITIONS, CONSENT, CONSENT_LABEL, GOALS, IMPORT_FIELDS, INDUSTRIES, STAGE_LABEL, STAGES, TEMPLATE_CATEGORIES, type Audience, type Stage, type Step, type TemplateCategory, type TemplateInput } from "@/lib/outreach/model";
+import { CATEGORY_LABEL, CONDITION_LABEL, CONDITIONS, CONSENT, CONSENT_LABEL, GOALS, IMPORT_FIELDS, INDUSTRIES, MAILBOX_DAILY_CAP, spamCheck, STAGE_LABEL, STAGES, TEMPLATE_CATEGORIES, type Audience, type Stage, type Step, type TemplateCategory, type TemplateInput } from "@/lib/outreach/model";
 import { DailyChart, Section, Stat, num, useAdmin, useCan, useRun } from "./common";
 
 type Rates = { sends: number; opened: number; clicked: number; converted: number; bounced: number; unsubs: number; openRate: number; clickRate: number; conversionRate: number; bounceRate: number; unsubRate: number };
@@ -27,8 +28,13 @@ type Overview = {
   hours: { hour: number; n: number }[];
   learned: { text: string }[];
   decisions: { id: string; at: string; text: string; level: string }[];
+  tracking: { machineOpens: number; machineClicks: number; resends: number; resendOpened: number; replies: number };
+  attribution: { exact: number; matched: number; paying: number; mrr: number };
+  clients: { client: string; n: number }[];
+  links: { url: string; n: number }[];
+  hotLeads: { id: string; name: string; email: string; company: string; score: number; why: string; lastEventAt: string | null }[];
 };
-type Contact = { id: string; email: string; name: string; company: string; title: string; phone: string; city: string; industry: string; tags: string[]; notes: string; data: Record<string, string>; source: string; consent: string; status: string; stage: Stage; score: number; sends: number; opens: number; clicks: number; bestHour: number | null; lastEmailAt: string | null; signedUpAt: string | null; createdAt: string };
+type Contact = { id: string; verify: string; verifyNote: string; client: string; attribution: string; machineOpens: number; repliedAt: string | null; paidValue: number; email: string; name: string; company: string; title: string; phone: string; city: string; industry: string; tags: string[]; notes: string; data: Record<string, string>; source: string; consent: string; status: string; stage: Stage; score: number; sends: number; opens: number; clicks: number; bestHour: number | null; lastEmailAt: string | null; signedUpAt: string | null; createdAt: string };
 type ContactDetail = {
   contact: Contact;
   sends: { id: string; subject: string; status: string; opens: number; clicks: number; openedAt: string | null; clickedAt: string | null; convertedAt: string | null; sentAt: string; funnel: string | null }[];
@@ -36,10 +42,11 @@ type ContactDetail = {
   enrollments: { id: string; status: string; stepId: string | null; nextAt: string | null; exitReason: string; funnel: string }[];
 };
 type Arm = { sends: number; opens: number; clicks: number; conversions: number };
-type Template = TemplateInput & { id: string; key: string | null; stats: Arm; variants: (Arm & { subject: string })[] };
-type Funnel = { id: string; key: string | null; name: string; kind: "funnel" | "broadcast"; status: string; audience: Audience; steps: Step[]; goal: (typeof GOALS)[number]; autoEnroll: boolean; autoOptimize: boolean; startAt: string | null; pausedReason: string; enrolled: number; active: number; converted: number; sends: number; opens: number; clicks: number; conversions: number; unsubs: number; bounces: number };
+type Template = TemplateInput & { id: string; key: string | null; retired: number[]; stats: Arm; variants: (Arm & { subject: string })[]; links: { url: string; clicks: number }[] };
+type Funnel = { id: string; key: string | null; name: string; kind: "funnel" | "broadcast"; status: string; audience: Audience; steps: Step[]; goal: (typeof GOALS)[number]; autoEnroll: boolean; autoOptimize: boolean; priority: number; holdoutPct: number; startAt: string | null; pausedReason: string; control: { emailed: number; holdout: number; people: number } | null; revenue: number; enrolled: number; active: number; converted: number; sends: number; opens: number; clicks: number; conversions: number; unsubs: number; bounces: number };
 type FunnelDetail = { funnel: Funnel; steps: (Step & Arm & { waiting: number })[]; audienceSize: number };
-type Settings = { sending: boolean; fromName: string; replyTo: string; postalAddress: string; dailyLimit: number; warmup: boolean; warmupStart: number; warmupGrowth: number; windowStart: number; windowEnd: number; days: number[]; minGapHours: number; sunsetAfter: number; maxBounceRate: number; maxUnsubRate: number; startedAt: string | null };
+type Mailbox = { id: string; address: string; name: string; provider: string; status: string };
+type Settings = { sending: boolean; fromName: string; via: "platform" | "mailbox"; fromEmail: string; accountId: string | null; replyTo: string; postalAddress: string; dailyLimit: number; warmup: boolean; warmupStart: number; warmupGrowth: number; windowStart: number; windowEnd: number; days: number[]; minGapHours: number; maxPerWeek: number; aiEvolve: boolean; alerts: boolean; alertEmail: string; sunsetAfter: number; maxBounceRate: number; maxUnsubRate: number; startedAt: string | null };
 type ImportResult = { created: number; updated: number; skipped: number; errors: { row: number; message: string }[] };
 
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 1000) / 10}%` : "—");
@@ -54,13 +61,33 @@ const STAGE_TONE: Record<Stage, "neutral" | "accent" | "warning" | "success" | "
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const newId = () => Math.random().toString(36).slice(2, 8);
 
-type View = "overview" | "contacts" | "funnels" | "templates" | "activity" | "settings";
+type View = "overview" | "contacts" | "funnels" | "templates" | "activity" | "deliverability" | "settings";
+
+type Tick = { sent: number; failed: number; reason?: string; funnels: number; queued: number; nextAt: string | null };
+const REASON: Record<string, string> = {
+  "sending is off": "Sending is off — switch it on in Settings.",
+  "no postal address": "Add your postal address in Settings first.",
+  "daily limit reached": "Today's limit is used up; it carries on tomorrow.",
+  "no funnel is running": "No funnel is running — start one in Funnels.",
+  "nobody is waiting in the running funnels": "Nobody is in the running funnels — import contacts that match their audience.",
+};
+
+/** What a run did, in words. */
+function tickMessage(r: Tick): { tone: "success" | "error" | "info"; title: string; description?: string } {
+  const next = r.nextAt ? `Next email ${when(r.nextAt)}` : undefined;
+  if (r.sent) return { tone: "success", title: `Sent ${r.sent} ${r.sent === 1 ? "email" : "emails"}`, description: [r.failed ? `${r.failed} failed` : "", `${num(r.queued)} in ${r.funnels} running ${r.funnels === 1 ? "funnel" : "funnels"}`, next ?? ""].filter(Boolean).join(" · ") };
+  if (r.reason?.startsWith("sending failed")) return { tone: "error", title: "Sending failed", description: r.reason.replace(/^sending failed — /, "") };
+  if (r.reason === "nobody is due yet") return { tone: "info", title: "Nobody is due right now", description: `${num(r.queued)} waiting — each gets their email at their best hour inside the sending window (Settings → When).${next ? ` ${next}.` : ""}` };
+  return { tone: "info", title: "Nothing sent", description: REASON[r.reason ?? ""] ?? r.reason };
+}
 
 export function OutreachPanel() {
   const [view, setView] = useState<View>("overview");
   const o = useAdmin<Overview>("outreach/overview", { refetchInterval: 60_000 });
   const run = useRun();
   const can = useCan();
+  const toast = useToast();
+  const [running, setRunning] = useState(false);
   const s = o.data?.settings;
   return (
     <div className="min-w-0 space-y-4">
@@ -73,7 +100,14 @@ export function OutreachPanel() {
             </>
           ) : <Skeleton className="h-5 w-40" />}
         </div>
-        {can("outreach:write") && <Button size="sm" icon={<Zap className="size-3.5" />} onClick={async () => { const r = await run<{ sent: number; reason?: string }>("outreach/run", "POST"); if (r) await o.refetch(); }}>Run now</Button>}
+        {can("outreach:write") && (
+          <Button size="sm" icon={<Zap className="size-3.5" />} loading={running} onClick={async () => {
+            setRunning(true);
+            const r = await run<Tick>("outreach/run", "POST");
+            setRunning(false);
+            if (r) toast(tickMessage(r));
+          }}>Run now</Button>
+        )}
       </div>
       <Tabs<View>
         value={view}
@@ -84,6 +118,7 @@ export function OutreachPanel() {
           { value: "funnels", label: "Funnels" },
           { value: "templates", label: "Templates" },
           { value: "activity", label: "Activity" },
+          { value: "deliverability", label: "Deliverability" },
           { value: "settings", label: "Settings" },
         ]}
       />
@@ -92,6 +127,7 @@ export function OutreachPanel() {
       {view === "funnels" && <FunnelsView />}
       {view === "templates" && <TemplatesView />}
       {view === "activity" && <ActivityView />}
+      {view === "deliverability" && <DeliverabilityView />}
       {view === "settings" && <SettingsView />}
     </div>
   );
@@ -99,7 +135,12 @@ export function OutreachPanel() {
 
 // ── Overview ────────────────────────────────────────────────────────────────
 
+function Cell({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+  return <div className="min-w-0 bg-surface p-3"><p className="truncate text-[11.5px] text-muted">{label}</p><p className="text-[18px] font-semibold tabular-nums">{value}</p>{sub && <p className="truncate text-[11px] text-subtle">{sub}</p>}</div>;
+}
+
 function OverviewView({ o, error, go }: { o?: Overview; error: string | null; go: (v: View) => void }) {
+  const [lead, setLead] = useState<string | null>(null);
   if (error) return <ErrorState message={error} />;
   if (!o) return <Skeleton className="h-96" />;
   const l = o.last30;
@@ -144,6 +185,33 @@ function OverviewView({ o, error, go }: { o?: Overview; error: string | null; go
         </Section>
       </div>
 
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <Section title="Hot leads" sub="Replied or clicked — the engine follows up; a personal word wins most.">
+          <Card className="divide-y divide-border">
+            {o.hotLeads.length ? o.hotLeads.map((h) => (
+              <button key={h.id} type="button" onClick={() => setLead(h.id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-2">
+                <Flame className={cx("size-4 shrink-0", h.why.startsWith("Replied") ? "text-danger" : "text-warning")} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13px] font-medium">{h.name || h.email}{h.company ? <span className="font-normal text-muted"> · {h.company}</span> : null}</span>
+                  <span className="block truncate text-[12px] text-muted">{h.why} · {ago(h.lastEventAt)}</span>
+                </span>
+                <span className="shrink-0 text-[12px] font-semibold tabular-nums">{h.score}</span>
+              </button>
+            )) : <p className="p-4 text-[13px] text-muted">Nobody hot yet. Clicks, repeat opens and replies put people here — and into the hot-lead funnel.</p>}
+          </Card>
+        </Section>
+        <Section title="What outreach won" sub="Sign-ups credited to an email, and what they pay.">
+          <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border">
+            <Cell label="Signed up after clicking" value={num(o.attribution.exact)} sub="Exact: followed the link" />
+            <Cell label="Signed up, same address" value={num(o.attribution.matched)} sub="Matched by email" />
+            <Cell label="Now paying" value={num(o.attribution.paying)} />
+            <Cell label="Monthly revenue won" value={`₹${num(o.attribution.mrr)}`} />
+            <Cell label="Replies" value={num(o.tracking.replies)} sub="From a Cloudesk Mail mailbox" />
+            <Cell label="Machine hits ignored" value={num(o.tracking.machineOpens + o.tracking.machineClicks)} sub="Privacy proxies, scanners" />
+          </Card>
+        </Section>
+      </div>
+
       <Section title="Last 30 days" sub="Sent, opened, clicked and sign-ups by day.">
         <Card className="min-w-0 p-3">
           {o.daily.length ? <DailyChart kind="line" series={[{ label: "Sent", points: o.daily.map((d) => ({ day: d.day, n: d.sent })) }, { label: "Opened", points: o.daily.map((d) => ({ day: d.day, n: d.opened })) }, { label: "Clicked", points: o.daily.map((d) => ({ day: d.day, n: d.clicked })) }, { label: "Signed up", points: o.daily.map((d) => ({ day: d.day, n: d.converted })) }]} /> : <p className="p-6 text-center text-[13px] text-muted">Nothing sent in the last 30 days.</p>}
@@ -176,6 +244,26 @@ function OverviewView({ o, error, go }: { o?: Overview; error: string | null; go
         </Section>
       </div>
 
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
+        <Section title="Mail apps" sub="Where people read, from real opens.">
+          <Card className="space-y-2 p-4">
+            {o.clients.length ? o.clients.map((c) => (
+              <div key={c.client} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-[12.5px]">
+                <span className="min-w-0"><span className="block truncate">{c.client}</span><span className="mt-1 block h-1.5 rounded-full bg-accent/70" style={{ width: `${(c.n / o.clients[0]!.n) * 100}%` }} /></span>
+                <span className="tabular-nums text-muted">{num(c.n)}</span>
+              </div>
+            )) : <p className="text-[13px] text-muted">Shows once people open.</p>}
+          </Card>
+        </Section>
+        <Section title="Most-clicked links" sub="Last 30 days, people only.">
+          <Card className="divide-y divide-border">
+            {o.links.length ? o.links.map((l) => (
+              <div key={l.url} className="flex items-center gap-3 px-3 py-2 text-[12.5px]"><span className="min-w-0 flex-1 truncate">{l.url.replace(/^https?:\/\//, "").replace(/\?.*$/, "")}</span><span className="shrink-0 tabular-nums text-muted">{num(l.n)}</span></div>
+            )) : <p className="p-4 text-[13px] text-muted">No clicks yet.</p>}
+          </Card>
+        </Section>
+      </div>
+
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
         <Section title="Where contacts are" sub="Stages move on their own, from what people do.">
           <Card className="grid grid-cols-2 gap-px overflow-hidden bg-border sm:grid-cols-4">
@@ -199,6 +287,7 @@ function OverviewView({ o, error, go }: { o?: Overview; error: string | null; go
           </Card>
         </Section>
       </div>
+      {lead && <ContactDialog id={lead} onClose={() => setLead(null)} />}
     </div>
   );
 }
@@ -212,6 +301,7 @@ function ContactsView() {
   const [industry, setIndustry] = useState("");
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("");
+  const [verify, setVerify] = useState("");
   const [page, setPage] = useState(0);
   const [open, setOpen] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -223,7 +313,7 @@ function ContactsView() {
     const t = setTimeout(() => { setDeb(q); setPage(0); }, 250);
     return () => clearTimeout(t);
   }, [q]);
-  const qs = new URLSearchParams({ q: deb, stage, industry, source, status, page: String(page) });
+  const qs = new URLSearchParams({ q: deb, stage, industry, source, status, verify, page: String(page) });
   const list = useAdmin<{ contacts: Contact[]; total: number; sources: string[] }>(`outreach/contacts?${qs}`);
   const rows = list.data?.contacts ?? [];
   const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -242,11 +332,12 @@ function ContactsView() {
           </div>
         )}
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <Select value={verify} onChange={filter(setVerify)} aria-label="Address check"><option value="">Any address</option><option value="valid">Checked</option><option value="risky">Shared inbox</option><option value="invalid">Won’t be sent</option><option value="unknown">Not checked yet</option></Select>
         <Select value={stage} onChange={filter(setStage)} aria-label="Stage"><option value="">Every stage</option>{STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}</Select>
         <Select value={industry} onChange={filter(setIndustry)} aria-label="Industry"><option value="">Every industry</option>{INDUSTRIES.map((s) => <option key={s} value={s}>{cap(s)}</option>)}</Select>
         <Select value={source} onChange={filter(setSource)} aria-label="Source"><option value="">Every source</option>{list.data?.sources.map((s) => <option key={s} value={s}>{s}</option>)}</Select>
-        <Select value={status} onChange={filter(setStatus)} aria-label="Status"><option value="">Any status</option>{["active", "unsubscribed", "bounced", "suppressed"].map((s) => <option key={s} value={s}>{cap(s)}</option>)}</Select>
+        <Select value={status} onChange={filter(setStatus)} aria-label="Status"><option value="">Any status</option>{["active", "unsubscribed", "bounced", "complained", "suppressed"].map((s) => <option key={s} value={s}>{cap(s)}</option>)}</Select>
       </div>
       {picked.size > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-[12px] border border-border bg-surface-2 px-3 py-2 text-[12.5px]">
@@ -273,7 +364,7 @@ function ContactsView() {
                 </span>
                 <span className="hidden shrink-0 text-right text-[11.5px] text-muted tabular-nums sm:block">{c.sends} sent · {c.opens} opens · {c.clicks} clicks</span>
                 <span className="w-9 shrink-0 text-right text-[12px] font-semibold tabular-nums" title="Engagement score">{c.score}</span>
-                {c.status !== "active" ? <Badge tone="danger">{cap(c.status)}</Badge> : <Badge tone={STAGE_TONE[c.stage]}>{STAGE_LABEL[c.stage]}</Badge>}
+                {c.status !== "active" ? <Badge tone="danger">{cap(c.status)}</Badge> : c.verify === "invalid" ? <Badge tone="danger">Bad address</Badge> : <Badge tone={STAGE_TONE[c.stage]}>{STAGE_LABEL[c.stage]}</Badge>}
               </button>
             </div>
           ))}
@@ -292,7 +383,7 @@ function ContactsView() {
   );
 }
 
-const EVENT_LABEL: Record<string, string> = { open: "Opened", click: "Clicked", unsubscribe: "Unsubscribed", bounce: "Bounced", signup: "Signed up", trial: "Started a trial", paid: "Started paying", import: "Imported" };
+const EVENT_LABEL: Record<string, string> = { open: "Opened", click: "Clicked", unsubscribe: "Unsubscribed", bounce: "Bounced", complaint: "Marked it as spam", signup: "Signed up", trial: "Started a trial", paid: "Started paying", import: "Imported" };
 
 function ContactDialog({ id, onClose }: { id: string; onClose: () => void }) {
   const d = useAdmin<ContactDetail>(`outreach/contacts/${id}`);
@@ -317,7 +408,7 @@ function ContactDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <Mini label="Best hour" value={c.bestHour === null ? "Learning" : `${String(c.bestHour).padStart(2, "0")}:00`} />
           </div>
           <div className="grid gap-x-4 gap-y-1 text-[12.5px] sm:grid-cols-2">
-            {[["Industry", cap(c.industry)], ["City", c.city], ["Phone", c.phone], ["Source", c.source], ["Consent", CONSENT_LABEL[c.consent as keyof typeof CONSENT_LABEL] ?? c.consent], ["Tags", c.tags.join(", ")], ...Object.entries(c.data ?? {}).map(([k, v]) => [`{{${k}}}`, v])].filter(([, v]) => v).map(([k, v]) => (
+            {[["Address", c.verifyNote || (c.verify === "valid" ? "Mail server checked" : c.verify === "unknown" ? "Not checked yet" : "")], ["Reads on", c.client], ["Signed up", c.attribution ? `${c.attribution === "exact" ? "Clicked an email, then signed up" : "Same address as a sign-up"}` : ""], ["Pays", c.paidValue ? `₹${num(c.paidValue)}/month` : ""], ["Replied", c.repliedAt ? when(c.repliedAt) : ""], ["Industry", cap(c.industry)], ["City", c.city], ["Phone", c.phone], ["Source", c.source], ["Consent", CONSENT_LABEL[c.consent as keyof typeof CONSENT_LABEL] ?? c.consent], ["Tags", c.tags.join(", ")], ...Object.entries(c.data ?? {}).map(([k, v]) => [`{{${k}}}`, v])].filter(([, v]) => v).map(([k, v]) => (
               <p key={k} className="flex min-w-0 gap-2"><span className="w-24 shrink-0 truncate text-muted">{k}</span><span className="min-w-0 break-words">{v}</span></p>
             ))}
           </div>
@@ -536,6 +627,13 @@ function FunnelsView() {
               <Mini label="Click" value={pct(f.clicks, f.sends)} />
               <Mini label="Won" value={num(f.conversions)} />
             </div>
+            {(f.control || f.revenue > 0 || f.priority > 0) && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
+                {f.control && <span title={`${f.control.people} people held back`}>Lift <b className={cx("font-semibold tabular-nums", f.control.emailed > f.control.holdout ? "text-success" : "text-fg")}>{f.control.emailed > f.control.holdout ? "+" : ""}{Math.round((f.control.emailed - f.control.holdout) * 10) / 10} pts</b> vs not emailed ({f.control.emailed}% vs {f.control.holdout}%)</span>}
+                {f.revenue > 0 && <span>₹{num(f.revenue)}/mo won</span>}
+                {f.priority > 0 && <span>Priority {f.priority}</span>}
+              </div>
+            )}
             <StepStrip steps={f.steps} />
           </Card>
         ))}
@@ -552,7 +650,7 @@ function StepStrip({ steps }: { steps: Step[] }) {
         <span key={s.id} className="flex items-center gap-1">
           {i > 0 && <span className="text-subtle">›</span>}
           <span className="inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5">
-            {s.kind === "email" ? <><Mail className="size-3" />{s.category ? CATEGORY_LABEL[s.category] : "Email"}</> : s.kind === "wait" ? <><Hourglass className="size-3" />{s.days}d</> : <><GitBranch className="size-3" />If {s.if.replace("_", " ")}</>}
+            {s.kind === "email" ? <><Mail className="size-3" />{s.category ? CATEGORY_LABEL[s.category] : "Email"}{s.resendAfterDays ? " + 2nd try" : ""}</> : s.kind === "wait" ? <><Hourglass className="size-3" />{s.days}d</> : <><GitBranch className="size-3" />If {s.if.replace("_", " ")}</>}
           </span>
         </span>
       ))}
@@ -560,7 +658,7 @@ function StepStrip({ steps }: { steps: Step[] }) {
   );
 }
 
-const blankFunnel = (): Omit<Funnel, "id" | "key" | "status" | "pausedReason" | "enrolled" | "active" | "converted" | "sends" | "opens" | "clicks" | "conversions" | "unsubs" | "bounces"> => ({
+const blankFunnel = (): Omit<Funnel, "id" | "key" | "status" | "pausedReason" | "control" | "revenue" | "enrolled" | "active" | "converted" | "sends" | "opens" | "clicks" | "conversions" | "unsubs" | "bounces"> => ({
   name: "",
   kind: "funnel",
   audience: { stages: ["new", "engaged", "hot"], industries: [], tags: [], sources: [], minScore: null },
@@ -568,6 +666,8 @@ const blankFunnel = (): Omit<Funnel, "id" | "key" | "status" | "pausedReason" | 
   goal: "signed_up",
   autoEnroll: true,
   autoOptimize: true,
+  priority: 0,
+  holdoutPct: 5,
   startAt: null,
 });
 
@@ -600,7 +700,7 @@ function FunnelEditor({ funnel, onClose }: { funnel: Funnel | null; onClose: () 
   const add = (kind: Step["kind"]) => setF((x) => ({ ...x, steps: [...x.steps, kind === "email" ? { id: newId(), kind, templateId: null, category: "feature" } : kind === "wait" ? { id: newId(), kind, days: 3 } : { id: newId(), kind, if: "clicked", then: x.steps[0]?.id ?? "", else: null }] }));
   const save = async () => {
     setBusy(true);
-    const body = { name: f.name, kind: f.kind, audience: { ...f.audience, tags: tagList(tags) }, steps: f.steps, goal: f.goal, autoEnroll: f.autoEnroll, autoOptimize: f.autoOptimize, startAt: f.startAt };
+    const body = { name: f.name, kind: f.kind, audience: { ...f.audience, tags: tagList(tags) }, steps: f.steps, goal: f.goal, autoEnroll: f.autoEnroll, autoOptimize: f.autoOptimize, priority: f.priority, holdoutPct: f.holdoutPct, startAt: f.startAt };
     const r = await run(funnel ? `outreach/funnels/${funnel.id}` : "outreach/funnels", funnel ? "PUT" : "POST", body, "Saved");
     setBusy(false);
     if (r) onClose();
@@ -613,7 +713,7 @@ function FunnelEditor({ funnel, onClose }: { funnel: Funnel | null; onClose: () 
       onClose={onClose}
       size="xl"
       title={funnel ? funnel.name : "New funnel"}
-      description={detail.data ? `${num(detail.data.audienceSize)} contacts match the audience right now.` : "Who it's for, what they get and when, and what counts as a win."}
+      description={detail.data ? `${num(detail.data.audienceSize)} ${detail.data.audienceSize === 1 ? "contact matches" : "contacts match"} the audience right now.` : "Who it's for, what they get and when, and what counts as a win."}
       footer={write ? <>
         {funnel && (confirmDelete ? <Button variant="danger" onClick={async () => { if (await run(`outreach/funnels/${funnel.id}`, "DELETE", undefined, "Deleted")) onClose(); }}>Delete it and its history</Button> : <Button variant="ghost" className="mr-auto" icon={<Trash2 className="size-3.5" />} onClick={() => setConfirmDelete(true)}>Delete</Button>)}
         <Button onClick={onClose}>Cancel</Button>
@@ -653,10 +753,18 @@ function FunnelEditor({ funnel, onClose }: { funnel: Funnel | null; onClose: () 
                   <IconButton size="sm" label="Remove step" onClick={() => setF((x) => ({ ...x, steps: x.steps.filter((y) => y.id !== s.id) }))}><X className="size-3.5" /></IconButton>
                 </div>
                 {s.kind === "email" && (
+                  <div className="space-y-2">
                   <Select value={s.templateId ? `t:${s.templateId}` : `c:${s.category ?? "intro"}`} onChange={(e) => { const [k, v] = [e.target.value.slice(0, 1), e.target.value.slice(2)]; setStep(i, { ...s, templateId: k === "t" ? v : null, category: k === "c" ? (v as TemplateCategory) : null }); }} aria-label="Which email">
                     <optgroup label="Best in category (the engine picks per person)">{TEMPLATE_CATEGORIES.map((c) => <option key={c} value={`c:${c}`}>Best {CATEGORY_LABEL[c].toLowerCase()}</option>)}</optgroup>
                     <optgroup label="A fixed template">{tpl.data?.templates.map((t) => <option key={t.id} value={`t:${t.id}`}>{t.name}</option>)}</optgroup>
                   </Select>
+                  <label className="flex flex-wrap items-center gap-2 text-[12.5px] text-muted">
+                    <input type="checkbox" className="size-4 accent-[var(--accent)]" checked={!!s.resendAfterDays} onChange={(e) => setStep(i, { ...s, resendAfterDays: e.target.checked ? 3 : null })} />
+                    Second try with another subject if unopened after
+                    <Input type="number" min={1} max={14} value={s.resendAfterDays ?? 3} disabled={!s.resendAfterDays} onChange={(e) => setStep(i, { ...s, resendAfterDays: Math.min(14, Math.max(1, Math.round(Number(e.target.value) || 3))) })} className="!h-7 !w-16" aria-label="Days before the second try" />
+                    days
+                  </label>
+                  </div>
                 )}
                 {s.kind === "wait" && (
                   <div className="flex items-center gap-2 text-[12.5px]"><Input type="number" min={0.04} max={60} step={0.5} value={s.days} onChange={(e) => setStep(i, { ...s, days: Math.min(60, Math.max(0.04, Number(e.target.value) || 1)) })} className="!w-24" aria-label="Days" /><span className="text-muted">days, then the next step at their best hour</span></div>
@@ -681,6 +789,8 @@ function FunnelEditor({ funnel, onClose }: { funnel: Funnel | null; onClose: () 
         <div className="grid gap-3 sm:grid-cols-2">
           {f.kind === "funnel" && <Toggle label="New contacts join on their own" sub="Anyone imported later who matches the audience." checked={f.autoEnroll} onChange={(v) => set("autoEnroll", v)} />}
           <Toggle label="Optimise on its own" sub="Learn the winning subject, template and hour, and shift sends to them." checked={f.autoOptimize} onChange={(v) => set("autoOptimize", v)} />
+          <Field label="Priority" hint="0–100. Someone who matches a higher-priority funnel is moved into it.">{(a) => <Input {...a} type="number" min={0} max={100} value={f.priority} onChange={(e) => set("priority", Math.min(100, Math.max(0, Math.round(Number(e.target.value) || 0))))} />}</Field>
+          <Field label="Control group (%)" hint="Held back, never emailed — so you see the funnel's real lift. 5% is plenty.">{(a) => <Input {...a} type="number" min={0} max={30} value={f.holdoutPct} onChange={(e) => set("holdoutPct", Math.min(30, Math.max(0, Math.round(Number(e.target.value) || 0))))} />}</Field>
           <Field label="Start no earlier than" hint="Optional.">{(a) => <Input {...a} type="datetime-local" value={f.startAt ? toLocal(f.startAt) : ""} onChange={(e) => set("startAt", e.target.value ? new Date(e.target.value).toISOString() : null)} />}</Field>
         </div>
       </div>
@@ -706,6 +816,8 @@ function TemplatesView() {
   const can = useCan();
   const [cat, setCat] = useState<TemplateCategory | "">("");
   const [edit, setEdit] = useState<Template | "new" | null>(null);
+  const [draft, setDraft] = useState<TemplateInput | null>(null);
+  const [writing, setWriting] = useState(false);
   if (list.isError) return <ErrorState message={errorMessage(list.error)} />;
   if (!list.data) return <Skeleton className="h-72" />;
   const shown = list.data.templates.filter((t) => !cat || t.category === cat);
@@ -714,11 +826,16 @@ function TemplatesView() {
       <div className="flex flex-wrap items-center gap-2">
         <Select value={cat} onChange={(e) => setCat(e.target.value as TemplateCategory | "")} aria-label="Category" className="!w-52"><option value="">Every category</option>{TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}</Select>
         <span className="text-[12.5px] text-muted">{shown.length} templates</span>
-        {can("outreach:write") && <Button size="sm" variant="primary" className="ml-auto" icon={<Plus className="size-3.5" />} onClick={() => setEdit("new")}>New template</Button>}
+        {can("outreach:write") && (
+          <div className="ml-auto flex gap-2">
+            <Button size="sm" icon={<Sparkles className="size-3.5" />} onClick={() => setWriting(true)}>Write with AI</Button>
+            <Button size="sm" variant="primary" icon={<Plus className="size-3.5" />} onClick={() => { setDraft(null); setEdit("new"); }}>New template</Button>
+          </div>
+        )}
       </div>
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {shown.map((t) => {
-          const lead = t.variants.length > 1 && t.variants.every((v) => v.sends >= 30) ? t.variants.reduce((a, v, i) => (v.clicks / v.sends > t.variants[a]!.clicks / t.variants[a]!.sends ? i : a), 0) : -1;
+          const lead = t.variants.length > 1 && t.variants.filter((_, i) => !t.retired.includes(i)).every((v) => v.sends >= 30) ? t.variants.reduce((a, v, i) => (v.clicks / v.sends > t.variants[a]!.clicks / t.variants[a]!.sends ? i : a), 0) : -1;
           return (
             <button key={t.id} type="button" onClick={() => setEdit(t)} className="min-w-0 rounded-[16px] border border-border bg-surface p-4 text-left hover:border-border-strong">
               <div className="flex items-center gap-2"><Badge>{CATEGORY_LABEL[t.category]}</Badge>{t.industries.length > 0 && <span className="truncate text-[11.5px] text-muted">{t.industries.map(cap).join(", ")}</span>}</div>
@@ -726,7 +843,7 @@ function TemplatesView() {
               <ul className="mt-1.5 space-y-1">
                 {t.variants.map((v, i) => (
                   <li key={i} className="flex min-w-0 items-center gap-2 text-[12px]">
-                    <span className={cx("min-w-0 flex-1 truncate", i === lead ? "font-medium" : "text-muted")}>{i === lead && <Sparkles className="mr-1 inline size-3 text-accent" />}{v.subject}</span>
+                    <span className={cx("min-w-0 flex-1 truncate", i === lead ? "font-medium" : "text-muted", t.retired.includes(i) && "line-through opacity-60")}>{i === lead && <Sparkles className="mr-1 inline size-3 text-accent" />}{v.subject}</span>
                     <span className="shrink-0 text-subtle tabular-nums">{v.sends ? pct(v.clicks, v.sends) : "new"}</span>
                   </li>
                 ))}
@@ -736,16 +853,17 @@ function TemplatesView() {
           );
         })}
       </div>
-      {edit && <TemplateEditor template={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
+      {edit && <TemplateEditor template={edit === "new" ? null : edit} draft={edit === "new" ? draft : null} onClose={() => { setEdit(null); setDraft(null); }} />}
+      {writing && <AiWriter onClose={() => setWriting(false)} onDone={(t) => { setWriting(false); setDraft(t); setEdit("new"); }} />}
     </div>
   );
 }
 
-function TemplateEditor({ template, onClose }: { template: Template | null; onClose: () => void }) {
+function TemplateEditor({ template, draft, onClose }: { template: Template | null; draft?: TemplateInput | null; onClose: () => void }) {
   const run = useRun();
   const can = useCan();
   const toast = useToast();
-  const [t, setT] = useState<TemplateInput>(() => template ? { name: template.name, category: template.category, industries: template.industries, subjects: template.subjects, preheader: template.preheader, body: template.body, ctaLabel: template.ctaLabel, ctaUrl: template.ctaUrl } : { name: "", category: "intro", industries: [], subjects: ["", ""], preheader: "", body: "Hi {{firstName|there}},\n\n", ctaLabel: "Start free", ctaUrl: "https://cloudesk.in/signup" });
+  const [t, setT] = useState<TemplateInput>(() => draft ? draft : template ? { name: template.name, category: template.category, industries: template.industries, subjects: template.subjects, preheader: template.preheader, body: template.body, ctaLabel: template.ctaLabel, ctaUrl: template.ctaUrl } : { name: "", category: "intro", industries: [], subjects: ["", ""], preheader: "", body: "Hi {{firstName|there}},\n\n", ctaLabel: "Start free", ctaUrl: "https://cloudesk.in/signup" });
   const [variant, setVariant] = useState(0);
   const [pv, setPv] = useState<{ subject: string; html: string } | null>(null);
   const [tab, setTab] = useState<"edit" | "preview">("edit");
@@ -763,6 +881,7 @@ function TemplateEditor({ template, onClose }: { template: Template | null; onCl
     return () => clearTimeout(id);
   }, [body, variant, ok]);
   const write = can("outreach:write");
+  const issues = useMemo(() => spamCheck(t), [t]);
   const editor = (
     <div className="min-w-0 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -774,11 +893,11 @@ function TemplateEditor({ template, onClose }: { template: Template | null; onCl
         {t.subjects.map((s, i) => (
           <div key={i} className="flex items-center gap-2">
             <Input value={s} onChange={(e) => set("subjects", t.subjects.map((x, j) => (j === i ? e.target.value : x)))} onFocus={() => setVariant(i)} maxLength={160} aria-label={`Subject ${i + 1}`} placeholder={i ? "Another way to say it" : "{{firstName}}, …"} />
-            {template && template.variants[i]?.sends ? <span className="w-14 shrink-0 text-right text-[11.5px] text-muted tabular-nums">{pct(template.variants[i]!.clicks, template.variants[i]!.sends)}</span> : null}
+            {template?.retired.includes(i) ? <Badge>Retired</Badge> : template && template.variants[i]?.sends ? <span className="w-14 shrink-0 text-right text-[11.5px] text-muted tabular-nums">{pct(template.variants[i]!.clicks, template.variants[i]!.sends)}</span> : null}
             {t.subjects.length > 1 && <IconButton size="sm" label="Remove subject" onClick={() => set("subjects", t.subjects.filter((_, j) => j !== i))}><X className="size-3.5" /></IconButton>}
           </div>
         ))}
-        {t.subjects.length < 4 && <Button size="sm" variant="ghost" icon={<Plus className="size-3.5" />} onClick={() => set("subjects", [...t.subjects, ""])}>Subject line</Button>}
+        {t.subjects.length < 6 && <Button size="sm" variant="ghost" icon={<Plus className="size-3.5" />} onClick={() => set("subjects", [...t.subjects, ""])}>Subject line</Button>}
       </div>
       <Field label="Preview text" hint="Shown after the subject in most inboxes.">{(a) => <Input {...a} value={t.preheader} onChange={(e) => set("preheader", e.target.value)} maxLength={200} />}</Field>
       <Field label="Body" hint={<>**bold**, *italic*, [link](https://…), lines starting “- ”. Merge: {"{{firstName|there}} {{company}} {{city}} {{industry}} {{trial}}"} and any imported column.</>}>{(a) => <Textarea {...a} value={t.body} onChange={(e) => set("body", e.target.value)} rows={12} className="font-mono text-[12.5px]" />}</Field>
@@ -787,6 +906,13 @@ function TemplateEditor({ template, onClose }: { template: Template | null; onCl
         <Field label="Button link">{(a) => <Input {...a} value={t.ctaUrl} onChange={(e) => set("ctaUrl", e.target.value)} maxLength={500} />}</Field>
       </div>
       <div className="space-y-1.5"><p className="text-[12px] text-muted">Best for (none = everyone)</p><Chips all={INDUSTRIES} value={t.industries} onChange={(v) => set("industries", v)} label={cap} /></div>
+      <SpamPanel issues={issues} />
+      {!!template?.links.length && (
+        <div className="space-y-1">
+          <p className="text-[12px] font-medium text-muted">What people click</p>
+          {template.links.map((l) => <p key={l.url} className="flex gap-2 text-[12px]"><span className="min-w-0 flex-1 truncate">{l.url.replace(/^https?:\/\//, "").replace(/\?.*$/, "")}</span><span className="tabular-nums text-muted">{l.clicks}</span></p>)}
+        </div>
+      )}
     </div>
   );
   const preview = (
@@ -823,6 +949,46 @@ function TemplateEditor({ template, onClose }: { template: Template | null; onCl
   );
 }
 
+function AiWriter({ onClose, onDone }: { onClose: () => void; onDone: (t: TemplateInput) => void }) {
+  const run = useRun();
+  const [brief, setBrief] = useState("");
+  const [category, setCategory] = useState<TemplateCategory>("intro");
+  const [industry, setIndustry] = useState("");
+  const [busy, setBusy] = useState(false);
+  return (
+    <Dialog
+      open
+      onClose={onClose}
+      size="md"
+      title="Write a template with AI"
+      description="Say who it's for and what you want them to do. You review and edit it before anything is sent."
+      footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" icon={<Sparkles className="size-3.5" />} loading={busy} disabled={brief.trim().length < 5} onClick={async () => { setBusy(true); const r = await run<{ template: TemplateInput }>("outreach/templates/ai", "POST", { brief, category, industry }); setBusy(false); if (r) onDone(r.template); }}>Write it</Button></>}
+    >
+      <div className="space-y-3">
+        <Field label="Brief">{(a) => <Textarea {...a} rows={4} value={brief} onChange={(e) => setBrief(e.target.value)} placeholder="Restaurant owners in Pune who still bill on paper — get them to try the POS with QR menus, mention the free plan." />}</Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Category">{(a) => <Select {...a} value={category} onChange={(e) => setCategory(e.target.value as TemplateCategory)}>{TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>)}</Select>}</Field>
+          <Field label="Industry">{(a) => <Select {...a} value={industry} onChange={(e) => setIndustry(e.target.value)}><option value="">Any</option>{INDUSTRIES.filter((x) => x !== "other").map((x) => <option key={x} value={x}>{cap(x)}</option>)}</Select>}</Field>
+        </div>
+      </div>
+    </Dialog>
+  );
+}
+
+function SpamPanel({ issues }: { issues: ReturnType<typeof spamCheck> }) {
+  const bad = issues.filter((i) => i.level === "bad").length;
+  return (
+    <div className={cx("rounded-[12px] border p-3", bad ? "border-danger/40 bg-danger/5" : issues.some((i) => i.level === "warn") ? "border-warning/40 bg-warning/5" : "border-border bg-surface-2")}>
+      <p className="flex items-center gap-1.5 text-[12.5px] font-medium"><ShieldCheck className="size-3.5" />{issues.filter((i) => i.level !== "tip").length ? "Spam check: fix these before sending" : "Spam check: looks clean"}</p>
+      {issues.length > 0 && (
+        <ul className="mt-1.5 space-y-1 text-[12px]">
+          {issues.map((i, k) => <li key={k} className="flex gap-1.5"><span className={cx("mt-1.5 size-1.5 shrink-0 rounded-full", i.level === "bad" ? "bg-danger" : i.level === "warn" ? "bg-warning" : "bg-subtle")} /><span className="min-w-0 break-words">{i.text}</span></li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ── Activity ────────────────────────────────────────────────────────────────
 
 const KIND_ICON: Record<string, ReactNode> = { open: <Mail className="size-3.5" />, click: <MousePointerClick className="size-3.5" />, signup: <Sparkles className="size-3.5" />, trial: <Sparkles className="size-3.5" />, paid: <Sparkles className="size-3.5" />, unsubscribe: <X className="size-3.5" />, bounce: <X className="size-3.5" /> };
@@ -848,16 +1014,84 @@ function ActivityView() {
   );
 }
 
+// ── Deliverability ──────────────────────────────────────────────────────────
+
+type Check = { id: string; title: string; status: "pass" | "warn" | "fail"; detail: string; fix?: { type: string; host: string; value: string; note?: string } };
+
+function DeliverabilityView() {
+  const q = useAdmin<{ domain: string; from: string; via: string; checks: Check[]; score: number }>("outreach/deliverability");
+  if (q.isError) return <ErrorState message={errorMessage(q.error)} onRetry={() => void q.refetch()} />;
+  if (!q.data) return <Skeleton className="h-96" />;
+  const d = q.data;
+  const fails = d.checks.filter((c) => c.status === "fail").length;
+  return (
+    <div className="space-y-4">
+      <Card className="flex flex-wrap items-center gap-4 p-4">
+        <div className={cx("flex size-14 shrink-0 items-center justify-center rounded-full text-[18px] font-semibold tabular-nums", d.score >= 85 ? "bg-success/12 text-success" : d.score >= 60 ? "bg-warning/15 text-warning" : "bg-danger/10 text-danger")}>{d.score}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[14px] font-semibold">{fails ? `${fails} ${fails === 1 ? "thing" : "things"} will send mail to spam` : d.score >= 85 ? "Set up to reach the inbox" : "Nearly there"}</p>
+          <p className="truncate text-[12.5px] text-muted">From {d.from || "—"} · checked live against {d.domain || "no domain"}’s DNS</p>
+        </div>
+        <Button size="sm" loading={q.isFetching} onClick={() => void q.refetch()}>Check again</Button>
+      </Card>
+      <Card className="divide-y divide-border">
+        {d.checks.map((c) => (
+          <div key={c.id} className="flex gap-3 p-3.5">
+            <span className={cx("mt-1 size-2.5 shrink-0 rounded-full", c.status === "pass" ? "bg-success" : c.status === "warn" ? "bg-warning" : "bg-danger")} aria-label={c.status} />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <p className="text-[13.5px] font-medium">{c.title}</p>
+              <p className="text-[12.5px] break-words text-muted">{c.detail}</p>
+              {c.fix && c.status !== "pass" && <FixRecord fix={c.fix} />}
+            </div>
+          </div>
+        ))}
+      </Card>
+      <Card className="space-y-2 p-4 text-[12.5px] text-muted">
+        <p className="text-[13px] font-medium text-fg">The Cloudesk logo as the sender’s picture</p>
+        <p><b className="font-medium text-fg">Gmail</b> shows a logo through BIMI (above, with a Mark Certificate) — or, without one, the profile photo of a Google account on the same address. Create a Google account for the From address (<a className="underline" href="https://accounts.google.com/signup" target="_blank" rel="noreferrer">“use my current email address instead”</a>) and set its photo to the logo below.</p>
+        <p><b className="font-medium text-fg">Outlook and Apple Mail</b> show the BIMI logo once it’s verified; Yahoo shows it with DMARC enforcement alone.</p>
+        <div className="flex flex-wrap items-center gap-3 pt-1">
+          <a href="/brand/cloudesk-avatar.png" target="_blank" className="inline-flex items-center gap-2 rounded-[10px] border border-border px-2.5 py-1.5 hover:bg-surface-2"><Image src="/brand/cloudesk-avatar.png" alt="" width={24} height={24} className="size-6 rounded-full border border-border" />Profile picture (PNG)</a>
+          <a href="/brand/bimi.svg" target="_blank" className="inline-flex items-center gap-2 rounded-[10px] border border-border px-2.5 py-1.5 hover:bg-surface-2">BIMI logo (SVG Tiny PS)</a>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function FixRecord({ fix }: { fix: NonNullable<Check["fix"]> }) {
+  const toast = useToast();
+  const copy = async (v: string) => {
+    try {
+      await navigator.clipboard.writeText(v);
+      toast({ tone: "success", title: "Copied" });
+    } catch {
+      toast({ tone: "error", title: "Couldn't copy — select it instead" });
+    }
+  };
+  return (
+    <div className="rounded-[10px] bg-surface-2 p-2.5 text-[12px]">
+      <div className="grid gap-1 sm:grid-cols-[72px_minmax(0,1fr)]">
+        <span className="text-subtle">Type</span><span>{fix.type}</span>
+        <span className="text-subtle">{fix.type === "Webhook" ? "Where" : "Host"}</span><span className="font-mono break-all">{fix.host}</span>
+        <span className="text-subtle">Value</span>
+        <button type="button" onClick={() => void copy(fix.value)} className="text-left font-mono break-all hover:underline" title="Copy">{fix.value}</button>
+      </div>
+      {fix.note && <p className="mt-1.5 text-muted">{fix.note}</p>}
+    </div>
+  );
+}
+
 // ── Settings ────────────────────────────────────────────────────────────────
 
 function SettingsView() {
-  const q = useAdmin<{ settings: Settings }>("outreach/settings");
+  const q = useAdmin<{ settings: Settings; mailboxes: Mailbox[] }>("outreach/settings");
   if (q.isError) return <ErrorState message={errorMessage(q.error)} />;
   if (!q.data) return <Skeleton className="h-72" />;
-  return <SettingsForm initial={q.data.settings} />;
+  return <SettingsForm initial={q.data.settings} mailboxes={q.data.mailboxes} />;
 }
 
-function SettingsForm({ initial }: { initial: Settings }) {
+function SettingsForm({ initial, mailboxes }: { initial: Settings; mailboxes: Mailbox[] }) {
   const run = useRun();
   const can = useCan();
   const [s, setS] = useState(initial);
@@ -873,10 +1107,27 @@ function SettingsForm({ initial }: { initial: Settings }) {
         <Switch checked={s.sending} onChange={(v) => set("sending", v)} label="Sending" disabled={!write} />
       </Card>
       {s.sending && !s.postalAddress.trim() && <Notice tone="warning">A postal address is required before anything can be sent.</Notice>}
-      <Section title="Sender">
+      <Section title="Sender" sub="Who the email comes from. Check Deliverability after changing it.">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {([["platform", "Cloudesk email service", "Built for volume, signed for your domain. From any address on it, e.g. hello@cloudesk.in."], ["mailbox", "A Cloudesk Mail mailbox", `Sent as one of your own mailboxes in Cloudesk Mail. Personal, but capped at ${MAILBOX_DAILY_CAP} a day.`]] as const).map(([v, t, d]) => (
+            <button key={v} type="button" aria-pressed={s.via === v} disabled={!write} onClick={() => set("via", v)} className={cx("min-w-0 rounded-[14px] border p-3 text-left", s.via === v ? "border-fg bg-surface-2" : "border-border hover:bg-surface-2")}>
+              <p className="text-[13px] font-medium">{t}</p><p className="mt-0.5 text-[12px] text-muted">{d}</p>
+            </button>
+          ))}
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="From name">{(a) => <Input {...a} value={s.fromName} onChange={(e) => set("fromName", e.target.value)} maxLength={60} />}</Field>
-          <Field label="Replies go to" hint="Leave blank for the platform's address.">{(a) => <Input {...a} type="email" value={s.replyTo} onChange={(e) => set("replyTo", e.target.value)} />}</Field>
+          {s.via === "platform" ? (
+            <Field label="From address" hint="Leave blank for the platform's own address. Must be on the domain your email service verified.">{(a) => <Input {...a} type="email" value={s.fromEmail} onChange={(e) => set("fromEmail", e.target.value.trim())} placeholder="hello@cloudesk.in" />}</Field>
+          ) : (
+            <Field label="Mailbox" hint={mailboxes.length ? "Your mailboxes connected in Cloudesk Mail." : "Connect your mailbox in Mail first (Mail → Add account)."}>{(a) => (
+              <Select {...a} value={s.accountId ?? ""} onChange={(e) => set("accountId", e.target.value || null)}>
+                <option value="">Choose a mailbox</option>
+                {mailboxes.map((m) => <option key={m.id} value={m.id}>{m.address}{m.status === "error" ? " (needs reconnecting)" : ""}</option>)}
+              </Select>
+            )}</Field>
+          )}
+          <Field label="Replies go to" hint="Leave blank for replies to reach the From address.">{(a) => <Input {...a} type="email" value={s.replyTo} onChange={(e) => set("replyTo", e.target.value)} />}</Field>
           <Field label="Postal address" hint="Shown in every email's footer — the law requires it." className="sm:col-span-2">{(a) => <Input {...a} value={s.postalAddress} onChange={(e) => set("postalAddress", e.target.value)} maxLength={300} placeholder="Company name, street, city, PIN" />}</Field>
         </div>
       </Section>
@@ -885,6 +1136,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
           <Field label="Daily limit">{(a) => <Input {...a} {...n("dailyLimit", 1, 100_000)} />}</Field>
           <Field label="Never more often than (hours)" hint="Per person.">{(a) => <Input {...a} {...n("minGapHours", 1, 720)} />}</Field>
           <Field label="Stop after unopened in a row">{(a) => <Input {...a} {...n("sunsetAfter", 2, 20)} />}</Field>
+          <Field label="At most a week, per person" hint="Across every funnel.">{(a) => <Input {...a} {...n("maxPerWeek", 1, 14)} />}</Field>
         </div>
         <Toggle label="Warm up" sub={`Start at ${s.warmupStart} a day and grow ${Math.round((s.warmupGrowth - 1) * 100)}% a day to the limit.`} checked={s.warmup} onChange={(v) => set("warmup", v)} />
         {s.warmup && (
@@ -901,6 +1153,14 @@ function SettingsForm({ initial }: { initial: Settings }) {
         </div>
         <Chips all={["0", "1", "2", "3", "4", "5", "6"] as const} value={s.days.map(String) as ("0" | "1" | "2" | "3" | "4" | "5" | "6")[]} onChange={(v) => set("days", v.map(Number).sort())} label={(d) => DAYS[Number(d)]!} />
       </Section>
+      <Section title="Autopilot" sub="What the engine does on its own.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Toggle label="Write new subject lines with AI" sub="Once a day it retires subject lines that are clearly losing and writes a fresh challenger (on your workspace's AI allowance)." checked={s.aiEvolve} onChange={(v) => set("aiEvolve", v)} />
+          <Toggle label="Tell me about replies and sign-ups" sub="An email the moment someone replies or signs up from outreach." checked={s.alerts} onChange={(v) => set("alerts", v)} />
+        </div>
+        {s.alerts && <Field label="Send alerts to" hint="Leave blank for your own address.">{(a) => <Input {...a} type="email" value={s.alertEmail} onChange={(e) => set("alertEmail", e.target.value.trim())} />}</Field>}
+        <p className="text-[12px] text-muted">Always on: send-time learning, the best template and subject per person, hot leads moved to higher-priority funnels, address checks, ignoring machine opens and clicks, pausing risky funnels.</p>
+      </Section>
       <Section title="Safety" sub="A funnel pauses itself when its last 200 sends cross these.">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Bounce rate above (%)">{(a) => <Input {...a} type="number" step={0.5} min={0.5} max={50} value={s.maxBounceRate} onChange={(e) => set("maxBounceRate", Math.min(50, Math.max(0.5, Number(e.target.value) || 5)))} />}</Field>
@@ -909,7 +1169,7 @@ function SettingsForm({ initial }: { initial: Settings }) {
       </Section>
       {write && (
         <div className="flex justify-end">
-          <Button variant="primary" loading={busy} disabled={s.windowEnd <= s.windowStart || !s.days.length} onClick={async () => { setBusy(true); const { startedAt: _, ...body } = s; void _; await run("outreach/settings", "PUT", body, "Saved"); setBusy(false); }}>Save settings</Button>
+          <Button variant="primary" loading={busy} disabled={s.windowEnd <= s.windowStart || !s.days.length} onClick={async () => { setBusy(true); const { startedAt: _, ...body } = s as Settings & { startedAt?: string | null; aiOrgId?: string | null; aiUserId?: string | null; lastDailyAt?: string | null }; void _; delete body.aiOrgId; delete body.aiUserId; delete body.lastDailyAt; await run("outreach/settings", "PUT", body, "Saved"); setBusy(false); }}>Save settings</Button>
         </div>
       )}
     </div>

@@ -13,7 +13,7 @@ export async function resetDb() {
   // Truncating ~400 tables can outlast the app's 15 s statement timeout on a busy machine.
   await db.transaction(async (tx) => {
     await tx.execute(sql`set local statement_timeout = 0`);
-    await tx.execute(sql`truncate table users, organizations, sessions, auth_tokens, outbound_emails, audit_logs, platform_settings, platform_config, rate_limits, request_stats, platform_snapshots, email_otps, plan_catalog, firewall_events, firewall_bans cascade`);
+    await tx.execute(sql`truncate table users, organizations, sessions, auth_tokens, outbound_emails, audit_logs, platform_settings, platform_config, rate_limits, request_stats, platform_snapshots, email_otps, plan_catalog, firewall_events, firewall_bans, po_contacts, po_templates, po_funnels, po_enrollments, po_sends, po_events cascade`);
   });
   clearCatalogCache();
   clearEntitlement();

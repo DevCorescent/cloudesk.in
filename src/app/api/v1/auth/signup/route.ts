@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { sessionCookie } from "@/server/auth/session";
+import { readCookie, sessionCookie } from "@/server/auth/session";
+import { claimOutreach } from "@/server/outreach/claim";
 import { readJson, route } from "@/server/http/handler";
 import { email, password } from "@/server/http/schemas";
 import { ApiError } from "@/server/http/errors";
@@ -18,6 +19,7 @@ export const POST = route(
     await rateLimit(`signup:${ctx.ip}`, 10, 3600_000);
     const input = await readJson(ctx.req, body);
     const { user, session } = await signUp(input, { ip: ctx.ip, userAgent: ctx.req.headers.get("user-agent") });
+    await claimOutreach(user.email, readCookie(ctx.req.headers.get("cookie"), "cc_po"));
     ctx.headers.append("Set-Cookie", sessionCookie(session.token, session.expiresAt));
     return Response.json({ user: { id: user.id, name: user.name, email: user.email } }, { status: 201 });
   },

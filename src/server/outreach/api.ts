@@ -8,7 +8,7 @@ import { readJson, type AuthedContext } from "../http/handler";
 import { notFound } from "../http/errors";
 import { rateLimit } from "../security/rate-limit";
 import { audit } from "../services/audit";
-import { activityFeed, archiveTemplate, contactDetail, contacts, deleteContacts, deleteFunnel, funnelDetail, funnels, getSettings, importContacts, outreachTick, overview, pasteContacts, preview, saveFunnel, saveSettings, saveTemplate, setFunnelStatus, templates, testSend, updateContact } from "./core";
+import { activityFeed, archiveTemplate, contactDetail, contacts, deleteContacts, deleteFunnel, funnelDetail, funnels, getSettings, importContacts, mailboxes, outreachTick, overview, pasteContacts, preview, saveFunnel, saveSettings, saveTemplate, setFunnelStatus, templates, testSend, updateContact, writeTemplate } from "./core";
 
 type Need = (perm: PlatformPerm, fresh?: boolean) => Promise<string>;
 const body = (ctx: AuthedContext) => readJson(ctx.req, z.record(z.string(), z.unknown()));
@@ -70,6 +70,11 @@ export async function outreachApi(ctx: AuthedContext, need: Need, rest: string[]
     case "DELETE templates :id":
       await write();
       return archiveTemplate(a!);
+    case "POST templates ai": {
+      const me = await write();
+      await rateLimit(`outreach-ai:${me}`, 30, 3_600_000);
+      return writeTemplate(me, await body(ctx));
+    }
     case "POST templates preview":
       await read();
       return preview(await body(ctx));
@@ -109,9 +114,15 @@ export async function outreachApi(ctx: AuthedContext, need: Need, rest: string[]
       return deleteFunnel(a!);
     }
 
-    case "GET settings":
-      await read();
-      return { settings: await getSettings() };
+    case "GET settings": {
+      const me = await read();
+      return { settings: await getSettings(), mailboxes: await mailboxes(me) };
+    }
+    case "GET deliverability": {
+      const me = await read();
+      await rateLimit(`outreach-dns:${me}`, 30, 600_000);
+      return (await import("./deliverability")).deliverability();
+    }
     case "PUT settings": {
       const me = await need("outreach:write", true);
       const s = await saveSettings(me, await body(ctx));

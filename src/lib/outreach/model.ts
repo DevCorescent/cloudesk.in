@@ -82,15 +82,15 @@ export function parsePasted(text: string): ContactInput[] {
 
 // ── Templates ───────────────────────────────────────────────────────────────
 
-export const TEMPLATE_CATEGORIES = ["intro", "feature", "industry", "offer", "festive", "reengage", "onboarding", "upgrade", "partner"] as const;
+export const TEMPLATE_CATEGORIES = ["intro", "feature", "industry", "offer", "followup", "festive", "reengage", "onboarding", "upgrade", "partner"] as const;
 export type TemplateCategory = (typeof TEMPLATE_CATEGORIES)[number];
-export const CATEGORY_LABEL: Record<TemplateCategory, string> = { intro: "Introduction", feature: "Feature spotlight", industry: "For an industry", offer: "Offer", festive: "Festive", reengage: "Re-engagement", onboarding: "Onboarding", upgrade: "Upgrade to paid", partner: "Partner program" };
+export const CATEGORY_LABEL: Record<TemplateCategory, string> = { intro: "Introduction", feature: "Feature spotlight", industry: "For an industry", offer: "Offer", followup: "Personal follow-up", festive: "Festive", reengage: "Re-engagement", onboarding: "Onboarding", upgrade: "Upgrade to paid", partner: "Partner program" };
 
 export const templateInput = z.object({
   name: z.string().trim().min(1).max(120),
   category: z.enum(TEMPLATE_CATEGORIES),
   industries: z.array(z.enum(INDUSTRIES)).max(INDUSTRIES.length).default([]),
-  subjects: z.array(z.string().trim().min(1).max(160)).min(1).max(4),
+  subjects: z.array(z.string().trim().min(1).max(160)).min(1).max(6),
   preheader: z.string().trim().max(200).default(""),
   body: z.string().trim().min(1).max(20_000),
   ctaLabel: z.string().trim().max(60).default(""),
@@ -109,6 +109,28 @@ export const BUILT_IN: (TemplateInput & { key: string })[] = [
     preheader: "Website, store, billing, CRM, HR and AI — set up in minutes.",
     body: "Hi {{firstName|there}},\n\nMost businesses we speak to run on five or six apps that don't talk to each other — one for billing, one for customers, one for staff, a website somewhere else, and WhatsApp holding it together.\n\n**Cloudesk puts all of it in one place:**\n- A website and online store, live in minutes\n- GST invoices, payments and accounts\n- CRM, sales and follow-ups\n- HR, attendance and payroll\n- An AI copilot that answers from your own numbers\n\nIt's built for Indian businesses, priced for them, and free to start.",
     ctaLabel: "Start free",
+    ctaUrl: "https://cloudesk.in/start",
+  },
+  {
+    key: "followup-personal",
+    name: "Personal note to a warm lead",
+    category: "followup",
+    industries: [],
+    subjects: ["{{firstName|Hi}}, saw you were looking at Cloudesk", "Can I help you get {{company|set up}}?"],
+    preheader: "A real person, happy to set it up with you.",
+    body: "Hi {{firstName|there}},\n\nI noticed you've been looking at Cloudesk — thank you.\n\nIf it helps, I can set up {{company|your workspace}} with you on a short call: import your customers and products, connect payments and get your first invoice out. Most people are running in under 20 minutes.\n\nJust reply to this email with a time that suits you, or start on your own below.",
+    ctaLabel: "Start free",
+    ctaUrl: "https://cloudesk.in/start",
+  },
+  {
+    key: "followup-question",
+    name: "One question for a warm lead",
+    category: "followup",
+    industries: [],
+    subjects: ["What's holding {{company|you}} back, {{firstName|there}}?", "Quick one, {{firstName|there}}"],
+    preheader: "One reply and I'll point you to exactly what fits.",
+    body: "Hi {{firstName|there}},\n\nYou clicked through to Cloudesk recently, so I wanted to ask one thing: **what's the most time-consuming part of running {{company|your business}} right now?**\n\n- Billing and getting paid\n- Keeping track of customers and follow-ups\n- Staff, attendance and payroll\n- Getting online — website, store, bookings\n\nReply with a number and I'll send you the two-minute way Cloudesk handles it.",
+    ctaLabel: "Or try it yourself",
     ctaUrl: "https://cloudesk.in/start",
   },
   {
@@ -308,7 +330,8 @@ export const CONDITION_LABEL: Record<(typeof CONDITIONS)[number], string> = { op
 const stepId = z.string().regex(/^[a-z0-9]{1,12}$/);
 export const stepSchema = z.discriminatedUnion("kind", [
   /** templateId (a fixed template) or category (the engine picks the best one in it for each person). */
-  z.object({ id: stepId, kind: z.literal("email"), templateId: z.uuid().nullable().default(null), category: z.enum(TEMPLATE_CATEGORIES).nullable().default(null) }).refine((x) => x.templateId || x.category, "Pick a template or let the engine choose from a category"),
+  /** resendAfterDays: anyone who hasn't opened by then gets it again with another subject line (a second chance lifts opens by a quarter). */
+  z.object({ id: stepId, kind: z.literal("email"), templateId: z.uuid().nullable().default(null), category: z.enum(TEMPLATE_CATEGORIES).nullable().default(null), resendAfterDays: z.number().min(1).max(14).nullable().optional() }).refine((x) => x.templateId || x.category, "Pick a template or let the engine choose from a category"),
   z.object({ id: stepId, kind: z.literal("wait"), days: z.number().min(0.04).max(60) }),
   z.object({ id: stepId, kind: z.literal("branch"), if: z.enum(CONDITIONS), then: stepId, else: stepId.nullable().default(null) }),
 ]);
@@ -334,12 +357,35 @@ export const funnelInput = z.object({
   autoEnroll: z.boolean().default(true),
   /** Learn the best subject line, template and send time, and shift sends to them. */
   autoOptimize: z.boolean().default(true),
+  /** 0–100; someone who matches a higher-priority funnel is moved into it. */
+  priority: z.number().int().min(0).max(100).optional(),
+  /** Percent held back as a control group (never emailed), to measure real lift. */
+  holdoutPct: z.number().int().min(0).max(30).optional(),
   startAt: z.iso.datetime({ offset: true }).nullable().default(null),
 });
 export type FunnelInput = z.infer<typeof funnelInput>;
 
 /** Built-in funnels (created paused, ready to switch on). Template steps choose by category, so the engine optimises them. */
 export const BUILT_IN_FUNNELS: (FunnelInput & { key: string })[] = [
+  {
+    key: "hot-leads",
+    name: "Hot leads — personal follow-up",
+    kind: "funnel",
+    audience: { stages: ["hot"], industries: [], tags: [], sources: [], minScore: null },
+    goal: "signed_up",
+    autoEnroll: true,
+    autoOptimize: true,
+    priority: 50,
+    startAt: null,
+    steps: [
+      { id: "s1", kind: "email", templateId: null, category: "followup" },
+      { id: "s2", kind: "wait", days: 2 },
+      { id: "s3", kind: "branch", if: "not_opened", then: "s4", else: "s5" },
+      { id: "s4", kind: "email", templateId: null, category: "offer" },
+      { id: "s5", kind: "wait", days: 3 },
+      { id: "s6", kind: "email", templateId: null, category: "followup" },
+    ],
+  },
   {
     key: "new-leads",
     name: "New leads — 4-touch introduction",
@@ -348,9 +394,10 @@ export const BUILT_IN_FUNNELS: (FunnelInput & { key: string })[] = [
     goal: "signed_up",
     autoEnroll: true,
     autoOptimize: true,
+    holdoutPct: 5,
     startAt: null,
     steps: [
-      { id: "s1", kind: "email", templateId: null, category: "intro" },
+      { id: "s1", kind: "email", templateId: null, category: "intro", resendAfterDays: 3 },
       { id: "s2", kind: "wait", days: 3 },
       { id: "s3", kind: "branch", if: "clicked", then: "s7", else: null },
       { id: "s4", kind: "email", templateId: null, category: "industry" },
@@ -425,6 +472,16 @@ export const settingsInput = z.object({
   /** The master switch: nothing is sent while it's off. */
   sending: z.boolean().default(false),
   fromName: z.string().trim().min(1).max(60).default("Cloudesk"),
+  /**
+   * How mail leaves: the platform's email service (built for volume; From is
+   * any address on its verified domain) or one of the admin's own Cloudesk
+   * Mail mailboxes (From is that mailbox; capped, as mailboxes aren't made for bulk).
+   */
+  via: z.enum(["platform", "mailbox"]).default("platform"),
+  /** With the platform service: the From address ("" = the platform's own). Must be on the same domain. */
+  fromEmail: z.union([z.email().max(200), z.literal("")]).default(""),
+  /** With a mailbox: which Cloudesk Mail account sends. */
+  accountId: z.uuid().nullable().default(null),
   replyTo: z.union([z.email(), z.literal("")]).default(""),
   /** Required in every promotional email's footer. */
   postalAddress: z.string().trim().max(300).default(""),
@@ -438,6 +495,13 @@ export const settingsInput = z.object({
   days: z.array(z.number().int().min(0).max(6)).min(1).max(7).default([1, 2, 3, 4, 5, 6]),
   /** Never email the same person more often than this. */
   minGapHours: z.number().int().min(1).max(720).default(48),
+  /** Across every funnel, nobody gets more than this many emails in 7 days. */
+  maxPerWeek: z.number().int().min(1).max(14).default(3),
+  /** The engine writes new subject lines with AI to challenge the leaders, and retires the losers. */
+  aiEvolve: z.boolean().default(true),
+  /** Email the admin the moment someone replies or signs up from outreach. */
+  alerts: z.boolean().default(true),
+  alertEmail: z.union([z.email(), z.literal("")]).default(""),
   /** Stop emailing someone after this many emails in a row go unopened. */
   sunsetAfter: z.number().int().min(2).max(20).default(4),
   /** A funnel pauses itself above these rates (of its last 200 sends). */
@@ -445,6 +509,8 @@ export const settingsInput = z.object({
   maxUnsubRate: z.number().min(0.1).max(50).default(2),
 });
 export type OutreachSettings = z.infer<typeof settingsInput>;
+/** Mailboxes (Google Workspace, Microsoft 365, GoDaddy…) start flagging accounts that send more than a few hundred a day. */
+export const MAILBOX_DAILY_CAP = 300;
 
 // ── Merge fields and rendering ──────────────────────────────────────────────
 
@@ -466,7 +532,7 @@ const inline = (s: string, link: (u: string) => string) =>
     .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_, t: string, u: string) => `<a href="${esc(link(u.replace(/&amp;/g, "&")))}" style="color:#4f46e5">${t}</a>`);
 
 /** The email as HTML (a clean single-column layout) and plain text, with tracked links, the open pixel and the unsubscribe footer. */
-export function renderEmail(o: { body: string; preheader: string; ctaLabel: string; ctaUrl: string; link: (url: string) => string; pixel: string; unsubscribe: string; fromName: string; postalAddress: string; reason: string }) {
+export function renderEmail(o: { body: string; preheader: string; ctaLabel: string; ctaUrl: string; link: (url: string) => string; pixel: string; unsubscribe: string; fromName: string; postalAddress: string; reason: string; logo?: { src: string; href: string } }) {
   const blocks = o.body.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
   const html: string[] = [];
   const text: string[] = [];
@@ -486,7 +552,7 @@ export function renderEmail(o: { body: string; preheader: string; ctaLabel: stri
     text.push(`${o.ctaLabel}: ${o.link(o.ctaUrl)}`);
   }
   const footer = `${esc(o.reason)}<br>${o.postalAddress ? `${esc(o.fromName)} · ${esc(o.postalAddress)}<br>` : ""}<a href="${esc(o.unsubscribe)}" style="color:#6b7280">Unsubscribe</a>`;
-  const htmlDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f5f4"><span style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(o.preheader)}</span><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f4"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:16px;border:1px solid #e7e5e4"><tr><td style="padding:28px 28px 8px;font:15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1917">${html.join("")}</td></tr></table><p style="max-width:580px;margin:16px auto 0;font:12px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#78716c">${footer}</p></td></tr></table><img src="${esc(o.pixel)}" width="1" height="1" alt="" style="display:block;border:0"></body></html>`;
+  const htmlDoc = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="margin:0;background:#f5f5f4"><span style="display:none;max-height:0;overflow:hidden;opacity:0">${esc(o.preheader)}</span><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f4"><tr><td align="center" style="padding:24px 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:16px;border:1px solid #e7e5e4">${o.logo ? `<tr><td style="padding:24px 28px 0"><a href="${esc(o.logo.href)}"><img src="${esc(o.logo.src)}" width="132" height="44" alt="${esc(o.fromName)}" style="display:block;border:0;width:132px;height:auto"></a></td></tr>` : ""}<tr><td style="padding:${o.logo ? 20 : 28}px 28px 8px;font:15px/1.6 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1c1917">${html.join("")}</td></tr></table><p style="max-width:580px;margin:16px auto 0;font:12px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#78716c">${footer}</p></td></tr></table>${o.pixel ? `<img src="${esc(o.pixel)}" width="1" height="1" alt="" style="display:block;border:0">` : ""}</body></html>`;
   const plain = `${text.join("\n\n")}\n\n—\n${o.reason}\n${o.postalAddress ? `${o.fromName}, ${o.postalAddress}\n` : ""}Unsubscribe: ${o.unsubscribe}`;
   return { html: htmlDoc, text: plain };
 }
@@ -590,3 +656,119 @@ export const IMPORT_FIELDS = [
   { key: "tags", label: "Tags", type: "text" as const, aliases: ["labels", "segments", "list"] },
   { key: "notes", label: "Notes", type: "text" as const, aliases: ["remarks", "comments", "description"] },
 ];
+
+// ── Spam check ──────────────────────────────────────────────────────────────
+
+const TRIGGERS = ["100% free", "act now", "apply now", "as seen on", "buy now", "cash bonus", "click here", "click below", "congratulations", "dear friend", "double your", "earn money", "extra income", "for only", "get paid", "guaranteed", "incredible deal", "limited time", "lowest price", "make money", "miracle", "no catch", "no cost", "no fees", "once in a lifetime", "order now", "risk-free", "risk free", "special promotion", "this isn't spam", "urgent", "while supplies last", "winner", "you have been selected", "you've won", "work from home", "100% satisfied", "best price", "call now", "don't delete", "free gift", "free money", "free offer", "get it now", "instant access", "meet singles", "save big", "what are you waiting for"];
+const SHORTENERS = /\b(bit\.ly|tinyurl\.com|goo\.gl|t\.co|ow\.ly|is\.gd|buff\.ly|rebrand\.ly|cutt\.ly|shorturl\.at)\//i;
+
+export type SpamIssue = { level: "bad" | "warn" | "tip"; text: string };
+
+/** What in a template is likely to send it to spam, worst first. Heuristic: mailbox filters weigh the sender's reputation far more. */
+export function spamCheck(t: { subjects: string[]; preheader: string; body: string; ctaUrl: string; ctaLabel: string }): SpamIssue[] {
+  const out: SpamIssue[] = [];
+  const all = `${t.subjects.join(" ")}\n${t.preheader}\n${t.body}\n${t.ctaLabel}`.toLowerCase();
+  const hits = TRIGGERS.filter((w) => all.includes(w));
+  if (hits.length) out.push({ level: hits.length > 2 ? "bad" : "warn", text: `Phrases filters associate with spam: ${hits.map((h) => `“${h}”`).join(", ")}` });
+  for (const s of t.subjects) {
+    const caps = s.match(/\b[A-Z]{4,}\b/g)?.filter((w) => !["GST", "UPI", "HSN", "CRM", "INVOICE"].includes(w)) ?? [];
+    if (caps.length) out.push({ level: "warn", text: `Shouting in the subject: ${caps.join(", ")}` });
+    if ((s.match(/!/g)?.length ?? 0) > 1) out.push({ level: "warn", text: `More than one “!” in “${s}”` });
+    if (/[$₹€]{2,}|\bfree\b.*\bfree\b/i.test(s)) out.push({ level: "bad", text: `Money signs or “free” repeated in “${s}”` });
+    if (/^\s*(re|fwd?):/i.test(s)) out.push({ level: "bad", text: `“${s}” pretends to be a reply or forward` });
+    const emoji = s.match(/\p{Extended_Pictographic}/gu)?.length ?? 0;
+    if (emoji > 1) out.push({ level: "warn", text: `${emoji} emoji in “${s}” — one at most` });
+    const plain = s.replace(/\{\{[^}]*\}\}/g, "Name");
+    if (plain.length > 70) out.push({ level: "tip", text: `“${s}” is long; phones cut subjects at about 40–50 characters` });
+  }
+  if (SHORTENERS.test(`${t.body} ${t.ctaUrl}`)) out.push({ level: "bad", text: "A link shortener (bit.ly and the like) — filters distrust them. Link to the real address." });
+  const links = (t.body.match(/\]\(https?:\/\//g)?.length ?? 0) + (t.ctaUrl ? 1 : 0);
+  if (links > 4) out.push({ level: "warn", text: `${links} links — two or three keep it looking personal` });
+  if (t.ctaUrl && !/^https:\/\//i.test(t.ctaUrl)) out.push({ level: "warn", text: "The button link isn't https" });
+  const words = t.body.replace(/\{\{[^}]*\}\}/g, "x").split(/\s+/).filter(Boolean).length;
+  if (words < 40) out.push({ level: "warn", text: `Only ${words} words — very short promotional mail looks like spam` });
+  if (words > 400) out.push({ level: "tip", text: `${words} words — shorter emails get more clicks` });
+  if (!t.preheader.trim()) out.push({ level: "tip", text: "Add preview text — otherwise inboxes show the first line of the body" });
+  if (!/\{\{\s*(firstName|name|company)/.test(`${t.subjects.join(" ")} ${t.body}`)) out.push({ level: "tip", text: "Use {{firstName|there}} or {{company}} — personal mail is opened more and flagged less" });
+  const rank = { bad: 0, warn: 1, tip: 2 };
+  return out.sort((a, b) => rank[a.level] - rank[b.level]);
+}
+
+// ── Telling people from machines ────────────────────────────────────────────
+
+/** Security scanners and link checkers that open and click mail before (or instead of) a person. */
+const SCANNERS = /(bot\b|crawler|spider|scanner|barracuda|proofpoint|mimecast|forcepoint|symantec|messagelabs|trendmicro|sophos|fortinet|fireeye|cisco|ironport|zscaler|safelinks|safebrowsing|urldefense|headlesschrome|phantomjs|python-requests|python-urllib|go-http-client|curl\/|wget|java\/|okhttp|axios|node-fetch|libwww|microsoft office existence|skypeuripreview|slackbot|facebookexternalhit|whatsapp|linkedinbot|twitterbot|discordbot|telegrambot)/i;
+/** Apple's Mail Privacy Protection fetches every image through Apple's servers when mail arrives, opened or not. */
+const APPLE_PROXY_IP = /^17\./;
+
+export type Hit = { kind: "open" | "click"; ua: string; ip: string; method?: string; secondsSinceSend: number; priorClicksSecondsAgo?: number[] };
+export type HitVerdict = { machine: boolean; reason: string; client: string };
+
+/** Mail client and device from a real open's user agent. */
+export function clientOf(ua: string): string {
+  const u = ua.toLowerCase();
+  const app = /googleimageproxy|ggpht/.test(u) ? "Gmail" : /yahoomailproxy/.test(u) ? "Yahoo Mail" : /outlook|microsoft office|ms-office|msoffice/.test(u) ? "Outlook" : /thunderbird/.test(u) ? "Thunderbird" : /(iphone|ipad|macintosh).*applewebkit(?!.*(safari|chrome))/.test(u) ? "Apple Mail" : /android/.test(u) ? "Android mail" : /chrome|firefox|safari|edg\//.test(u) ? "Webmail" : "";
+  const device = /iphone|android.*mobile|mobile/.test(u) ? "mobile" : /ipad|tablet/.test(u) ? "tablet" : /windows|macintosh|linux|x11/.test(u) ? "desktop" : "";
+  return [app, device].filter(Boolean).join(" · ");
+}
+
+/**
+ * Whether an open or a click came from a person. Machine hits: privacy proxies
+ * (Apple MPP), security scanners and link checkers (by name, HEAD requests,
+ * clicks within seconds of delivery, or several links clicked in the same second).
+ */
+export function classifyHit(h: Hit): HitVerdict {
+  const ua = h.ua || "";
+  if (h.method === "HEAD") return { machine: true, reason: "link check (HEAD)", client: "" };
+  if (SCANNERS.test(ua)) return { machine: true, reason: "security scanner", client: "" };
+  if (!ua.trim()) return { machine: true, reason: "no browser", client: "" };
+  if (h.kind === "open") {
+    // Apple's proxy: an Apple IP with a bare "Mozilla/5.0" agent (real Apple Mail opens carry the full one).
+    if (APPLE_PROXY_IP.test(h.ip) && !/applewebkit/i.test(ua)) return { machine: true, reason: "Apple Mail Privacy Protection", client: "Apple Mail" };
+    if (h.secondsSinceSend < 2) return { machine: true, reason: "opened on delivery", client: "" };
+    return { machine: false, reason: "", client: clientOf(ua) };
+  }
+  if (h.secondsSinceSend < 10) return { machine: true, reason: "clicked seconds after delivery", client: "" };
+  if ((h.priorClicksSecondsAgo ?? []).filter((s) => s < 2).length >= 2) return { machine: true, reason: "every link clicked at once", client: "" };
+  return { machine: false, reason: "", client: clientOf(ua) };
+}
+
+// ── List hygiene ────────────────────────────────────────────────────────────
+
+const TYPOS: Record<string, string> = { "gmial.com": "gmail.com", "gmal.com": "gmail.com", "gamil.com": "gmail.com", "gmaill.com": "gmail.com", "gmail.co": "gmail.com", "gmail.con": "gmail.com", "gmail.cm": "gmail.com", "gmail.om": "gmail.com", "gnail.com": "gmail.com", "gmail.in": "gmail.com", "yaho.com": "yahoo.com", "yahooo.com": "yahoo.com", "yahoo.con": "yahoo.com", "yahoo.co": "yahoo.co.in", "hotmial.com": "hotmail.com", "hotmai.com": "hotmail.com", "hotmail.con": "hotmail.com", "outlok.com": "outlook.com", "outlook.con": "outlook.com", "rediffmail.con": "rediffmail.com", "redifmail.com": "rediffmail.com", "iclod.com": "icloud.com", "icloud.con": "icloud.com" };
+const ROLE = /^(info|admin|administrator|support|sales|contact|contactus|hello|hi|office|accounts?|billing|finance|hr|careers|jobs|enquir(y|ies)|inquir(y|ies)|help|team|marketing|webmaster|postmaster|hostmaster|abuse|noreply|no-reply|donotreply|do-not-reply|mail|reception|service|services|customercare|care)$/i;
+const DISPOSABLE = new Set(["mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com", "temp-mail.org", "yopmail.com", "trashmail.com", "sharklasers.com", "getnada.com", "dispostable.com", "throwawaymail.com", "maildrop.cc", "fakeinbox.com", "mintemail.com", "mohmal.com", "emailondeck.com", "tempinbox.com", "spamgourmet.com", "mailnesia.com", "moakt.com"]);
+
+/** An address tidied (common domain typos fixed) and judged before anything is sent to it. */
+export function checkAddress(raw: string): { email: string; verify: "unknown" | "risky" | "invalid"; note: string } {
+  const email = raw.trim().toLowerCase();
+  const [local = "", domain = ""] = email.split("@");
+  const fixed = TYPOS[domain];
+  const out = fixed ? `${local}@${fixed}` : email;
+  const d = fixed ?? domain;
+  if (DISPOSABLE.has(d)) return { email: out, verify: "invalid", note: "Disposable address" };
+  if (!/^[^\s@]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(out) || local.length > 64) return { email: out, verify: "invalid", note: "Not a valid address" };
+  if (ROLE.test(local)) return { email: out, verify: "risky", note: `A shared inbox (${local}@) — more likely to mark promotions as spam` };
+  return { email: out, verify: "unknown", note: fixed ? `Corrected from ${domain}` : "" };
+}
+
+/**
+ * The chance each arm is truly the best, by sampling (Thompson). Used to
+ * retire a subject line only when it's almost surely losing.
+ */
+export function probBest(arms: { sends: number; wins: number }[], draws = 2000, rand: () => number = Math.random): number[] {
+  const best = arms.map(() => 0);
+  for (let d = 0; d < draws; d++) {
+    let top = -1;
+    let at = 0;
+    arms.forEach((a, i) => {
+      const x = betaSample(1 + a.wins, 1 + Math.max(0, a.sends - a.wins), rand);
+      if (x > top) {
+        top = x;
+        at = i;
+      }
+    });
+    best[at]!++;
+  }
+  return best.map((n) => n / draws);
+}
