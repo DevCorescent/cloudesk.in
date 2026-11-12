@@ -13,7 +13,8 @@ import { cfg } from "../platform/config";
 // retried in the background job queue with backoff.
 /** Attachments travel base64-encoded (they may wait in the retry queue). */
 export type MailAttachment = { filename: string; contentType: string; base64: string };
-export type MailMessage = { to: string; subject: string; body: string; fromName?: string; replyTo?: string; attachments?: MailAttachment[] };
+/** `body` is the plain text; `html` an optional HTML version (sent alongside it); `headers` extra ones such as List-Unsubscribe. */
+export type MailMessage = { to: string; subject: string; body: string; html?: string; headers?: Record<string, string>; fromName?: string; replyTo?: string; attachments?: MailAttachment[] };
 export type MailProvider = "resend" | "postmark" | "sendgrid" | "smtp" | "outbox";
 
 type Fetch = typeof fetch;
@@ -50,7 +51,7 @@ async function viaResend(msg: MailMessage, from: string, idempotencyKey: string)
   const res = await http("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${cfg("RESEND_API_KEY")}`, "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
-    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, text: msg.body, ...(msg.replyTo ? { reply_to: msg.replyTo } : {}), ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.base64, content_type: a.contentType })) } : {}) }),
+    body: JSON.stringify({ from, to: [msg.to], subject: msg.subject, text: msg.body, ...(msg.html ? { html: msg.html } : {}), ...(msg.headers ? { headers: msg.headers } : {}), ...(msg.replyTo ? { reply_to: msg.replyTo } : {}), ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: a.base64, content_type: a.contentType })) } : {}) }),
   });
   const body = (await res.json().catch(() => null)) as { id?: string; message?: string } | null;
   if (!res.ok) throw failure(res.status, body?.message ?? `HTTP ${res.status}`);
@@ -61,7 +62,7 @@ async function viaPostmark(msg: MailMessage, from: string) {
   const res = await http("https://api.postmarkapp.com/email", {
     method: "POST",
     headers: { "X-Postmark-Server-Token": cfg("POSTMARK_SERVER_TOKEN")!, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({ From: from, To: msg.to, Subject: msg.subject, TextBody: msg.body, MessageStream: cfg("POSTMARK_STREAM") || "outbound", ...(msg.replyTo ? { ReplyTo: msg.replyTo } : {}), ...(msg.attachments?.length ? { Attachments: msg.attachments.map((a) => ({ Name: a.filename, Content: a.base64, ContentType: a.contentType })) } : {}) }),
+    body: JSON.stringify({ From: from, To: msg.to, Subject: msg.subject, TextBody: msg.body, ...(msg.html ? { HtmlBody: msg.html } : {}), ...(msg.headers ? { Headers: Object.entries(msg.headers).map(([Name, Value]) => ({ Name, Value })) } : {}), MessageStream: cfg("POSTMARK_STREAM") || "outbound", ...(msg.replyTo ? { ReplyTo: msg.replyTo } : {}), ...(msg.attachments?.length ? { Attachments: msg.attachments.map((a) => ({ Name: a.filename, Content: a.base64, ContentType: a.contentType })) } : {}) }),
   });
   const body = (await res.json().catch(() => null)) as { MessageID?: string; Message?: string; ErrorCode?: number } | null;
   if (!res.ok || (body?.ErrorCode && body.ErrorCode !== 0)) throw failure(res.status === 200 ? 422 : res.status, body?.Message ?? `HTTP ${res.status}`);
@@ -76,7 +77,8 @@ async function viaSendgrid(msg: MailMessage, from: string, fromName?: string) {
       personalizations: [{ to: [{ email: msg.to }] }],
       from: { email: cfg("MAIL_FROM"), ...(fromName ? { name: displayName(fromName) } : {}) },
       subject: msg.subject,
-      content: [{ type: "text/plain", value: msg.body }],
+      content: [{ type: "text/plain", value: msg.body }, ...(msg.html ? [{ type: "text/html", value: msg.html }] : [])],
+      ...(msg.headers ? { headers: msg.headers } : {}),
       ...(msg.replyTo ? { reply_to: { email: msg.replyTo } } : {}),
       ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ content: a.base64, filename: a.filename, type: a.contentType, disposition: "attachment" })) } : {}),
     }),
@@ -114,7 +116,7 @@ function smtpTransport() {
 
 async function viaSmtp(msg: MailMessage, from: string) {
   try {
-    const info = await smtpTransport().sendMail({ from, to: msg.to, subject: msg.subject, text: msg.body, ...(msg.replyTo ? { replyTo: msg.replyTo } : {}), ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.base64, "base64"), contentType: a.contentType })) } : {}) });
+    const info = await smtpTransport().sendMail({ from, to: msg.to, subject: msg.subject, text: msg.body, ...(msg.html ? { html: msg.html } : {}), ...(msg.headers ? { headers: msg.headers } : {}), ...(msg.replyTo ? { replyTo: msg.replyTo } : {}), ...(msg.attachments?.length ? { attachments: msg.attachments.map((a) => ({ filename: a.filename, content: Buffer.from(a.base64, "base64"), contentType: a.contentType })) } : {}) });
     if (info.rejected?.length) throw new PermanentError(`Rejected by the mail server: ${info.rejected.join(", ")}`);
     return info.messageId ?? null;
   } catch (e) {

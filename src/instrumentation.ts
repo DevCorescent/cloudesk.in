@@ -139,6 +139,12 @@ export async function register() {
       const tr = setInterval(() => void requisitionsTick().catch(() => {}), 5 * 60_000);
       tr.unref?.();
     }
+    // Every 5 minutes: the outreach engine (it sends nothing while its switch is off).
+    if (!webOnly && process.env.OUTREACH_SCHEDULER !== "off") {
+      const { outreachTick } = await import("./server/outreach/core");
+      const tpo = setInterval(() => void outreachTick().catch(() => {}), 5 * 60_000);
+      tpo.unref?.();
+    }
     // Hourly: firewall events older than 30 days and expired bans.
     if (!webOnly) {
       const { pruneFirewall } = await import("./server/security/firewall");

@@ -5,7 +5,7 @@
 // maintenance, subscriptions, plans and pricing, integrations, settings and infrastructure. Sections show
 // only what the admin's role allows; the server checks every action again.
 import clsx from "clsx";
-import { Lightbulb, Activity, BarChart3, Blocks, BrickWall, Building2, Cable, Cloud, Flag, Gauge, Banknote, CreditCard, Handshake, Megaphone, Rocket, ScrollText, Server, Settings, ShieldCheck, ShieldHalf, Tags, TrendingUp, Users, Scale } from "lucide-react";
+import { Lightbulb, Activity, Send, BarChart3, Blocks, BrickWall, Building2, Cable, Cloud, Flag, Gauge, Banknote, CreditCard, Handshake, Megaphone, Rocket, ScrollText, Server, Settings, ShieldCheck, ShieldHalf, Tags, TrendingUp, Users, Scale } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { AuditPanel } from "@/components/admin/audit";
 import { CloudflarePanel } from "@/components/admin/cloudflare";
@@ -13,6 +13,7 @@ import { FirewallPanel } from "@/components/admin/firewall";
 import { SecurityPosturePanel } from "@/components/admin/security-posture";
 import { MeContext, ReauthProvider, useAdmin, type Me } from "@/components/admin/common";
 import { RequestsPanel } from "@/components/admin/requests";
+import { OutreachPanel } from "@/components/admin/outreach";
 import { FlagsPanel } from "@/components/admin/flags";
 import { GoLivePanel } from "@/components/admin/golive";
 import { HealthPanel } from "@/components/admin/health";
@@ -47,6 +48,7 @@ const TABS: Tab[] = [
   { id: "workspaces", label: "Workspaces", icon: <Building2 />, perm: "tenants:read", group: "Customers", sub: "Every workspace: subscription, usage and state. Suspend, lift, keep a private note.", render: () => <WorkspacesPanel /> },
   { id: "subscriptions", label: "Subscriptions", icon: <CreditCard />, perm: "tenants:read", group: "Customers", sub: "MRR, trials and payments due. Extend trials, assign plans, add credit, record payments.", render: () => <SubscriptionsPanel /> },
   { id: "partners", label: "Partners", icon: <Handshake />, perm: "tenants:read", group: "Customers", sub: "Applications, partners and what they've brought, payout requests, and the program's rates and tiers.", render: () => <PartnersPanel /> },
+  { id: "outreach", label: "Outreach", icon: <Send />, perm: "outreach:read", group: "Customers", sub: "Promote Cloudesk by email: import any list, run funnels that pick the best email and hour for each person, and see who signs up.", render: () => <OutreachPanel /> },
   { id: "users", label: "People", icon: <Users />, perm: "users:read", group: "Customers", sub: "Every account: workspaces, sessions and sign-ins. Disable, sign out, verify.", render: () => <UsersPanel /> },
   { id: "audit", label: "Audit log", icon: <ScrollText />, perm: "audit:read", group: "Customers", sub: "Who did what, across every workspace and this console.", render: () => <AuditPanel /> },
   { id: "notices", label: "Notices", icon: <Megaphone />, perm: "settings:read", group: "Operate", sub: "Maintenance mode and the announcement banner.", render: () => <NoticesPanel /> },

@@ -79,6 +79,7 @@ async function handle(ctx: AuthedContext, { slug = [] }: P) {
   const key = `${ctx.req.method} ${section ?? ""}${id ? (/^[0-9a-f-]{36}$/.test(id) ? " :id" : ` ${id}`) : ""}${sub ? ` ${sub}` : ""}`;
   const need = (perm: PlatformPerm, fresh = false) => requirePlatform(ctx, perm, { fresh });
   const me = { id: ctx.user.id, email: ctx.user.email };
+  if (section === "outreach") return (await import("@/server/outreach/api")).outreachApi(ctx, need, slug.slice(1), qs);
   switch (key) {
     case "GET me":
       await need("analytics:read");

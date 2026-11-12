@@ -20,6 +20,8 @@ export const PLATFORM_PERMS = {
   "settings:write": ["owner"],
   "integrations:test": ["owner"],
   "admins:write": ["owner"],
+  "outreach:read": ["owner", "admin", "analyst"],
+  "outreach:write": ["owner", "admin"],
 } as const satisfies Record<string, readonly PlatformRole[]>;
 export type PlatformPerm = keyof typeof PLATFORM_PERMS;
 

@@ -40,6 +40,7 @@ async function due(minute: number): Promise<Task[]> {
   if (every(5)) {
     add("helpdesk", async () => (await import("@/server/helpdesk/core")).tick());
     add("requisitions", async () => (await import("@/server/requisitions/core")).requisitionsTick());
+    add("outreach", async () => (await import("@/server/outreach/core")).outreachTick());
     add("bi-reports", async () => (await import("@/server/bi/core")).sendDue());
     add("ai-tasks", async () => (await import("@/server/ai/tasks")).recoverInterruptedTasks((Number(process.env.AI_TASK_STALE_MIN) || 20) * 60_000));
     add("stale-jobs", async () => (await import("@/server/jobs/queue")).recoverStaleJobs());

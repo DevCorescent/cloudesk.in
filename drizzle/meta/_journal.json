@@ -785,6 +785,13 @@
       "when": 1794206440634,
       "tag": "0111_ledger_index",
       "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1794462754680,
+      "tag": "0112_outreach",
+      "breakpoints": true
     }
   ]
 }

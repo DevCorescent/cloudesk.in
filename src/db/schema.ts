@@ -8341,3 +8341,143 @@ export const rqTemplates = pgTable("rq_templates", {
   createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
   createdAt: createdAt(),
 });
+
+// ── Outreach: the platform's own email marketing (platform admins) ──────────
+
+/** People Cloudesk markets to, from imports or pasted lists; one row per email address. */
+export const poContacts = pgTable(
+  "po_contacts",
+  {
+    id: id(),
+    email: text("email").notNull(),
+    name: text("name").notNull().default(""),
+    company: text("company").notNull().default(""),
+    title: text("title").notNull().default(""),
+    phone: text("phone").notNull().default(""),
+    city: text("city").notNull().default(""),
+    state: text("state").notNull().default(""),
+    industry: text("industry").notNull().default("other"),
+    size: text("size").notNull().default(""),
+    website: text("website").notNull().default(""),
+    tags: text("tags").array().notNull().default(sql`'{}'::text[]`),
+    notes: text("notes").notNull().default(""),
+    /** Any other imported columns, for merge fields. */
+    data: jsonb("data").$type<Record<string, string>>().notNull().default({}),
+    source: text("source").notNull().default(""),
+    consent: text("consent").notNull().default("legitimate_interest"),
+    status: text("status").notNull().default("active"),
+    stage: text("stage").notNull().default("new"),
+    score: integer("score").notNull().default(0),
+    sends: integer("sends").notNull().default(0),
+    opens: integer("opens").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+    /** Emails in a row nobody opened (for the sunset rule). */
+    unopenedRun: integer("unopened_run").notNull().default(0),
+    /** The hour (India time) they most often open, learned from their opens. */
+    bestHour: integer("best_hour"),
+    lastEmailAt: timestamp("last_email_at", { withTimezone: true }),
+    lastEventAt: timestamp("last_event_at", { withTimezone: true }),
+    signedUpAt: timestamp("signed_up_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    /** The send that won them (last clicked within 30 days of signing up). */
+    convertedBy: uuid("converted_by"),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("po_contacts_email_uq").on(sql`lower(${t.email})`), index("po_contacts_stage_idx").on(t.status, t.stage), index("po_contacts_score_idx").on(t.score)],
+);
+
+/** Email templates: built in (keyed) or the team's own; each subject line is an arm the engine learns. */
+export const poTemplates = pgTable("po_templates", {
+  id: id(),
+  key: text("key"),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  industries: text("industries").array().notNull().default(sql`'{}'::text[]`),
+  subjects: text("subjects").array().notNull(),
+  preheader: text("preheader").notNull().default(""),
+  body: text("body").notNull(),
+  ctaLabel: text("cta_label").notNull().default(""),
+  ctaUrl: text("cta_url").notNull().default(""),
+  archived: boolean("archived").notNull().default(false),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** Funnels (steps people move through) and broadcasts (a one-off send). */
+export const poFunnels = pgTable("po_funnels", {
+  id: id(),
+  key: text("key"),
+  name: text("name").notNull(),
+  kind: text("kind").notNull().default("funnel"),
+  status: text("status").notNull().default("paused"),
+  audience: jsonb("audience").$type<Record<string, unknown>>().notNull().default({}),
+  steps: jsonb("steps").$type<Record<string, unknown>[]>().notNull().default([]),
+  goal: text("goal").notNull().default("signed_up"),
+  autoEnroll: boolean("auto_enroll").notNull().default(true),
+  autoOptimize: boolean("auto_optimize").notNull().default(true),
+  startAt: timestamp("start_at", { withTimezone: true }),
+  pausedReason: text("paused_reason").notNull().default(""),
+  createdAt: createdAt(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One person's place in a funnel. */
+export const poEnrollments = pgTable(
+  "po_enrollments",
+  {
+    id: id(),
+    funnelId: uuid("funnel_id").notNull().references(() => poFunnels.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").notNull().references(() => poContacts.id, { onDelete: "cascade" }),
+    stepId: text("step_id"),
+    status: text("status").notNull().default("active"),
+    nextAt: timestamp("next_at", { withTimezone: true }),
+    lastSendId: uuid("last_send_id"),
+    exitReason: text("exit_reason").notNull().default(""),
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("po_enrollments_uq").on(t.funnelId, t.contactId), index("po_enrollments_due_idx").on(t.status, t.nextAt)],
+);
+
+/** Every email sent, with what happened to it. */
+export const poSends = pgTable(
+  "po_sends",
+  {
+    id: id(),
+    token: text("token").notNull(),
+    contactId: uuid("contact_id").notNull().references(() => poContacts.id, { onDelete: "cascade" }),
+    funnelId: uuid("funnel_id").references(() => poFunnels.id, { onDelete: "set null" }),
+    templateId: uuid("template_id").references(() => poTemplates.id, { onDelete: "set null" }),
+    stepId: text("step_id"),
+    variant: integer("variant").notNull().default(0),
+    subject: text("subject").notNull(),
+    industry: text("industry").notNull().default("other"),
+    status: text("status").notNull().default("sent"),
+    error: text("error").notNull().default(""),
+    opens: integer("opens").notNull().default(0),
+    clicks: integer("clicks").notNull().default(0),
+    openedAt: timestamp("opened_at", { withTimezone: true }),
+    clickedAt: timestamp("clicked_at", { withTimezone: true }),
+    unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+    convertedAt: timestamp("converted_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("po_sends_token_uq").on(t.token), index("po_sends_contact_idx").on(t.contactId, t.sentAt), index("po_sends_funnel_idx").on(t.funnelId, t.sentAt), index("po_sends_template_idx").on(t.templateId, t.variant), index("po_sends_sent_idx").on(t.sentAt)],
+);
+
+/** What people did (opens, clicks, unsubscribes, sign-ups…) and what the engine decided. */
+export const poEvents = pgTable(
+  "po_events",
+  {
+    id: id(),
+    contactId: uuid("contact_id").references(() => poContacts.id, { onDelete: "cascade" }),
+    sendId: uuid("send_id"),
+    funnelId: uuid("funnel_id"),
+    kind: text("kind").notNull(),
+    detail: jsonb("detail").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: createdAt(),
+  },
+  (t) => [index("po_events_contact_idx").on(t.contactId, t.createdAt), index("po_events_kind_idx").on(t.kind, t.createdAt)],
+);
